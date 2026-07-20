@@ -208,6 +208,58 @@ describe("editor history", () => {
     expect(undone.present.state.document.animation.fps).toBe(8);
   });
 
+  it("groups a complete FPS slider gesture into one history step", () => {
+    const painted = paint(createInitialHistoryState(), 4);
+    let history = reduce(painted, {
+      type: "history/group-start",
+      groupId: "animation-fps",
+    });
+    for (const fps of [9, 12, 18]) {
+      history = reduce(history, {
+        type: "history/apply",
+        action: { type: "animation/set-fps", fps },
+      });
+    }
+    history = reduce(history, {
+      type: "history/group-end",
+      groupId: "animation-fps",
+    });
+
+    expect(history.past).toHaveLength(2);
+    expect(history.present.state.document.animation.fps).toBe(18);
+
+    const fpsUndone = reduce(history, { type: "history/undo" });
+    expect(fpsUndone.present.state.document.animation.fps).toBe(8);
+    expect(getCelPixels(fpsUndone.present.state.document, "layer-details", "frame-3"))
+      .toEqual({ 4: "#42c8e3" });
+
+    const paintUndone = reduce(fpsUndone, { type: "history/undo" });
+    expect(getCelPixels(paintUndone.present.state.document, "layer-details", "frame-3"))
+      .toEqual({});
+
+    const paintRedone = reduce(paintUndone, { type: "history/redo" });
+    const fpsRedone = reduce(paintRedone, { type: "history/redo" });
+    expect(fpsRedone.present.state.document.animation.fps).toBe(18);
+  });
+
+  it("keeps separate FPS button changes as separate history steps", () => {
+    let history = createInitialHistoryState();
+    history = reduce(history, {
+      type: "history/apply",
+      action: { type: "animation/set-fps", fps: 9 },
+    });
+    history = reduce(history, {
+      type: "history/apply",
+      action: { type: "animation/set-fps", fps: 10 },
+    });
+
+    expect(history.past).toHaveLength(2);
+    const onceUndone = reduce(history, { type: "history/undo" });
+    const twiceUndone = reduce(onceUndone, { type: "history/undo" });
+    expect(onceUndone.present.state.document.animation.fps).toBe(9);
+    expect(twiceUndone.present.state.document.animation.fps).toBe(8);
+  });
+
   it("ignores rejected edits and bounds retained history", () => {
     let history = createInitialHistoryState();
     const rejected = reduce(history, {

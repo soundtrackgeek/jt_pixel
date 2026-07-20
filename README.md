@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.5.0` adds dependable session history while retaining persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.5.1` adds dependable session history while retaining persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -15,7 +15,7 @@ Version `0.5.0` adds dependable session history while retaining persistent proje
 - Functional frame-local layer creation, deletion, selection, visibility, and instant selected-layer restoration, with locked-reference safeguards and live thumbnails
 - Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
 - Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
-- Bounded 100-step Undo and Redo for complete drawing strokes, fills, cel clears, frame-local layer operations, frame operations, and frame-rate changes
+- Bounded 100-step Undo and Redo for complete drawing strokes, fills, cel clears, frame-local layer operations, frame operations, and frame-rate changes, with one history step per FPS slider drag
 - Toolbar history controls plus `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z` shortcuts, with Redo cleared after a branched edit
 - Native Open and Save dialogs for validated, human-readable `.jtp` project files
 - Saved workspace position so projects and recovered work reopen on the frame where you left them
@@ -78,6 +78,8 @@ JT Pixel desktop projects use the `.jtp` extension. Project files are readable J
 Recovered work intentionally does not reuse its previous file path. Its next save opens the native Save dialog, preventing an automatic overwrite after a crash.
 
 Undo and Redo history is kept for the current editing session and is not serialized into `.jtp` files. Saving preserves the current history and establishes a clean checkpoint, so undoing back to that position returns the status to **SAVED**. Opening or restoring a different project starts a fresh history.
+
+History shortcuts remain active while non-text controls such as the FPS range have focus. Individual frame-rate `+` and `−` clicks remain separate Undo steps, while a complete mouse or touch drag on the FPS slider is grouped into one step.
 
 ## In-app updates
 

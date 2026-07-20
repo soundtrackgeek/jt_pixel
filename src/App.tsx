@@ -17,6 +17,24 @@ import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
 import type { CursorPosition, ToolId } from "./types";
 
+const TEXT_EDITING_INPUT_TYPES = new Set([
+  "email",
+  "number",
+  "password",
+  "search",
+  "tel",
+  "text",
+  "url",
+]);
+
+function isTextEditingTarget(target: EventTarget | null) {
+  if (target instanceof HTMLTextAreaElement) return !target.readOnly;
+  if (target instanceof HTMLInputElement) {
+    return !target.readOnly && TEXT_EDITING_INPUT_TYPES.has(target.type);
+  }
+  return target instanceof HTMLElement && target.isContentEditable;
+}
+
 function App() {
   const project = useProjectDocument();
   const persistence = useProjectPersistence({
@@ -59,12 +77,12 @@ function App() {
       if (
         event.defaultPrevented
         || event.altKey
-        || typingTarget
         || modalOpen
         || persistence.isBusy
       ) return;
 
       if (event.ctrlKey || event.metaKey) {
+        if (isTextEditingTarget(target)) return;
         const key = event.key.toLowerCase();
         if (key === "z") {
           event.preventDefault();
@@ -76,6 +94,8 @@ function App() {
         }
         return;
       }
+
+      if (typingTarget) return;
 
       if (event.code === "Space") {
         event.preventDefault();
@@ -162,6 +182,8 @@ function App() {
           onionSkin={onionSkin}
           onDeleteFrame={project.deleteFrame}
           onDuplicateFrame={project.duplicateFrame}
+          onFpsChangeEnd={project.endFpsChange}
+          onFpsChangeStart={project.beginFpsChange}
           onFpsChange={project.setFps}
           onFrameChange={project.selectFrame}
           onOnionSkinChange={setOnionSkin}

@@ -74,6 +74,8 @@ interface TimelineProps {
   onionSkin: boolean;
   onDeleteFrame: (frameId: string) => void;
   onDuplicateFrame: (frameId: string) => void;
+  onFpsChangeEnd: () => void;
+  onFpsChangeStart: () => void;
   onFpsChange: (fps: number) => void;
   onFrameChange: (frameId: string) => void;
   onOnionSkinChange: (enabled: boolean) => void;
@@ -87,6 +89,8 @@ export function Timeline({
   onionSkin,
   onDeleteFrame,
   onDuplicateFrame,
+  onFpsChangeEnd,
+  onFpsChangeStart,
   onFpsChange,
   onFrameChange,
   onOnionSkinChange,
@@ -171,6 +175,10 @@ export function Timeline({
               max="30"
               value={fps}
               onChange={(event) => onFpsChange(Number(event.target.value))}
+              onPointerDown={onFpsChangeStart}
+              onPointerUp={onFpsChangeEnd}
+              onPointerCancel={onFpsChangeEnd}
+              onBlur={onFpsChangeEnd}
             />
           </div>
           <div className="timeline-actions">

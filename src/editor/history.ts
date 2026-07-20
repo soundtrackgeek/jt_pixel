@@ -20,10 +20,14 @@ export interface EditorHistoryState {
   future: HistoryEntry[];
   nextEntryId: number;
   savedEntryId: number | null;
+  activeGroupId: string | null;
+  groupedEntryId: number | null;
 }
 
 export type EditorHistoryAction =
   | { type: "history/apply"; action: ProjectAction }
+  | { type: "history/group-start"; groupId: string }
+  | { type: "history/group-end"; groupId: string }
   | { type: "history/undo" }
   | { type: "history/redo" };
 
@@ -46,6 +50,8 @@ export function createInitialHistoryState(): EditorHistoryState {
     future: [],
     nextEntryId: 1,
     savedEntryId: 0,
+    activeGroupId: null,
+    groupedEntryId: null,
   };
 }
 
@@ -90,6 +96,8 @@ function applyProjectAction(
       future: [],
       nextEntryId: id + 1,
       savedEntryId: nextState.isDirty ? null : id,
+      activeGroupId: null,
+      groupedEntryId: null,
     };
   }
 
@@ -102,6 +110,8 @@ function applyProjectAction(
         restoreState: nextState,
       },
       savedEntryId: history.present.id,
+      activeGroupId: null,
+      groupedEntryId: null,
     };
   }
 
@@ -115,6 +125,21 @@ function applyProjectAction(
           isDirty: history.present.id !== history.savedEntryId,
         },
       },
+    };
+  }
+
+  if (
+    history.activeGroupId !== null
+    && history.groupedEntryId === history.present.id
+  ) {
+    return {
+      ...history,
+      present: {
+        ...history.present,
+        state: nextState,
+        restoreState: nextState,
+      },
+      future: [],
     };
   }
 
@@ -138,6 +163,8 @@ function applyProjectAction(
     future: [],
     nextEntryId: id + 1,
     savedEntryId: history.savedEntryId,
+    activeGroupId: history.activeGroupId,
+    groupedEntryId: history.activeGroupId === null ? null : id,
   };
 }
 
@@ -148,6 +175,22 @@ export function editorHistoryReducer(
   switch (action.type) {
     case "history/apply":
       return applyProjectAction(history, action.action);
+
+    case "history/group-start":
+      return {
+        ...history,
+        activeGroupId: action.groupId,
+        groupedEntryId: null,
+      };
+
+    case "history/group-end":
+      return history.activeGroupId === action.groupId
+        ? {
+            ...history,
+            activeGroupId: null,
+            groupedEntryId: null,
+          }
+        : history;
 
     case "history/undo": {
       const previous = history.past.at(-1);
@@ -162,6 +205,8 @@ export function editorHistoryReducer(
           history.present.state.document.name,
         ),
         future: [history.present, ...history.future].slice(0, HISTORY_LIMIT),
+        activeGroupId: null,
+        groupedEntryId: null,
       };
     }
 
@@ -178,6 +223,8 @@ export function editorHistoryReducer(
           history.present.state.document.name,
         ),
         future: history.future.slice(1),
+        activeGroupId: null,
+        groupedEntryId: null,
       };
     }
   }

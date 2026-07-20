@@ -4,6 +4,18 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] - 2026-07-20
+
+### Fixed
+
+- Keep `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z` available while the FPS range or another non-text input retains focus.
+- Group a complete pointer drag on the FPS slider into one history step so intermediate range values cannot crowd out earlier Undo entries.
+
+### Changed
+
+- Preserve separate Undo steps for individual frame-rate `+` and `−` button clicks.
+- Bumped the application version to `0.5.1`.
+
 ## [0.5.0] - 2026-07-20
 
 ### Added

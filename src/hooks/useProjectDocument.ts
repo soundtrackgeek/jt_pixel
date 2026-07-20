@@ -77,6 +77,14 @@ export function useProjectDocument() {
   );
   const deleteFrame = useCallback((frameId: string) => apply({ type: "frame/delete", frameId }), [apply]);
   const setFps = useCallback((fps: number) => apply({ type: "animation/set-fps", fps }), [apply]);
+  const beginFpsChange = useCallback(
+    () => dispatch({ type: "history/group-start", groupId: "animation-fps" }),
+    [],
+  );
+  const endFpsChange = useCallback(
+    () => dispatch({ type: "history/group-end", groupId: "animation-fps" }),
+    [],
+  );
   const replaceDocument = useCallback(
     (document: ProjectDocument, dirty = false) => apply({
       type: "document/replace",
@@ -121,6 +129,8 @@ export function useProjectDocument() {
     duplicateFrame,
     deleteFrame,
     setFps,
+    beginFpsChange,
+    endFpsChange,
     replaceDocument,
     markSaved,
     commitActiveCel,
