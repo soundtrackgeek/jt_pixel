@@ -1757,6 +1757,99 @@ input:checked + .switch::after {
   background: #354a27;
 }
 
+.project-open-dialog {
+  width: min(500px, 100%);
+}
+
+.project-open-dialog__mark {
+  color: #ff8b84;
+  border-color: #7b414b;
+  background: linear-gradient(145deg, #38202a, #251923);
+  box-shadow: inset 0 0 18px rgb(255 105 98 / 10%), 0 0 18px rgb(255 105 98 / 6%);
+}
+
+.project-open-dialog__project {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  margin-top: 15px;
+  padding: 12px;
+  border: 1px solid #3f5063;
+  border-radius: 5px;
+  background: linear-gradient(100deg, rgb(9 24 37 / 88%), rgb(29 20 38 / 72%));
+}
+
+.project-open-dialog__project-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: var(--violet);
+  border: 1px solid #63408d;
+  border-radius: 4px;
+  background: #261c3d;
+}
+
+.project-open-dialog__project-name {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.project-open-dialog__project-name strong {
+  overflow: hidden;
+  color: #e9f2f5;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-open-dialog__project-name small,
+.project-open-dialog__badge {
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+.project-open-dialog__project-name small {
+  margin-top: 3px;
+  color: #708898;
+}
+
+.project-open-dialog__badge {
+  padding: 5px 7px;
+  color: #ff918a;
+  border: 1px solid rgb(255 105 98 / 28%);
+  border-radius: 3px;
+  background: rgb(255 105 98 / 7%);
+}
+
+.project-open-dialog__note {
+  color: #86809f;
+}
+
+.project-open-dialog__cancel:focus-visible {
+  color: #d9edf2;
+  border-color: var(--cyan);
+  outline: 2px solid rgb(66 217 227 / 20%);
+}
+
+.project-open-dialog__confirm {
+  border: 1px solid #81444c;
+  color: #ffc1bc;
+  background: linear-gradient(180deg, #43242c, #2c1b25);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+
+.project-open-dialog__confirm:hover,
+.project-open-dialog__confirm:focus-visible {
+  color: #ffe4e1;
+  border-color: var(--coral);
+  background: #4a272f;
+}
+
 .settings-backdrop {
   position: fixed;
   inset: 0;

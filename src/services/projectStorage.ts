@@ -1,6 +1,6 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
-import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import {
   BaseDirectory,
   exists,
@@ -41,24 +41,6 @@ export function describeProjectStorageError(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error) return error;
   return "The project file could not be accessed.";
-}
-
-export async function confirmDiscardUnsavedChanges() {
-  if (!isTauri()) {
-    return window.confirm(
-      "Open another project and discard the unsaved changes in this session?",
-    );
-  }
-
-  return confirm(
-    "Open another project and discard the unsaved changes in this session?",
-    {
-      title: "Unsaved JT Pixel project",
-      kind: "warning",
-      okLabel: "Open project",
-      cancelLabel: "Keep editing",
-    },
-  );
 }
 
 export async function openProjectFromDialog(): Promise<OpenedProject | null> {

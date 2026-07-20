@@ -3,7 +3,6 @@ import { createProjectDocument } from "../editor/project";
 import { parseProjectDocument, parseRecoverySnapshot } from "../editor/projectFile";
 
 const mocks = vi.hoisted(() => ({
-  confirm: vi.fn(),
   exists: vi.fn(),
   isTauri: vi.fn(),
   mkdir: vi.fn(),
@@ -19,7 +18,6 @@ vi.mock("@tauri-apps/api/path", () => ({
   appDataDir: vi.fn().mockResolvedValue("C:\\AppData\\com.jtill.jtpixel"),
 }));
 vi.mock("@tauri-apps/plugin-dialog", () => ({
-  confirm: mocks.confirm,
   open: mocks.open,
   save: mocks.save,
 }));

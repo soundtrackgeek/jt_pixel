@@ -4,6 +4,20 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.2] - 2026-07-20
+
+### Added
+
+- Arcade Bloom confirmation dialog before opening another project over unsaved work, including safe default focus and Escape-to-cancel behavior.
+
+### Fixed
+
+- Prevent `Ctrl+S`, `Ctrl+Shift+S`, and `Ctrl+O` from also selecting the Select or Ellipse drawing tools.
+
+### Changed
+
+- Replaced the native unsaved-project warning with an in-app dialog and removed the no-longer-needed native confirm permission.
+
 ## [0.4.1] - 2026-07-20
 
 ### Fixed

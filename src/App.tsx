@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CanvasStage } from "./components/CanvasStage";
 import { Inspector } from "./components/Inspector";
+import { ProjectOpenDialog } from "./components/ProjectOpenDialog";
 import { ProjectRecoveryDialog } from "./components/ProjectRecoveryDialog";
 import { ProjectToast } from "./components/ProjectToast";
 import { StatusBar } from "./components/StatusBar";
@@ -39,6 +40,9 @@ function App() {
     0,
     document.frames.findIndex((frame) => frame.id === project.state.activeFrameId),
   );
+  const modalOpen = settingsOpen
+    || persistence.openConfirmationRequested
+    || persistence.recovery !== null;
 
   const shortcutMap = useMemo(
     () => new Map(tools.map((tool) => [tool.shortcut.toLowerCase(), tool.id])),
@@ -47,7 +51,19 @@ function App() {
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
-      if (event.target instanceof HTMLInputElement) return;
+      const target = event.target;
+      const typingTarget = target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || (target instanceof HTMLElement && target.isContentEditable);
+      if (
+        event.defaultPrevented
+        || event.ctrlKey
+        || event.metaKey
+        || event.altKey
+        || typingTarget
+        || modalOpen
+      ) return;
 
       if (event.code === "Space") {
         event.preventDefault();
@@ -61,7 +77,7 @@ function App() {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [shortcutMap]);
+  }, [modalOpen, shortcutMap]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -168,6 +184,12 @@ function App() {
       <ProjectToast
         toast={persistence.toast}
         onDismiss={persistence.dismissToast}
+      />
+      <ProjectOpenDialog
+        open={persistence.openConfirmationRequested}
+        projectName={document.name}
+        onCancel={persistence.cancelOpenProject}
+        onConfirm={() => void persistence.confirmOpenProject()}
       />
       <ProjectRecoveryDialog
         recovery={persistence.recovery}

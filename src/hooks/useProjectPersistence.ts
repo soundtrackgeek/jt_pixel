@@ -4,7 +4,6 @@ import type { RecoverySnapshot } from "../editor/projectFile";
 import {
   chooseProjectSavePath,
   clearRecoverySnapshot,
-  confirmDiscardUnsavedChanges,
   describeProjectStorageError,
   desktopProjectFilesAvailable,
   openProjectFromDialog,
@@ -37,6 +36,7 @@ export function useProjectPersistence({
   const desktopAvailable = desktopProjectFilesAvailable();
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [openConfirmationRequested, setOpenConfirmationRequested] = useState(false);
   const [toast, setToast] = useState<ProjectToastModel | null>(null);
   const [recovery, setRecovery] = useState<RecoverySnapshot | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
@@ -166,7 +166,7 @@ export function useProjectPersistence({
     }
   }, [clearQueuedRecovery, currentPath, desktopAvailable, markSaved, state.document]);
 
-  const openProject = useCallback(async () => {
+  const openSelectedProject = useCallback(async () => {
     if (!desktopAvailable) {
       setToast({
         kind: "desktop-only",
@@ -176,8 +176,6 @@ export function useProjectPersistence({
       return;
     }
     if (busyRef.current) return;
-
-    if (state.isDirty && !await confirmDiscardUnsavedChanges()) return;
 
     busyRef.current = true;
     setIsBusy(true);
@@ -215,7 +213,25 @@ export function useProjectPersistence({
       busyRef.current = false;
       setIsBusy(false);
     }
-  }, [clearQueuedRecovery, desktopAvailable, replaceDocument, state.isDirty]);
+  }, [clearQueuedRecovery, desktopAvailable, replaceDocument]);
+
+  const openProject = useCallback(async () => {
+    if (busyRef.current) return;
+    if (state.isDirty) {
+      setOpenConfirmationRequested(true);
+      return;
+    }
+    await openSelectedProject();
+  }, [openSelectedProject, state.isDirty]);
+
+  const cancelOpenProject = useCallback(() => {
+    setOpenConfirmationRequested(false);
+  }, []);
+
+  const confirmOpenProject = useCallback(async () => {
+    setOpenConfirmationRequested(false);
+    await openSelectedProject();
+  }, [openSelectedProject]);
 
   const restoreRecovery = useCallback(() => {
     if (!recovery) return;
@@ -252,6 +268,10 @@ export function useProjectPersistence({
     const handleFileShortcut = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
+      if (openConfirmationRequested && (key === "s" || key === "o")) {
+        event.preventDefault();
+        return;
+      }
       if (key === "s") {
         event.preventDefault();
         void saveProject(event.shiftKey);
@@ -263,7 +283,7 @@ export function useProjectPersistence({
 
     window.addEventListener("keydown", handleFileShortcut);
     return () => window.removeEventListener("keydown", handleFileShortcut);
-  }, [openProject, saveProject]);
+  }, [openConfirmationRequested, openProject, saveProject]);
 
   const documentStatus = isBusy
     ? "FILE BUSY"
@@ -283,12 +303,15 @@ export function useProjectPersistence({
 
   return {
     currentPath,
+    cancelOpenProject,
+    confirmOpenProject,
     desktopAvailable,
     discardRecovery,
     dismissToast,
     documentStatus,
     isBusy,
     lastRecoveryAt,
+    openConfirmationRequested,
     openProject,
     recovery,
     restoreRecovery,
