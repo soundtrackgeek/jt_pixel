@@ -65,12 +65,13 @@ export function useProjectPersistence({
     setRecoveryStatus("pending");
     const revision = state.revision;
     const document = state.document;
+    const activeFrameId = state.activeFrameId;
     const timer = window.setTimeout(() => {
       if (revision !== latestRecoveryRevisionRef.current) return;
       setRecoveryStatus("saving");
       const write = recoveryWriteQueueRef.current
         .catch(() => undefined)
-        .then(() => writeRecoverySnapshot(document));
+        .then(() => writeRecoverySnapshot(document, activeFrameId));
       recoveryWriteQueueRef.current = write;
       void write.then(() => {
         if (revision !== latestRecoveryRevisionRef.current) return;
@@ -88,7 +89,7 @@ export function useProjectPersistence({
     }, RECOVERY_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [state.document, state.isDirty, state.revision]);
+  }, [state.activeFrameId, state.document, state.isDirty, state.revision]);
 
   useEffect(() => {
     if (toast?.kind !== "success" && toast?.kind !== "desktop-only") return;
@@ -142,7 +143,11 @@ export function useProjectPersistence({
         return;
       }
 
-      const saved = await writeProjectToPath(state.document, targetPath);
+      const saved = await writeProjectToPath(
+        state.document,
+        targetPath,
+        state.activeFrameId,
+      );
       markSaved(saved.document);
       setCurrentPath(saved.path);
       setRecovery(null);
@@ -164,7 +169,14 @@ export function useProjectPersistence({
       busyRef.current = false;
       setIsBusy(false);
     }
-  }, [clearQueuedRecovery, currentPath, desktopAvailable, markSaved, state.document]);
+  }, [
+    clearQueuedRecovery,
+    currentPath,
+    desktopAvailable,
+    markSaved,
+    state.activeFrameId,
+    state.document,
+  ]);
 
   const openSelectedProject = useCallback(async () => {
     if (!desktopAvailable) {

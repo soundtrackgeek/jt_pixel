@@ -28,6 +28,7 @@ describe("project document reducer", () => {
     expect(state.document.frames).toHaveLength(8);
     expect(state.document.layers.filter((layer) => layer.kind === "pixel")).toHaveLength(3);
     expect(state.document.layers.find((layer) => layer.kind === "reference")?.locked).toBe(true);
+    expect(state.document.workspace.activeFrameId).toBe("frame-3");
     expect(state.frameLayerSelection["frame-3"]).toBe("layer-details");
     expect(state.isDirty).toBe(false);
   });
@@ -214,12 +215,13 @@ describe("project document reducer", () => {
     expect(unchanged).toBe(state);
   });
 
-  it("replaces a project with valid editor defaults and marks saved metadata", () => {
+  it("restores the saved active frame and marks saved metadata", () => {
     const initial = createInitialEditorState();
     const replacement = {
       ...initial.document,
       name: "opened-project.jtp",
       frames: initial.document.frames.slice(0, 2),
+      workspace: { activeFrameId: "frame-2" },
     };
     const recovered = projectReducer(initial, {
       type: "document/replace",
@@ -228,7 +230,7 @@ describe("project document reducer", () => {
     });
 
     expect(recovered.document).toBe(replacement);
-    expect(recovered.activeFrameId).toBe("frame-1");
+    expect(recovered.activeFrameId).toBe("frame-2");
     expect(recovered.activeLayerId).toBe("layer-details");
     expect(recovered.isDirty).toBe(true);
     expect(recovered.revision).toBe(1);
@@ -239,7 +241,7 @@ describe("project document reducer", () => {
       document: savedDocument,
     });
     expect(saved.document).toBe(savedDocument);
-    expect(saved.activeFrameId).toBe("frame-1");
+    expect(saved.activeFrameId).toBe("frame-2");
     expect(saved.isDirty).toBe(false);
   });
 });

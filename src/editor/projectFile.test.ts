@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { celKey, createProjectDocument } from "./project";
+import {
+  celKey,
+  createEditorStateForDocument,
+  createProjectDocument,
+} from "./project";
 import {
   ProjectFileError,
   createRecoverySnapshot,
@@ -30,6 +34,7 @@ describe("project files", () => {
 
     expect(parsed).toEqual(source);
     expect(parsed).not.toBe(source);
+    expect(parsed.workspace.activeFrameId).toBe("frame-3");
     expect(parsed.cels[celKey("layer-details", "frame-3")].pixels).toEqual({
       "12": "#42c8e3",
       "13": "#42c8e380",
@@ -54,6 +59,22 @@ describe("project files", () => {
     expect(() => parseProjectDocument("{ definitely not json")).toThrow(/not valid JSON/);
   });
 
+  it("opens older files on frame 1 and rejects unknown saved frames", () => {
+    const legacy = projectWithPixels() as Partial<ReturnType<typeof projectWithPixels>>;
+    delete legacy.workspace;
+    expect(parseProjectDocument(JSON.stringify(legacy)).workspace.activeFrameId).toBe(
+      "frame-1",
+    );
+
+    const invalidWorkspace = {
+      ...projectWithPixels(),
+      workspace: { activeFrameId: "frame-missing" },
+    };
+    expect(() => parseProjectDocument(JSON.stringify(invalidWorkspace))).toThrow(
+      /unknown frame/,
+    );
+  });
+
   it("round-trips a versioned recovery snapshot", () => {
     const snapshot = createRecoverySnapshot(
       projectWithPixels(),
@@ -74,9 +95,18 @@ describe("project files", () => {
     const saved = prepareProjectDocumentForSave(
       projectWithPixels(),
       "C:\\Sprites\\courier-final.jtp",
-      "2026-07-20T12:00:00.000Z",
+      {
+        activeFrameId: "frame-4",
+        savedAt: "2026-07-20T12:00:00.000Z",
+      },
     );
     expect(saved.name).toBe("courier-final.jtp");
     expect(saved.updatedAt).toBe("2026-07-20T12:00:00.000Z");
+    expect(saved.workspace.activeFrameId).toBe("frame-4");
+
+    const reopened = createEditorStateForDocument(
+      parseProjectDocument(serializeProjectDocument(saved)),
+    );
+    expect(reopened.activeFrameId).toBe("frame-4");
   });
 });

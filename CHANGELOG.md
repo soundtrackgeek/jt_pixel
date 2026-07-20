@@ -4,6 +4,16 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.3] - 2026-07-20
+
+### Added
+
+- Persist the active workspace frame in project files and recovery snapshots so work reopens exactly where it was saved.
+
+### Changed
+
+- Keep schema-v1 project files without workspace metadata compatible by opening them on their first frame.
+
 ## [0.4.2] - 2026-07-20
 
 ### Added

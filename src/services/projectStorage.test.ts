@@ -47,14 +47,21 @@ describe("project storage", () => {
 
   it("writes a named, validated .jtp file to the selected path", async () => {
     const document = createProjectDocument("2026-07-20T10:00:00.000Z");
-    const saved = await writeProjectToPath(document, "C:\\Sprites\\courier-final");
+    const saved = await writeProjectToPath(
+      document,
+      "C:\\Sprites\\courier-final",
+      "frame-4",
+    );
 
     expect(saved.path).toBe("C:\\Sprites\\courier-final.jtp");
     expect(saved.document.name).toBe("courier-final.jtp");
     expect(mocks.writeTextFile).toHaveBeenCalledOnce();
     const [path, contents] = mocks.writeTextFile.mock.calls[0];
     expect(path).toBe(saved.path);
-    expect(parseProjectDocument(contents).name).toBe("courier-final.jtp");
+    expect(parseProjectDocument(contents)).toMatchObject({
+      name: "courier-final.jtp",
+      workspace: { activeFrameId: "frame-4" },
+    });
   });
 
   it("opens a selected project only after parsing its document", async () => {
@@ -71,7 +78,7 @@ describe("project storage", () => {
 
   it("round-trips recovery through the scoped app-data file", async () => {
     const document = createProjectDocument("2026-07-20T10:00:00.000Z");
-    await writeRecoverySnapshot(document);
+    await writeRecoverySnapshot(document, "frame-4");
 
     expect(mocks.mkdir).toHaveBeenCalledWith(
       "C:\\AppData\\com.jtill.jtpixel",
@@ -79,14 +86,22 @@ describe("project storage", () => {
     );
     const [, serialized, writeOptions] = mocks.writeTextFile.mock.calls[0];
     expect(writeOptions).toEqual({ baseDir: 17 });
-    expect(parseRecoverySnapshot(serialized).document).toEqual(document);
+    expect(parseRecoverySnapshot(serialized).document).toEqual({
+      ...document,
+      workspace: { activeFrameId: "frame-4" },
+    });
     expect(mocks.mkdir.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.writeTextFile.mock.invocationCallOrder[0],
     );
 
     mocks.exists.mockResolvedValue(true);
     mocks.readTextFile.mockResolvedValue(serialized);
-    await expect(readRecoverySnapshot()).resolves.toMatchObject({ document });
+    await expect(readRecoverySnapshot()).resolves.toMatchObject({
+      document: {
+        ...document,
+        workspace: { activeFrameId: "frame-4" },
+      },
+    });
   });
 
   it("removes recovery only when the scoped file exists", async () => {

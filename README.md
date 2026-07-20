@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.4.2` adds conflict-free file shortcuts and an Arcade Bloom unsaved-changes dialog to persistent project files and crash recovery while retaining the signed desktop update channel:
+Version `0.4.3` restores the saved working frame when opening projects while retaining persistent project files, crash recovery, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -16,6 +16,7 @@ Version `0.4.2` adds conflict-free file shortcuts and an Arcade Bloom unsaved-ch
 - Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
 - Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
 - Native Open and Save dialogs for validated, human-readable `.jtp` project files
+- Saved workspace position so projects and recovered work reopen on the frame where you left them
 - Debounced crash recovery with restore/discard choices and visible recovery status
 - `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` project shortcuts with unsaved-work protection
 - Arcade Bloom confirmation before replacing unsaved work, with safe keyboard focus and Escape-to-cancel behavior

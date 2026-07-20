@@ -41,6 +41,9 @@ export interface ProjectDocument {
     fps: number;
     loop: boolean;
   };
+  workspace: {
+    activeFrameId: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -153,6 +156,7 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
     frameLayerVisibility: {},
     frameLayerPresence: {},
     animation: { fps: 8, loop: true },
+    workspace: { activeFrameId: "frame-3" },
     createdAt: now,
     updatedAt: now,
   };
@@ -160,7 +164,7 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
 
 export function createInitialEditorState(): EditorDocumentState {
   const document = createProjectDocument();
-  return createEditorStateForDocument(document, false, 0, "frame-3");
+  return createEditorStateForDocument(document);
 }
 
 export function createEditorStateForDocument(
@@ -169,8 +173,9 @@ export function createEditorStateForDocument(
   revision = 0,
   preferredFrameId?: string,
 ): EditorDocumentState {
+  const requestedFrameId = preferredFrameId ?? document.workspace.activeFrameId;
   const activeFrameId = document.frames.find(
-    (frame) => frame.id === preferredFrameId,
+    (frame) => frame.id === requestedFrameId,
   )?.id ?? document.frames[0].id;
   const frameLayerSelection = Object.fromEntries(
     document.frames.map((frame) => [

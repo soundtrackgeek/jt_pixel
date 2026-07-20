@@ -146,6 +146,25 @@ function parseFrames(value: unknown) {
   });
 }
 
+function parseWorkspace(
+  value: unknown,
+  frameIds: Set<string>,
+  fallbackFrameId: string,
+) {
+  if (value === undefined) return { activeFrameId: fallbackFrameId };
+
+  const workspace = expectRecord(value, "workspace");
+  const activeFrameId = expectString(
+    workspace.activeFrameId,
+    "workspace.activeFrameId",
+    200,
+  );
+  if (!frameIds.has(activeFrameId)) {
+    throw new ProjectFileError("workspace.activeFrameId references an unknown frame.");
+  }
+  return { activeFrameId };
+}
+
 function parsePixelMap(value: unknown, label: string, pixelCount: number): PixelMap {
   const source = expectRecord(value, label);
   const pixels: PixelMap = {};
@@ -274,6 +293,7 @@ export function validateProjectDocument(value: unknown): ProjectDocument {
       fps: expectInteger(animation.fps, "animation.fps", 1, 30),
       loop: expectBoolean(animation.loop, "animation.loop"),
     },
+    workspace: parseWorkspace(source.workspace, frameIds, frames[0].id),
     createdAt: expectTimestamp(source.createdAt, "createdAt"),
     updatedAt: expectTimestamp(source.updatedAt, "updatedAt"),
   };
@@ -311,11 +331,15 @@ export function serializeProjectDocument(document: ProjectDocument) {
 export function createRecoverySnapshot(
   document: ProjectDocument,
   savedAt = new Date().toISOString(),
+  activeFrameId = document.workspace.activeFrameId,
 ): RecoverySnapshot {
   return {
     recoveryVersion: RECOVERY_SCHEMA_VERSION,
     savedAt: expectTimestamp(savedAt, "savedAt"),
-    document: validateProjectDocument(document),
+    document: validateProjectDocument({
+      ...document,
+      workspace: { activeFrameId },
+    }),
   };
 }
 
@@ -350,11 +374,17 @@ export function projectFileName(path: string) {
 export function prepareProjectDocumentForSave(
   document: ProjectDocument,
   path: string,
-  savedAt = new Date().toISOString(),
+  options: {
+    activeFrameId?: string;
+    savedAt?: string;
+  } = {},
 ) {
   return validateProjectDocument({
     ...document,
     name: projectFileName(path),
-    updatedAt: savedAt,
+    workspace: {
+      activeFrameId: options.activeFrameId ?? document.workspace.activeFrameId,
+    },
+    updatedAt: options.savedAt ?? new Date().toISOString(),
   });
 }
