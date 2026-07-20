@@ -970,7 +970,6 @@ input:checked + .switch::after {
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: #9cb1bf;
-  transition: 120ms ease;
 }
 
 .layer-row:hover {

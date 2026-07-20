@@ -4,6 +4,17 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.4] - 2026-07-20
+
+### Fixed
+
+- Removed the layer-row selection transition that briefly left the previous frame's layer looking selected after switching frames.
+- Made remembered layer selection appear immediately while preserving hover, frame-local membership, and selection behavior.
+
+### Changed
+
+- Bumped the application version to `0.3.4`.
+
 ## [0.3.3] - 2026-07-20
 
 ### Fixed
