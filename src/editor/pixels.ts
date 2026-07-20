@@ -60,10 +60,33 @@ export function applySquareBrush(
   }
 }
 
-export function fillPixelMap(width: number, height: number, color: string): PixelMap {
-  const pixels: PixelMap = {};
-  for (let index = 0; index < width * height; index += 1) pixels[String(index)] = color;
-  return pixels;
+export function floodFillPixelMap(
+  pixels: PixelMap,
+  start: CursorPosition,
+  width: number,
+  height: number,
+  color: string,
+) {
+  const startIndex = pixelIndex(start.x, start.y, width);
+  const targetColor = pixels[startIndex] ?? null;
+  if (targetColor === color) return false;
+
+  const pending: CursorPosition[] = [start];
+  while (pending.length > 0) {
+    const position = pending.pop();
+    if (!position) break;
+
+    const index = pixelIndex(position.x, position.y, width);
+    if ((pixels[index] ?? null) !== targetColor) continue;
+    pixels[index] = color;
+
+    if (position.x > 0) pending.push({ x: position.x - 1, y: position.y });
+    if (position.x < width - 1) pending.push({ x: position.x + 1, y: position.y });
+    if (position.y > 0) pending.push({ x: position.x, y: position.y - 1 });
+    if (position.y < height - 1) pending.push({ x: position.x, y: position.y + 1 });
+  }
+
+  return true;
 }
 
 export function drawPixelMap(

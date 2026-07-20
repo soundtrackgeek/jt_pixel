@@ -3,12 +3,17 @@ import { useCallback, useMemo, useRef, type CSSProperties, type PointerEvent } f
 import courierScene from "../assets/courier-scene.png";
 import {
   applySquareBrush,
-  fillPixelMap,
+  floodFillPixelMap,
   forEachLinePoint,
   hexWithOpacity,
   renderPixelMap,
 } from "../editor/pixels";
-import { getCelPixels, type PixelMap, type ProjectDocument } from "../editor/project";
+import {
+  getCelPixels,
+  isLayerVisible,
+  type PixelMap,
+  type ProjectDocument,
+} from "../editor/project";
 import type { CursorPosition, ToolId } from "../types";
 import { PixelLayerCanvas } from "./PixelLayerCanvas";
 
@@ -61,7 +66,10 @@ export function CanvasStage({
     () => [...document.layers].reverse().filter((layer) => layer.kind === "pixel"),
     [document.layers],
   );
-  const canPaint = activeLayer?.kind === "pixel" && !activeLayer.locked && activeLayer.visible;
+  const canPaint =
+    activeLayer?.kind === "pixel" &&
+    !activeLayer.locked &&
+    isLayerVisible(document, activeLayer.id, activeFrameId);
 
   const registerCanvas = useCallback((layerId: string, canvas: HTMLCanvasElement | null) => {
     if (canvas) layerCanvasesRef.current.set(layerId, canvas);
@@ -111,11 +119,14 @@ export function CanvasStage({
     lastPixelRef.current = position;
 
     if (activeTool === "bucket") {
-      draftPixelsRef.current = fillPixelMap(
+      const didFill = floodFillPixelMap(
+        draftPixelsRef.current,
+        position,
         document.width,
         document.height,
         hexWithOpacity(activeColor, opacity),
       );
+      if (!didFill) return;
       redrawDraft();
       onCommitActiveCel(draftPixelsRef.current);
       return;
@@ -169,7 +180,7 @@ export function CanvasStage({
             "--grid-height": document.height,
           } as CSSProperties}
         >
-          {referenceLayer?.visible && (
+          {referenceLayer && isLayerVisible(document, referenceLayer.id, activeFrameId) && (
             <img
               src={courierScene}
               alt="Pixel art space courier and hovering robot"
@@ -188,6 +199,7 @@ export function CanvasStage({
               layer={layer}
               pixels={getCelPixels(document, layer.id, activeFrameId)}
               registerCanvas={registerCanvas}
+              visible={isLayerVisible(document, layer.id, activeFrameId)}
             />
           ))}
           <canvas

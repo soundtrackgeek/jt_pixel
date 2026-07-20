@@ -13,7 +13,12 @@ import {
 import { memo, useEffect, useRef } from "react";
 import courierScene from "../assets/courier-scene.png";
 import { drawPixelMap } from "../editor/pixels";
-import { getCelPixels, type ProjectDocument, type ProjectFrame } from "../editor/project";
+import {
+  getCelPixels,
+  isLayerVisible,
+  type ProjectDocument,
+  type ProjectFrame,
+} from "../editor/project";
 
 interface FramePreviewProps {
   document: ProjectDocument;
@@ -31,7 +36,7 @@ const FramePreview = memo(function FramePreview({ document, frame }: FramePrevie
     context.imageSmoothingEnabled = false;
     const pixelLayers = document.layers.filter((layer) => layer.kind === "pixel").reverse();
     for (const layer of pixelLayers) {
-      if (!layer.visible) continue;
+      if (!isLayerVisible(document, layer.id, frame.id)) continue;
       context.globalAlpha = layer.opacity / 100;
       context.globalCompositeOperation = layer.blendMode === "add" ? "lighter" : "source-over";
       drawPixelMap(context, getCelPixels(document, layer.id, frame.id), document.width);
@@ -42,7 +47,7 @@ const FramePreview = memo(function FramePreview({ document, frame }: FramePrevie
 
   return (
     <span className="frame-art">
-      {referenceLayer?.visible && (
+      {referenceLayer && isLayerVisible(document, referenceLayer.id, frame.id) && (
         <span
           className="frame-reference"
           style={{

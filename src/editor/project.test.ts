@@ -4,6 +4,7 @@ import {
   celKey,
   createInitialEditorState,
   getCelPixels,
+  isLayerVisible,
   projectReducer,
   type EditorDocumentState,
 } from "./project";
@@ -41,7 +42,11 @@ describe("project document reducer", () => {
   });
 
   it("duplicates a frame and deep-copies its cels", () => {
-    const source = paintedState();
+    const source = projectReducer(paintedState(), {
+      type: "layer/toggle-visibility",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
     const duplicated = projectReducer(source, {
       type: "frame/duplicate",
       frameId: "frame-3",
@@ -56,25 +61,36 @@ describe("project document reducer", () => {
     expect(getCelPixels(duplicated.document, "layer-details", "frame-copy")).not.toBe(
       getCelPixels(source.document, "layer-details", "frame-3"),
     );
+    expect(isLayerVisible(duplicated.document, "layer-details", "frame-copy")).toBe(false);
   });
 
   it("deletes editable layers and their cels but protects the reference", () => {
-    const source = paintedState();
+    const source = projectReducer(paintedState(), {
+      type: "layer/toggle-visibility",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
     const protectedState = projectReducer(source, { type: "layer/delete", layerId: "layer-reference" });
     const deleted = projectReducer(source, { type: "layer/delete", layerId: "layer-details" });
 
     expect(protectedState).toBe(source);
     expect(deleted.document.layers.some((layer) => layer.id === "layer-details")).toBe(false);
     expect(deleted.document.cels[celKey("layer-details", "frame-3")]).toBeUndefined();
+    expect(deleted.document.frameLayerVisibility[celKey("layer-details", "frame-3")]).toBeUndefined();
     expect(deleted.activeLayerId).not.toBe("layer-details");
   });
 
-  it("toggles actual document visibility and clamps animation speed", () => {
+  it("scopes layer visibility to one frame and clamps animation speed", () => {
     const initial = createInitialEditorState();
-    const hidden = projectReducer(initial, { type: "layer/toggle-visibility", layerId: "layer-color" });
+    const hidden = projectReducer(initial, {
+      type: "layer/toggle-visibility",
+      layerId: "layer-color",
+      frameId: "frame-3",
+    });
     const fast = projectReducer(hidden, { type: "animation/set-fps", fps: 99 });
 
-    expect(hidden.document.layers.find((layer) => layer.id === "layer-color")?.visible).toBe(false);
+    expect(isLayerVisible(hidden.document, "layer-color", "frame-3")).toBe(false);
+    expect(isLayerVisible(hidden.document, "layer-color", "frame-4")).toBe(true);
     expect(fast.document.animation.fps).toBe(30);
     expect(fast.isDirty).toBe(true);
   });

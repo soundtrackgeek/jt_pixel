@@ -26,8 +26,12 @@ export function useProjectDocument() {
 
   const selectLayer = useCallback((layerId: string) => dispatch({ type: "layer/select", layerId }), []);
   const toggleLayerVisibility = useCallback(
-    (layerId: string) => dispatch({ type: "layer/toggle-visibility", layerId }),
-    [],
+    (layerId: string) => dispatch({
+      type: "layer/toggle-visibility",
+      layerId,
+      frameId: state.activeFrameId,
+    }),
+    [state.activeFrameId],
   );
   const addLayer = useCallback(() => {
     const layer: ProjectLayer = {

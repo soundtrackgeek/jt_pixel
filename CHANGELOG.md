@@ -4,6 +4,19 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-07-20
+
+### Fixed
+
+- Replaced whole-canvas bucket painting with a four-way flood fill that respects closed pixel boundaries and replaces only the connected region under the pointer.
+- Scoped layer visibility to the active frame so hiding a layer no longer hides that layer's artwork throughout the entire animation.
+- Preserved per-frame visibility when duplicating frames and removed stale visibility state when deleting frames or layers.
+
+### Changed
+
+- Clarified layer visibility controls as frame-specific and expanded regression coverage for bounded fill and frame-scoped visibility.
+- Bumped the application version to `0.3.1`.
+
 ## [0.3.0] - 2026-07-20
 
 ### Added

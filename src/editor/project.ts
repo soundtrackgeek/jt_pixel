@@ -35,6 +35,7 @@ export interface ProjectDocument {
   layers: ProjectLayer[];
   frames: ProjectFrame[];
   cels: Record<string, PixelCel>;
+  frameLayerVisibility: Record<string, boolean>;
   animation: {
     fps: number;
     loop: boolean;
@@ -55,7 +56,7 @@ export type ProjectAction =
   | { type: "cel/commit"; layerId: string; frameId: string; pixels: PixelMap }
   | { type: "cel/clear"; layerId: string; frameId: string }
   | { type: "layer/select"; layerId: string }
-  | { type: "layer/toggle-visibility"; layerId: string }
+  | { type: "layer/toggle-visibility"; layerId: string; frameId: string }
   | { type: "layer/add"; layer: ProjectLayer }
   | { type: "layer/delete"; layerId: string }
   | { type: "frame/select"; frameId: string }
@@ -101,6 +102,15 @@ export function celKey(layerId: string, frameId: string) {
   return `${layerId}::${frameId}`;
 }
 
+export function isLayerVisible(
+  document: ProjectDocument,
+  layerId: string,
+  frameId: string,
+) {
+  const layer = document.layers.find((candidate) => candidate.id === layerId);
+  return document.frameLayerVisibility[celKey(layerId, frameId)] ?? layer?.visible ?? false;
+}
+
 export function getCelPixels(
   document: ProjectDocument,
   layerId: string,
@@ -129,6 +139,7 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
       referenceOffset,
     })),
     cels: {},
+    frameLayerVisibility: {},
     animation: { fps: 8, loop: true },
     createdAt: now,
     updatedAt: now,
@@ -201,12 +212,17 @@ export function projectReducer(
         : state;
 
     case "layer/toggle-visibility": {
-      if (!document.layers.some((layer) => layer.id === action.layerId)) return state;
+      if (
+        !document.layers.some((layer) => layer.id === action.layerId) ||
+        !document.frames.some((frame) => frame.id === action.frameId)
+      ) return state;
+      const key = celKey(action.layerId, action.frameId);
       return changed(state, {
         ...document,
-        layers: document.layers.map((layer) =>
-          layer.id === action.layerId ? { ...layer, visible: !layer.visible } : layer,
-        ),
+        frameLayerVisibility: {
+          ...document.frameLayerVisibility,
+          [key]: !isLayerVisible(document, action.layerId, action.frameId),
+        },
       });
     }
 
@@ -228,7 +244,12 @@ export function projectReducer(
       const cels = Object.fromEntries(
         Object.entries(document.cels).filter(([, cel]) => cel.layerId !== action.layerId),
       );
-      const next = changed(state, { ...document, layers, cels });
+      const frameLayerVisibility = Object.fromEntries(
+        Object.entries(document.frameLayerVisibility).filter(
+          ([key]) => !key.startsWith(`${action.layerId}::`),
+        ),
+      );
+      const next = changed(state, { ...document, layers, cels, frameLayerVisibility });
       return {
         ...next,
         activeLayerId:
@@ -261,6 +282,7 @@ export function projectReducer(
       const frames = [...document.frames];
       frames.splice(index + 1, 0, duplicate);
       const cels = { ...document.cels };
+      const frameLayerVisibility = { ...document.frameLayerVisibility };
       for (const layer of document.layers) {
         const sourceCel = document.cels[celKey(layer.id, source.id)];
         if (sourceCel) {
@@ -270,9 +292,14 @@ export function projectReducer(
             pixels: { ...sourceCel.pixels },
           };
         }
+        const visibilityKey = celKey(layer.id, source.id);
+        if (Object.hasOwn(document.frameLayerVisibility, visibilityKey)) {
+          frameLayerVisibility[celKey(layer.id, duplicate.id)] =
+            document.frameLayerVisibility[visibilityKey];
+        }
       }
       return {
-        ...changed(state, { ...document, frames, cels }),
+        ...changed(state, { ...document, frames, cels, frameLayerVisibility }),
         activeFrameId: duplicate.id,
       };
     }
@@ -285,7 +312,12 @@ export function projectReducer(
       const cels = Object.fromEntries(
         Object.entries(document.cels).filter(([, cel]) => cel.frameId !== action.frameId),
       );
-      const next = changed(state, { ...document, frames, cels });
+      const frameLayerVisibility = Object.fromEntries(
+        Object.entries(document.frameLayerVisibility).filter(
+          ([key]) => !key.endsWith(`::${action.frameId}`),
+        ),
+      );
+      const next = changed(state, { ...document, frames, cels, frameLayerVisibility });
       return {
         ...next,
         activeFrameId:

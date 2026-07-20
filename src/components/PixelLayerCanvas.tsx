@@ -7,6 +7,7 @@ interface PixelLayerCanvasProps {
   layer: ProjectLayer;
   pixels: PixelMap;
   registerCanvas?: (layerId: string, canvas: HTMLCanvasElement | null) => void;
+  visible: boolean;
   width: number;
 }
 
@@ -15,6 +16,7 @@ export const PixelLayerCanvas = memo(function PixelLayerCanvas({
   layer,
   pixels,
   registerCanvas,
+  visible,
   width,
 }: PixelLayerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,8 +37,10 @@ export const PixelLayerCanvas = memo(function PixelLayerCanvas({
       width={width}
       height={height}
       aria-hidden="true"
+      data-layer-id={layer.id}
+      data-pixel-count={Object.keys(pixels).length}
       style={{
-        display: layer.visible ? "block" : "none",
+        display: visible ? "block" : "none",
         mixBlendMode: layer.blendMode === "add" ? "screen" : "normal",
         opacity: layer.opacity / 100,
       }}
