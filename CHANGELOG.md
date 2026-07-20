@@ -4,6 +4,12 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.3] - 2026-07-20
+
+### Fixed
+
+- Removed cached installer bundles before each CI build so checksum and artifact steps only process the installer created for the current commit.
+
 ## [0.1.2] - 2026-07-20
 
 ### Changed

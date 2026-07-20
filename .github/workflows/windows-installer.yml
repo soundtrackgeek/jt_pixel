@@ -52,6 +52,22 @@ jobs:
       - name: Check frontend types
         run: npm run check
 
+      - name: Remove stale installer bundles
+        shell: pwsh
+        run: |
+          $workspace = [IO.Path]::GetFullPath($env:GITHUB_WORKSPACE)
+          $bundleDirectory = [IO.Path]::GetFullPath(
+            (Join-Path $workspace "src-tauri/target/release/bundle")
+          )
+
+          if (-not $bundleDirectory.StartsWith($workspace + [IO.Path]::DirectorySeparatorChar)) {
+            throw "Bundle directory escaped the GitHub workspace."
+          }
+
+          if (Test-Path -LiteralPath $bundleDirectory) {
+            Remove-Item -LiteralPath $bundleDirectory -Recurse -Force
+          }
+
       - name: Build NSIS installer
         run: npm run tauri:build
 
