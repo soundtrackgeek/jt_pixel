@@ -1,6 +1,6 @@
 [package]
 name = "jt-pixel"
-version = "0.2.0"
+version = "0.3.0"
 description = "A focused pixel art and sprite animation studio"
 authors = ["JT Pixel contributors"]
 edition = "2024"

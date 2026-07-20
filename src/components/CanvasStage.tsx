@@ -1,108 +1,160 @@
 import { Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
-import { useRef, useState, type PointerEvent } from "react";
+import { useCallback, useMemo, useRef, type CSSProperties, type PointerEvent } from "react";
 import courierScene from "../assets/courier-scene.png";
+import {
+  applySquareBrush,
+  fillPixelMap,
+  forEachLinePoint,
+  hexWithOpacity,
+  renderPixelMap,
+} from "../editor/pixels";
+import { getCelPixels, type PixelMap, type ProjectDocument } from "../editor/project";
 import type { CursorPosition, ToolId } from "../types";
+import { PixelLayerCanvas } from "./PixelLayerCanvas";
 
 interface CanvasStageProps {
   activeColor: string;
-  activeFrame: number;
+  activeFrameId: string;
+  activeLayerId: string;
+  activePixels: PixelMap;
   activeTool: ToolId;
   brushSize: number;
+  document: ProjectDocument;
+  isDirty: boolean;
   opacity: number;
   pixelPerfect: boolean;
+  zoom: number;
+  onClearActiveCel: () => void;
+  onCommitActiveCel: (pixels: PixelMap) => void;
   onCursorChange: (position: CursorPosition) => void;
+  onZoomChange: (zoom: number) => void;
 }
-
-const documentSize = 64;
 
 export function CanvasStage({
   activeColor,
-  activeFrame,
+  activeFrameId,
+  activeLayerId,
+  activePixels,
   activeTool,
   brushSize,
+  document,
+  isDirty,
   opacity,
   pixelPerfect,
+  zoom,
+  onClearActiveCel,
+  onCommitActiveCel,
   onCursorChange,
+  onZoomChange,
 }: CanvasStageProps) {
-  const paintCanvasRef = useRef<HTMLCanvasElement>(null);
+  const interactionCanvasRef = useRef<HTMLCanvasElement>(null);
+  const layerCanvasesRef = useRef(new Map<string, HTMLCanvasElement>());
+  const draftPixelsRef = useRef<PixelMap>({});
   const isDrawingRef = useRef(false);
-  const [zoom, setZoom] = useState(800);
+  const changedRef = useRef(false);
+  const lastPixelRef = useRef<CursorPosition | null>(null);
+  const activeLayer = document.layers.find((layer) => layer.id === activeLayerId);
+  const activeFrame = document.frames.find((frame) => frame.id === activeFrameId) ?? document.frames[0];
+  const activeFrameIndex = document.frames.findIndex((frame) => frame.id === activeFrameId);
+  const referenceLayer = document.layers.find((layer) => layer.kind === "reference");
+  const pixelLayers = useMemo(
+    () => [...document.layers].reverse().filter((layer) => layer.kind === "pixel"),
+    [document.layers],
+  );
+  const canPaint = activeLayer?.kind === "pixel" && !activeLayer.locked && activeLayer.visible;
+
+  const registerCanvas = useCallback((layerId: string, canvas: HTMLCanvasElement | null) => {
+    if (canvas) layerCanvasesRef.current.set(layerId, canvas);
+    else layerCanvasesRef.current.delete(layerId);
+  }, []);
 
   function eventToPixel(event: PointerEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     return {
-      x: Math.max(
-        0,
-        Math.min(documentSize - 1, Math.floor(((event.clientX - rect.left) / rect.width) * documentSize)),
-      ),
-      y: Math.max(
-        0,
-        Math.min(documentSize - 1, Math.floor(((event.clientY - rect.top) / rect.height) * documentSize)),
-      ),
+      x: Math.max(0, Math.min(document.width - 1, Math.floor(((event.clientX - rect.left) / rect.width) * document.width))),
+      y: Math.max(0, Math.min(document.height - 1, Math.floor(((event.clientY - rect.top) / rect.height) * document.height))),
     };
   }
 
-  function paint(position: CursorPosition) {
-    const canvas = paintCanvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!context) return;
+  function redrawDraft() {
+    const canvas = layerCanvasesRef.current.get(activeLayerId);
+    if (canvas) renderPixelMap(canvas, draftPixelsRef.current, document.width, document.height);
+  }
 
-    context.imageSmoothingEnabled = false;
-    const offset = Math.floor(brushSize / 2);
+  function paintPoint(position: CursorPosition) {
+    const color = activeTool === "eraser" ? null : hexWithOpacity(activeColor, opacity);
+    applySquareBrush(
+      draftPixelsRef.current,
+      position,
+      brushSize,
+      document.width,
+      document.height,
+      color,
+    );
+    changedRef.current = true;
+  }
 
-    if (activeTool === "eraser") {
-      context.clearRect(position.x - offset, position.y - offset, brushSize, brushSize);
-      return;
-    }
-
-    if (activeTool === "bucket") {
-      context.globalAlpha = opacity / 100;
-      context.fillStyle = activeColor;
-      context.fillRect(0, 0, documentSize, documentSize);
-      context.globalAlpha = 1;
-      return;
-    }
-
-    if (activeTool !== "pencil") return;
-
-    context.globalAlpha = opacity / 100;
-    context.fillStyle = activeColor;
-    context.fillRect(position.x - offset, position.y - offset, brushSize, brushSize);
-    context.globalAlpha = 1;
+  function paintTo(position: CursorPosition) {
+    const previous = lastPixelRef.current ?? position;
+    forEachLinePoint(previous, position, paintPoint);
+    lastPixelRef.current = position;
+    redrawDraft();
   }
 
   function handlePointerDown(event: PointerEvent<HTMLCanvasElement>) {
-    isDrawingRef.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
     const position = eventToPixel(event);
     onCursorChange(position);
-    paint(position);
+    if (!canPaint || !["pencil", "eraser", "bucket"].includes(activeTool)) return;
+
+    draftPixelsRef.current = { ...activePixels };
+    changedRef.current = false;
+    lastPixelRef.current = position;
+
+    if (activeTool === "bucket") {
+      draftPixelsRef.current = fillPixelMap(
+        document.width,
+        document.height,
+        hexWithOpacity(activeColor, opacity),
+      );
+      redrawDraft();
+      onCommitActiveCel(draftPixelsRef.current);
+      return;
+    }
+
+    isDrawingRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    paintTo(position);
   }
 
   function handlePointerMove(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
     onCursorChange(position);
-    if (isDrawingRef.current) paint(position);
+    if (isDrawingRef.current) paintTo(position);
   }
 
   function stopDrawing() {
+    if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
+    lastPixelRef.current = null;
+    if (changedRef.current) onCommitActiveCel(draftPixelsRef.current);
   }
 
   function clearPaintLayer() {
-    const canvas = paintCanvasRef.current;
-    canvas?.getContext("2d")?.clearRect(0, 0, documentSize, documentSize);
+    if (!canPaint) return;
+    const canvas = layerCanvasesRef.current.get(activeLayerId);
+    if (canvas) renderPixelMap(canvas, {}, document.width, document.height);
+    onClearActiveCel();
   }
 
   return (
     <main className="canvas-stage" aria-label="Pixel canvas workspace">
       <div className="canvas-stage__header">
         <div>
-          <span className="document-name">courier-bloom.jtp</span>
-          <span className="unsaved-indicator" aria-label="Unsaved changes" />
+          <span className="document-name">{document.name}</span>
+          {isDirty && <span className="unsaved-indicator" aria-label="Unsaved changes" />}
         </div>
         <div className="canvas-stage__meta">
-          <span>FRAME {activeFrame + 1}</span>
+          <span>FRAME {Math.max(0, activeFrameIndex) + 1}</span>
           <span>{pixelPerfect ? "PIXEL PERFECT" : "SMOOTH INPUT"}</span>
         </div>
       </div>
@@ -111,46 +163,70 @@ export function CanvasStage({
         <div className="transparency-field" aria-hidden="true" />
         <div
           className="artboard"
-          style={{ "--frame-shift": `${(activeFrame - 3) * 0.35}px` } as React.CSSProperties}
+          style={{
+            "--frame-shift": `${(activeFrameIndex - 3) * 0.35}px`,
+            "--grid-width": document.width,
+            "--grid-height": document.height,
+          } as CSSProperties}
         >
-          <img src={courierScene} alt="Pixel art space courier and hovering robot" draggable={false} />
+          {referenceLayer?.visible && (
+            <img
+              src={courierScene}
+              alt="Pixel art space courier and hovering robot"
+              draggable={false}
+              style={{
+                objectPosition: activeFrame.referenceOffset,
+                opacity: referenceLayer.opacity / 100,
+              }}
+            />
+          )}
+          {pixelLayers.map((layer) => (
+            <PixelLayerCanvas
+              key={layer.id}
+              width={document.width}
+              height={document.height}
+              layer={layer}
+              pixels={getCelPixels(document, layer.id, activeFrameId)}
+              registerCanvas={registerCanvas}
+            />
+          ))}
           <canvas
-            ref={paintCanvasRef}
+            ref={interactionCanvasRef}
             className={`paint-layer paint-layer--${activeTool}`}
-            width={documentSize}
-            height={documentSize}
-            aria-label="Interactive 64 by 64 paint layer"
+            width={document.width}
+            height={document.height}
+            aria-label={`Interactive ${document.width} by ${document.height} pixel canvas`}
             data-testid="paint-canvas"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={stopDrawing}
             onPointerCancel={stopDrawing}
-            onPointerLeave={stopDrawing}
+            onLostPointerCapture={stopDrawing}
           />
           <div className="pixel-grid-overlay" aria-hidden="true" />
         </div>
       </div>
 
       <div className="canvas-controls">
-        <button className="icon-button" aria-label="Reset painted layer" title="Reset painted layer" onClick={clearPaintLayer}>
+        <button
+          className="icon-button"
+          aria-label="Clear active cel"
+          title="Clear active cel"
+          disabled={!canPaint || Object.keys(activePixels).length === 0}
+          onClick={clearPaintLayer}
+        >
           <RotateCcw size={15} />
         </button>
         <div className="zoom-control">
-          <button
-            aria-label="Zoom out"
-            onClick={() => setZoom((current) => Math.max(100, current - 100))}
-          >
+          <button aria-label="Zoom out" onClick={() => onZoomChange(Math.max(100, zoom - 100))}>
             <Minus size={14} />
           </button>
           <output>{zoom}%</output>
-          <button
-            aria-label="Zoom in"
-            onClick={() => setZoom((current) => Math.min(1600, current + 100))}
-          >
+          <button aria-label="Zoom in" onClick={() => onZoomChange(Math.min(1600, zoom + 100))}>
             <Plus size={14} />
           </button>
         </div>
-        <button className="icon-button" aria-label="Fit canvas" title="Fit canvas">
+        <button className="icon-button" aria-label="Fit canvas" title="Fit canvas" onClick={() => onZoomChange(800)}>
           <Maximize2 size={15} />
         </button>
       </div>

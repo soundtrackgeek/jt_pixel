@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-07-20
+
+### Added
+
+- Versioned schema-v1 project document with real layers, frames, animation settings, palette data, and sparse per-cel pixel storage.
+- Functional layer creation, deletion, selection, visibility, locking safeguards, and live pixel thumbnails.
+- Functional frame duplication and deletion with deep-copied cel data, dynamic previews, counts, and playback traversal.
+- Document reducer tests covering seed invariants, cel isolation, frame duplication, deletion safeguards, visibility, dirty state, and frame-rate bounds.
+
+### Changed
+
+- Painting now batches live pointer input and commits one document update per completed stroke, preserving pixels when switching layers or frames.
+- Canvas composition, timeline previews, status readouts, clear-cel behavior, and the unsaved indicator now derive from the shared project document.
+- Repository workflow instructions now require a `What to test` checklist in every release summary.
+- Bumped the application version to `0.3.0` for the first document-engine release.
+
 ## [0.2.0] - 2026-07-20
 
 ### Added

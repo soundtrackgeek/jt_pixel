@@ -10,22 +10,27 @@ import { UpdateSettings } from "./components/UpdateSettings";
 import { UpdateToast } from "./components/UpdateToast";
 import { tools } from "./data/editor";
 import { useAppUpdater } from "./hooks/useAppUpdater";
+import { useProjectDocument } from "./hooks/useProjectDocument";
 import type { CursorPosition, ToolId } from "./types";
 
 function App() {
+  const project = useProjectDocument();
+  const { document } = project.state;
   const [activeTool, setActiveTool] = useState<ToolId>("pencil");
-  const [activeColor, setActiveColor] = useState("#42c8e3");
-  const [activeLayer, setActiveLayer] = useState(1);
-  const [activeFrame, setActiveFrame] = useState(2);
+  const [activeColor, setActiveColor] = useState(document.palette[3]);
   const [brushSize, setBrushSize] = useState(1);
   const [opacity, setOpacity] = useState(100);
-  const [fps, setFps] = useState(8);
   const [isPlaying, setIsPlaying] = useState(false);
   const [onionSkin, setOnionSkin] = useState(true);
   const [pixelPerfect, setPixelPerfect] = useState(true);
   const [cursor, setCursor] = useState<CursorPosition>({ x: 12, y: 28 });
+  const [zoom, setZoom] = useState(800);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const updater = useAppUpdater();
+  const activeFrameIndex = Math.max(
+    0,
+    document.frames.findIndex((frame) => frame.id === project.state.activeFrameId),
+  );
 
   const shortcutMap = useMemo(
     () => new Map(tools.map((tool) => [tool.shortcut.toLowerCase(), tool.id])),
@@ -52,19 +57,17 @@ function App() {
 
   useEffect(() => {
     if (!isPlaying) return;
-
-    const timer = window.setInterval(
-      () => setActiveFrame((current) => (current + 1) % 8),
-      1000 / fps,
-    );
+    const timer = window.setInterval(project.advanceFrame, 1000 / document.animation.fps);
     return () => window.clearInterval(timer);
-  }, [fps, isPlaying]);
+  }, [document.animation.fps, isPlaying, project.advanceFrame]);
 
   return (
     <div className="app-shell">
       <TopBar
         activeTool={activeTool}
-        fps={fps}
+        fps={document.animation.fps}
+        width={document.width}
+        height={document.height}
         onOpenSettings={() => setSettingsOpen(true)}
         onToolChange={setActiveTool}
       />
@@ -83,26 +86,41 @@ function App() {
         />
         <CanvasStage
           activeColor={activeColor}
-          activeFrame={activeFrame}
+          activeFrameId={project.state.activeFrameId}
+          activeLayerId={project.state.activeLayerId}
+          activePixels={project.activePixels}
           activeTool={activeTool}
           brushSize={brushSize}
+          document={document}
+          isDirty={project.state.isDirty}
           opacity={opacity}
           pixelPerfect={pixelPerfect}
+          zoom={zoom}
+          onClearActiveCel={project.clearActiveCel}
+          onCommitActiveCel={project.commitActiveCel}
           onCursorChange={setCursor}
+          onZoomChange={setZoom}
         />
         <Inspector
           activeColor={activeColor}
-          activeLayer={activeLayer}
+          activeFrameId={project.state.activeFrameId}
+          activeLayerId={project.state.activeLayerId}
+          document={document}
+          onAddLayer={project.addLayer}
           onColorChange={setActiveColor}
-          onLayerChange={setActiveLayer}
+          onDeleteLayer={project.deleteLayer}
+          onLayerChange={project.selectLayer}
+          onToggleLayerVisibility={project.toggleLayerVisibility}
         />
         <Timeline
-          activeFrame={activeFrame}
-          fps={fps}
+          activeFrameId={project.state.activeFrameId}
+          document={document}
           isPlaying={isPlaying}
           onionSkin={onionSkin}
-          onFrameChange={setActiveFrame}
-          onFpsChange={setFps}
+          onDeleteFrame={project.deleteFrame}
+          onDuplicateFrame={project.duplicateFrame}
+          onFpsChange={project.setFps}
+          onFrameChange={project.selectFrame}
           onOnionSkinChange={setOnionSkin}
           onTogglePlay={() => setIsPlaying((current) => !current)}
         />
@@ -110,9 +128,13 @@ function App() {
 
       <StatusBar
         activeColor={activeColor}
-        activeFrame={activeFrame}
+        activeFrameIndex={activeFrameIndex}
         activeTool={activeTool}
         cursor={cursor}
+        frameCount={document.frames.length}
+        height={document.height}
+        width={document.width}
+        zoom={zoom}
       />
 
       <UpdateSettings

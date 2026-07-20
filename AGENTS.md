@@ -21,3 +21,7 @@
 4. **Complete post-push cleanup**:
    - Do not follow any additional release process after a successful push
    - After every push, run `cargo clean` from the `src-tauri` folder as the final required step
+
+5. **Write the release summary**:
+   - Include a `What to test` section in every release summary
+   - List concise manual checks for new or changed user-facing behavior and important regressions

@@ -4,14 +4,17 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.2.0` extends the product foundation with a signed desktop update channel:
+Version `0.3.0` adds the first production document engine while retaining the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
-- Interactive pencil, eraser, and fill behavior on a 64 × 64 paint layer
+- Versioned schema-v1 project document with a 64 × 64 canvas, palette, layers, frames, animation settings, and sparse pixel cels
+- Interactive pencil, eraser, and fill behavior that persists per layer and frame for the current app session
 - Tool selection with visible state and keyboard shortcuts
-- Color palette, brush size, opacity, pixel-perfect, layer, and frame controls
-- Animation playback, frame stepping, onion-skin control, and adjustable frame rate
+- Color palette, brush size, opacity, and pixel-perfect controls
+- Functional layer creation, deletion, selection, visibility, locked-reference safeguards, and live thumbnails
+- Functional frame duplication and deletion with copied cel data and live timeline previews
+- Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows
 - Automatic update checks after launch and every five minutes by default
@@ -19,7 +22,7 @@ Version `0.2.0` extends the product foundation with a signed desktop update chan
 - Arcade Bloom update notifications with download and installation progress
 - Signed, in-app Windows updates published through GitHub Releases
 
-Project persistence, native file dialogs, undo history, export, and a production document model are intentionally reserved for later phases.
+The document currently lives in memory, so closing or reloading the app discards edits. Native save/open dialogs and crash recovery are the next document milestone; undo history and export remain reserved for later phases.
 
 ## Prerequisites
 
@@ -72,6 +75,7 @@ Versions older than `0.2.0` do not contain the updater and must install `0.2.0` 
 Run the frontend type check and production build:
 
 ```sh
+npm test
 npm run check
 npm run build
 ```
@@ -122,6 +126,7 @@ The editor foundation supports single-key tool switching when a form control is 
 ## Project structure
 
 - `src/components/` — focused editor UI components
-- `src/data/` — initial tools, palette, layers, and frame data
+- `src/editor/` — versioned project model, reducer, pixel operations, and reducer tests
+- `src/data/` — editor tool definitions
 - `src/assets/` — generated Arcade Bloom artwork
 - `src-tauri/` — Rust entry point, capabilities, icons, and Tauri configuration

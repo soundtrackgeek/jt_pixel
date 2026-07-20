@@ -1,10 +1,10 @@
 import { Copy, Pipette, RefreshCw } from "lucide-react";
-import { palette } from "../data/editor";
 import { PanelHeader } from "./PanelHeader";
 
 interface ColorPanelProps {
   activeColor: string;
   onColorChange: (color: string) => void;
+  palette: string[];
 }
 function hexToRgb(hex: string) {
   const value = Number.parseInt(hex.slice(1), 16);
@@ -15,7 +15,7 @@ function hexToRgb(hex: string) {
   };
 }
 
-export function ColorPanel({ activeColor, onColorChange }: ColorPanelProps) {
+export function ColorPanel({ activeColor, onColorChange, palette }: ColorPanelProps) {
   const { r, g, b } = hexToRgb(activeColor);
 
   return (

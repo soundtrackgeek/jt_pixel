@@ -12,7 +12,7 @@ import {
   Spline,
   Type,
 } from "lucide-react";
-import type { EditorTool, Layer } from "../types";
+import type { EditorTool } from "../types";
 
 export const tools: EditorTool[] = [
   { id: "pencil", label: "Pencil", shortcut: "P", icon: Pencil },
@@ -27,74 +27,4 @@ export const tools: EditorTool[] = [
   { id: "text", label: "Text", shortcut: "T", icon: Type },
   { id: "eyedropper", label: "Pick", shortcut: "I", icon: Pipette },
   { id: "hand", label: "Hand", shortcut: "H", icon: Hand },
-];
-export const palette = [
-  "#152034",
-  "#382965",
-  "#465cc8",
-  "#42c8e3",
-  "#c9f53d",
-  "#99d34d",
-  "#f4c85f",
-  "#ff8a52",
-  "#ff615d",
-  "#cc3d65",
-  "#ec63c8",
-  "#ffe9c8",
-  "#f2f8f6",
-];
-
-export const layers: Layer[] = [
-  {
-    id: 1,
-    name: "Courier",
-    blendMode: "Normal",
-    opacity: 100,
-    visible: true,
-    thumbnailPosition: "46% 58%",
-  },
-  {
-    id: 2,
-    name: "Robot",
-    blendMode: "Normal",
-    opacity: 100,
-    visible: true,
-    thumbnailPosition: "76% 28%",
-  },
-  {
-    id: 3,
-    name: "Light FX",
-    blendMode: "Add",
-    opacity: 84,
-    visible: true,
-    thumbnailPosition: "58% 51%",
-  },
-  {
-    id: 4,
-    name: "Platform",
-    blendMode: "Normal",
-    opacity: 100,
-    visible: true,
-    thumbnailPosition: "50% 84%",
-  },
-  {
-    id: 5,
-    name: "Background",
-    blendMode: "Normal",
-    opacity: 100,
-    visible: true,
-    locked: true,
-    thumbnailPosition: "20% 24%",
-  },
-];
-
-export const frameOffsets = [
-  "46% 50%",
-  "48% 50%",
-  "50% 50%",
-  "52% 50%",
-  "54% 50%",
-  "52% 50%",
-  "49% 50%",
-  "47% 50%",
 ];

@@ -10,29 +10,82 @@ import {
   StepForward,
   Trash2,
 } from "lucide-react";
+import { memo, useEffect, useRef } from "react";
 import courierScene from "../assets/courier-scene.png";
-import { frameOffsets } from "../data/editor";
+import { drawPixelMap } from "../editor/pixels";
+import { getCelPixels, type ProjectDocument, type ProjectFrame } from "../editor/project";
+
+interface FramePreviewProps {
+  document: ProjectDocument;
+  frame: ProjectFrame;
+}
+
+const FramePreview = memo(function FramePreview({ document, frame }: FramePreviewProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const referenceLayer = document.layers.find((layer) => layer.kind === "reference");
+
+  useEffect(() => {
+    const context = canvasRef.current?.getContext("2d");
+    if (!context) return;
+    context.clearRect(0, 0, document.width, document.height);
+    context.imageSmoothingEnabled = false;
+    const pixelLayers = document.layers.filter((layer) => layer.kind === "pixel").reverse();
+    for (const layer of pixelLayers) {
+      if (!layer.visible) continue;
+      context.globalAlpha = layer.opacity / 100;
+      context.globalCompositeOperation = layer.blendMode === "add" ? "lighter" : "source-over";
+      drawPixelMap(context, getCelPixels(document, layer.id, frame.id), document.width);
+    }
+    context.globalAlpha = 1;
+    context.globalCompositeOperation = "source-over";
+  }, [document, frame.id]);
+
+  return (
+    <span className="frame-art">
+      {referenceLayer?.visible && (
+        <span
+          className="frame-reference"
+          style={{
+            backgroundImage: `url(${courierScene})`,
+            backgroundPosition: frame.referenceOffset,
+            opacity: referenceLayer.opacity / 100,
+          }}
+        />
+      )}
+      <canvas ref={canvasRef} width={document.width} height={document.height} aria-hidden="true" />
+    </span>
+  );
+});
 
 interface TimelineProps {
-  activeFrame: number;
-  fps: number;
+  activeFrameId: string;
+  document: ProjectDocument;
   isPlaying: boolean;
   onionSkin: boolean;
-  onFrameChange: (frame: number) => void;
+  onDeleteFrame: (frameId: string) => void;
+  onDuplicateFrame: (frameId: string) => void;
   onFpsChange: (fps: number) => void;
+  onFrameChange: (frameId: string) => void;
   onOnionSkinChange: (enabled: boolean) => void;
   onTogglePlay: () => void;
 }
+
 export function Timeline({
-  activeFrame,
-  fps,
+  activeFrameId,
+  document,
   isPlaying,
   onionSkin,
-  onFrameChange,
+  onDeleteFrame,
+  onDuplicateFrame,
   onFpsChange,
+  onFrameChange,
   onOnionSkinChange,
   onTogglePlay,
 }: TimelineProps) {
+  const { frames } = document;
+  const fps = document.animation.fps;
+  const activeFrameIndex = Math.max(0, frames.findIndex((frame) => frame.id === activeFrameId));
+
   return (
     <section className="timeline panel-surface" aria-label="Animation timeline">
       <div className="timeline__header">
@@ -51,20 +104,17 @@ export function Timeline({
 
       <div className="timeline__body">
         <div className="frame-strip" role="list" aria-label="Animation frames">
-          {frameOffsets.map((position, index) => (
+          {frames.map((frame, index) => (
             <button
-              key={index}
-              className={`frame-card ${activeFrame === index ? "is-active" : ""}`}
-              onClick={() => onFrameChange(index)}
+              key={frame.id}
+              className={`frame-card ${activeFrameId === frame.id ? "is-active" : ""}`}
+              onClick={() => onFrameChange(frame.id)}
               aria-label={`Frame ${index + 1}`}
-              aria-current={activeFrame === index ? "true" : undefined}
+              aria-current={activeFrameId === frame.id ? "true" : undefined}
               data-testid={`frame-${index + 1}`}
             >
               <span className="frame-number">{index + 1}</span>
-              <span
-                className="frame-art"
-                style={{ backgroundImage: `url(${courierScene})`, backgroundPosition: position }}
-              />
+              <FramePreview document={document} frame={frame} />
               <span className="frame-key" />
             </button>
           ))}
@@ -72,10 +122,10 @@ export function Timeline({
 
         <div className="playback-panel">
           <div className="transport-controls">
-            <button aria-label="First frame" onClick={() => onFrameChange(0)}><SkipBack size={17} /></button>
+            <button aria-label="First frame" onClick={() => onFrameChange(frames[0].id)}><SkipBack size={17} /></button>
             <button
               aria-label="Previous frame"
-              onClick={() => onFrameChange((activeFrame - 1 + frameOffsets.length) % frameOffsets.length)}
+              onClick={() => onFrameChange(frames[(activeFrameIndex - 1 + frames.length) % frames.length].id)}
             >
               <StepBack size={17} />
             </button>
@@ -89,19 +139,19 @@ export function Timeline({
             </button>
             <button
               aria-label="Next frame"
-              onClick={() => onFrameChange((activeFrame + 1) % frameOffsets.length)}
+              onClick={() => onFrameChange(frames[(activeFrameIndex + 1) % frames.length].id)}
             >
               <StepForward size={17} />
             </button>
-            <button aria-label="Last frame" onClick={() => onFrameChange(frameOffsets.length - 1)}><SkipForward size={17} /></button>
-            <button aria-label="Loop animation"><Repeat2 size={17} /></button>
+            <button aria-label="Last frame" onClick={() => onFrameChange(frames[frames.length - 1].id)}><SkipForward size={17} /></button>
+            <button aria-label="Loop animation" aria-pressed={document.animation.loop}><Repeat2 size={17} /></button>
           </div>
           <div className="fps-control">
             <label htmlFor="fps-range">{fps} fps</label>
             <div className="fps-stepper">
-              <button aria-label="Decrease frame rate" onClick={() => onFpsChange(Math.max(1, fps - 1))}>−</button>
+              <button aria-label="Decrease frame rate" onClick={() => onFpsChange(fps - 1)}>−</button>
               <button aria-label="Frame rate options"><ChevronDown size={14} /></button>
-              <button aria-label="Increase frame rate" onClick={() => onFpsChange(Math.min(30, fps + 1))}>+</button>
+              <button aria-label="Increase frame rate" onClick={() => onFpsChange(fps + 1)}>+</button>
             </div>
             <input
               id="fps-range"
@@ -114,8 +164,14 @@ export function Timeline({
             />
           </div>
           <div className="timeline-actions">
-            <button aria-label="Duplicate frame"><Copy size={15} /></button>
-            <button aria-label="Delete frame"><Trash2 size={15} /></button>
+            <button aria-label="Duplicate frame" onClick={() => onDuplicateFrame(activeFrameId)}><Copy size={15} /></button>
+            <button
+              aria-label="Delete frame"
+              disabled={frames.length <= 1}
+              onClick={() => onDeleteFrame(activeFrameId)}
+            >
+              <Trash2 size={15} />
+            </button>
           </div>
         </div>
       </div>

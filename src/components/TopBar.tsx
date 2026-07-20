@@ -18,8 +18,10 @@ import { Brand } from "./Brand";
 interface TopBarProps {
   activeTool: ToolId;
   fps: number;
+  height: number;
   onOpenSettings: () => void;
   onToolChange: (tool: ToolId) => void;
+  width: number;
 }
 
 const commandTools: Array<{
@@ -39,8 +41,10 @@ const commandTools: Array<{
 export function TopBar({
   activeTool,
   fps,
+  height,
   onOpenSettings,
   onToolChange,
+  width,
 }: TopBarProps) {
   return (
     <header className="topbar">
@@ -71,7 +75,7 @@ export function TopBar({
         </div>
 
         <div className="topbar-readout" aria-label="Canvas size">
-          64 × 64
+          {width} × {height}
         </div>
         <div className="topbar-readout" aria-label="Animation speed">
           {fps} fps

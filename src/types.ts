@@ -20,16 +20,6 @@ export interface EditorTool {
   shortcut: string;
   icon: LucideIcon;
 }
-export interface Layer {
-  id: number;
-  name: string;
-  blendMode: "Normal" | "Add";
-  opacity: number;
-  visible: boolean;
-  locked?: boolean;
-  thumbnailPosition: string;
-}
-
 export interface CursorPosition {
   x: number;
   y: number;
