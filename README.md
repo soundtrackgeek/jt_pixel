@@ -2,9 +2,9 @@
 
 JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tauri 2, React, and TypeScript. Its interface follows the **Arcade Bloom** direction: a focused ink-indigo workspace with expressive violet, coral, cyan, and acid-lime interaction states.
 
-## Foundation release
+## Current foundation
 
-Version `0.1.0` establishes the product foundation:
+Version `0.2.0` extends the product foundation with a signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -14,6 +14,10 @@ Version `0.1.0` establishes the product foundation:
 - Animation playback, frame stepping, onion-skin control, and adjustable frame rate
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows
+- Automatic update checks after launch and every five minutes by default
+- Persistent update cadence controls under either Settings button
+- Arcade Bloom update notifications with download and installation progress
+- Signed, in-app Windows updates published through GitHub Releases
 
 Project persistence, native file dialogs, undo history, export, and a production document model are intentionally reserved for later phases.
 
@@ -49,6 +53,20 @@ Build the native application and configured installer bundles:
 npm run tauri:build
 ```
 
+The normal local build does not create signed updater artifacts and does not require the release signing key. Signed updater bundles are generated only by the protected `master` CI release path.
+
+## In-app updates
+
+Installed builds from version `0.2.0` onward check the signed GitHub Releases update feed shortly after launch and then every five minutes while the app is open. Open **Settings** from the top toolbar or left rail to choose:
+
+- Manual checks only
+- Every 1, 5, 15, or 30 minutes
+- Every hour
+
+When a newer semantic version is available, JT Pixel shows an update notification. **Update now** downloads the package, verifies its Tauri signature, installs it, and relaunches the app. Choosing **Later** suppresses that version for the current session; manual checks can surface it again.
+
+Versions older than `0.2.0` do not contain the updater and must install `0.2.0` or newer manually once before in-app updates become available.
+
 ## Verification
 
 Run the frontend type check and production build:
@@ -75,9 +93,11 @@ Every push to any branch triggers the **Windows installer** workflow in GitHub A
 4. Generates `SHA256SUMS.txt` for integrity verification.
 5. Uploads the installer and checksum as a workflow artifact for 14 days.
 
+Pushes to `master` additionally create a public GitHub Release named `JT Pixel v<version>`. That release contains the installable executable, its updater signature, and the generated `latest.json` feed consumed by installed copies of JT Pixel. Release builds use the `TAURI_SIGNING_PRIVATE_KEY` repository secret; the private key must never be committed, rotated casually, or lost because installed apps trust its matching public key.
+
 To download an installer, open the repository's **Actions** tab, select a successful **Windows installer** run, and download the `jt-pixel-windows-x64-<commit>` artifact from its Artifacts section. The downloaded archive contains an installable `JT Pixel_<version>_x64-setup.exe` file.
 
-CI installers are currently unsigned development builds. Windows may display a SmartScreen warning until a trusted code-signing certificate is configured in a later release phase.
+Tauri updater signatures authenticate in-app packages, but they are separate from Windows Authenticode signing. Windows may still display a SmartScreen warning until a trusted code-signing certificate is configured in a later release phase.
 
 ## Keyboard shortcuts
 

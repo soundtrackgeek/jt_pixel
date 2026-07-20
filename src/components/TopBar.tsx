@@ -18,6 +18,7 @@ import { Brand } from "./Brand";
 interface TopBarProps {
   activeTool: ToolId;
   fps: number;
+  onOpenSettings: () => void;
   onToolChange: (tool: ToolId) => void;
 }
 
@@ -35,7 +36,12 @@ const commandTools: Array<{
   { id: "select", label: "Select", icon: BoxSelect },
 ];
 
-export function TopBar({ activeTool, fps, onToolChange }: TopBarProps) {
+export function TopBar({
+  activeTool,
+  fps,
+  onOpenSettings,
+  onToolChange,
+}: TopBarProps) {
   return (
     <header className="topbar">
       <Brand />
@@ -85,7 +91,12 @@ export function TopBar({ activeTool, fps, onToolChange }: TopBarProps) {
           <button className="icon-button" aria-label="Save project" title="Save project">
             <Save size={18} />
           </button>
-          <button className="icon-button" aria-label="Settings" title="Settings">
+          <button
+            className="icon-button"
+            aria-label="Settings"
+            title="Settings"
+            onClick={onOpenSettings}
+          >
             <Settings size={18} />
           </button>
         </div>

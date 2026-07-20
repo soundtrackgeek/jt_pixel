@@ -6,7 +6,10 @@ import { Timeline } from "./components/Timeline";
 import { ToolPanel } from "./components/ToolPanel";
 import { ToolRail } from "./components/ToolRail";
 import { TopBar } from "./components/TopBar";
+import { UpdateSettings } from "./components/UpdateSettings";
+import { UpdateToast } from "./components/UpdateToast";
 import { tools } from "./data/editor";
+import { useAppUpdater } from "./hooks/useAppUpdater";
 import type { CursorPosition, ToolId } from "./types";
 
 function App() {
@@ -21,6 +24,8 @@ function App() {
   const [onionSkin, setOnionSkin] = useState(true);
   const [pixelPerfect, setPixelPerfect] = useState(true);
   const [cursor, setCursor] = useState<CursorPosition>({ x: 12, y: 28 });
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const updater = useAppUpdater();
 
   const shortcutMap = useMemo(
     () => new Map(tools.map((tool) => [tool.shortcut.toLowerCase(), tool.id])),
@@ -57,10 +62,15 @@ function App() {
 
   return (
     <div className="app-shell">
-      <TopBar activeTool={activeTool} fps={fps} onToolChange={setActiveTool} />
+      <TopBar
+        activeTool={activeTool}
+        fps={fps}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onToolChange={setActiveTool}
+      />
 
       <div className="workspace">
-        <ToolRail />
+        <ToolRail onOpenSettings={() => setSettingsOpen(true)} />
         <ToolPanel
           activeTool={activeTool}
           brushSize={brushSize}
@@ -103,6 +113,23 @@ function App() {
         activeFrame={activeFrame}
         activeTool={activeTool}
         cursor={cursor}
+      />
+
+      <UpdateSettings
+        desktopAvailable={updater.desktopAvailable}
+        intervalMinutes={updater.intervalMinutes}
+        isChecking={updater.toast?.kind === "checking"}
+        lastCheckedAt={updater.lastCheckedAt}
+        open={settingsOpen}
+        onCheckNow={() => void updater.checkForUpdates()}
+        onClose={() => setSettingsOpen(false)}
+        onIntervalChange={updater.setIntervalMinutes}
+      />
+      <UpdateToast
+        toast={updater.toast}
+        onCheckAgain={() => void updater.checkForUpdates()}
+        onDismiss={updater.dismissToast}
+        onInstall={() => void updater.installUpdate()}
       />
     </div>
   );

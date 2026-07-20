@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: windows-installer-${{ github.workflow }}-${{ github.ref }}
@@ -69,7 +69,25 @@ jobs:
           }
 
       - name: Build NSIS installer
+        if: github.ref != 'refs/heads/master'
         run: npm run tauri:build
+
+      - name: Build and publish signed update
+        if: github.ref == 'refs/heads/master'
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        with:
+          tagName: app-v__VERSION__
+          releaseName: JT Pixel v__VERSION__
+          releaseBody: Install the Windows setup executable below. Existing JT Pixel installations can apply this release from inside the app.
+          generateReleaseNotes: true
+          releaseDraft: false
+          prerelease: false
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
+          args: --config src-tauri/tauri.updater.conf.json
 
       - name: Create installer checksum
         shell: pwsh

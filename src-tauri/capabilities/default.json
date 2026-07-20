@@ -3,5 +3,9 @@
   "identifier": "default",
   "description": "Default desktop permissions for JT Pixel",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "process:allow-restart",
+    "updater:default"
+  ]
 }

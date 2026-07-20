@@ -19,7 +19,11 @@ const railItems = [
   { label: "Effects", icon: Sparkles },
 ];
 
-export function ToolRail() {
+interface ToolRailProps {
+  onOpenSettings: () => void;
+}
+
+export function ToolRail({ onOpenSettings }: ToolRailProps) {
   return (
     <nav className="tool-rail" aria-label="Workspace sections">
       <div className="tool-rail__items">
@@ -34,7 +38,12 @@ export function ToolRail() {
           </button>
         ))}
       </div>
-      <button className="rail-button" aria-label="Settings" title="Settings">
+      <button
+        className="rail-button"
+        aria-label="Settings"
+        title="Settings"
+        onClick={onOpenSettings}
+      >
         <Settings size={19} />
       </button>
     </nav>

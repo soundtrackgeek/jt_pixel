@@ -4,6 +4,20 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-07-20
+
+### Added
+
+- Configurable automatic update checks with a five-minute default cadence and persisted manual, 1, 5, 15, 30, and 60-minute options.
+- Arcade Bloom update settings dialog and notification states for availability, download progress, installation, current-version confirmation, and recoverable errors.
+- Signed Tauri updater integration with authenticated packages, passive Windows installation, and automatic relaunch.
+- GitHub Releases update feed backed by `latest.json` and signed NSIS artifacts on every `master` push.
+
+### Changed
+
+- Extended the Windows installer workflow so every push still publishes its installable workflow artifact while `master` also publishes a versioned GitHub Release for in-app updates.
+- Bumped the application version to `0.2.0`, the first updater-aware JT Pixel release.
+
 ## [0.1.3] - 2026-07-20
 
 ### Fixed
