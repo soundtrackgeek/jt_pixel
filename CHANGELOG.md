@@ -4,6 +4,12 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-07-20
+
+### Fixed
+
+- Create JT Pixel's app-data directory before writing the first crash-recovery snapshot, preventing `Recovery paused` errors on fresh installations.
+
 ## [0.4.0] - 2026-07-20
 
 ### Added

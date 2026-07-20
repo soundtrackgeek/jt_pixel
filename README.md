@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.4.0` adds persistent project files and crash recovery while retaining the signed desktop update channel:
+Version `0.4.1` adds reliable first-run recovery storage to persistent project files and crash recovery while retaining the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar

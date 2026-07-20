@@ -1,8 +1,10 @@
 import { isTauri } from "@tauri-apps/api/core";
+import { appDataDir } from "@tauri-apps/api/path";
 import { confirm, open, save } from "@tauri-apps/plugin-dialog";
 import {
   BaseDirectory,
   exists,
+  mkdir,
   readTextFile,
   remove,
   writeTextFile,
@@ -117,6 +119,7 @@ export async function readRecoverySnapshot(): Promise<RecoverySnapshot | null> {
 export async function writeRecoverySnapshot(document: ProjectDocument) {
   const serialized = serializeRecoverySnapshot(createRecoverySnapshot(document));
   if (isTauri()) {
+    await mkdir(await appDataDir(), { recursive: true });
     await writeTextFile(RECOVERY_FILE_NAME, serialized, {
       baseDir: BaseDirectory.AppData,
     });

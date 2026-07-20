@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   exists: vi.fn(),
   isTauri: vi.fn(),
+  mkdir: vi.fn(),
   open: vi.fn(),
   readTextFile: vi.fn(),
   remove: vi.fn(),
@@ -14,6 +15,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({ isTauri: mocks.isTauri }));
+vi.mock("@tauri-apps/api/path", () => ({
+  appDataDir: vi.fn().mockResolvedValue("C:\\AppData\\com.jtill.jtpixel"),
+}));
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   confirm: mocks.confirm,
   open: mocks.open,
@@ -22,6 +26,7 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
 vi.mock("@tauri-apps/plugin-fs", () => ({
   BaseDirectory: { AppData: 17 },
   exists: mocks.exists,
+  mkdir: mocks.mkdir,
   readTextFile: mocks.readTextFile,
   remove: mocks.remove,
   writeTextFile: mocks.writeTextFile,
@@ -70,9 +75,16 @@ describe("project storage", () => {
     const document = createProjectDocument("2026-07-20T10:00:00.000Z");
     await writeRecoverySnapshot(document);
 
+    expect(mocks.mkdir).toHaveBeenCalledWith(
+      "C:\\AppData\\com.jtill.jtpixel",
+      { recursive: true },
+    );
     const [, serialized, writeOptions] = mocks.writeTextFile.mock.calls[0];
     expect(writeOptions).toEqual({ baseDir: 17 });
     expect(parseRecoverySnapshot(serialized).document).toEqual(document);
+    expect(mocks.mkdir.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.writeTextFile.mock.invocationCallOrder[0],
+    );
 
     mocks.exists.mockResolvedValue(true);
     mocks.readTextFile.mockResolvedValue(serialized);
