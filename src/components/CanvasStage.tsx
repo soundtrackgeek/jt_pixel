@@ -16,6 +16,12 @@ import {
   type ProjectDocument,
 } from "../editor/project";
 import type { CursorPosition, ToolId } from "../types";
+import type {
+  CanvasBackground,
+  CanvasViewPreferences,
+  GridStyle,
+} from "../editor/canvasView";
+import { CanvasViewMenu } from "./CanvasViewMenu";
 import { PixelLayerCanvas } from "./PixelLayerCanvas";
 
 interface CanvasStageProps {
@@ -25,14 +31,18 @@ interface CanvasStageProps {
   activePixels: PixelMap;
   activeTool: ToolId;
   brushSize: number;
+  canvasView: CanvasViewPreferences;
   document: ProjectDocument;
   isDirty: boolean;
   opacity: number;
   pixelPerfect: boolean;
   zoom: number;
   onClearActiveCel: () => void;
+  onCanvasBackgroundChange: (background: CanvasBackground) => void;
   onCommitActiveCel: (pixels: PixelMap) => void;
   onCursorChange: (position: CursorPosition) => void;
+  onGridStyleChange: (gridStyle: GridStyle) => void;
+  onResetCanvasView: () => void;
   onZoomChange: (zoom: number) => void;
 }
 
@@ -43,14 +53,18 @@ export function CanvasStage({
   activePixels,
   activeTool,
   brushSize,
+  canvasView,
   document,
   isDirty,
   opacity,
   pixelPerfect,
   zoom,
   onClearActiveCel,
+  onCanvasBackgroundChange,
   onCommitActiveCel,
   onCursorChange,
+  onGridStyleChange,
+  onResetCanvasView,
   onZoomChange,
 }: CanvasStageProps) {
   const interactionCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -180,6 +194,8 @@ export function CanvasStage({
         <div className="transparency-field" aria-hidden="true" />
         <div
           className="artboard"
+          data-canvas-background={canvasView.background}
+          data-grid-style={canvasView.gridStyle}
           style={{
             "--frame-shift": `${(activeFrameIndex - 3) * 0.35}px`,
             "--grid-width": document.width,
@@ -228,6 +244,12 @@ export function CanvasStage({
       </div>
 
       <div className="canvas-controls">
+        <CanvasViewMenu
+          preferences={canvasView}
+          onBackgroundChange={onCanvasBackgroundChange}
+          onGridStyleChange={onGridStyleChange}
+          onReset={onResetCanvasView}
+        />
         <button
           className="icon-button"
           aria-label="Clear active cel"

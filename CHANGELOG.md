@@ -4,6 +4,20 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-07-20
+
+### Added
+
+- Arcade Bloom Canvas View controls with checkerboard, dark neutral, mid neutral, and light neutral workspace backgrounds.
+- Off, Subtle, Crisp, and Contrast pixel-grid modes, plus a `G` shortcut that hides the grid and restores the previously selected visible style.
+- Persistent local canvas-view preferences with a one-click reset to the clearer default view.
+
+### Changed
+
+- Use the Crisp grid by default and adapt grid-line color to the selected background so individual cells remain legible on small canvases such as 16 × 16.
+- Keep canvas-view preferences outside project files, document dirty state, and Undo/Redo history so changing the workspace never changes the artwork.
+- Bumped the application version to `0.6.1`.
+
 ## [0.6.0] - 2026-07-20
 
 ### Added

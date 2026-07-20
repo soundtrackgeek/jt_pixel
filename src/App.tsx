@@ -15,6 +15,7 @@ import { UpdateToast } from "./components/UpdateToast";
 import { tools } from "./data/editor";
 import { createNewProjectDocument, type NewProjectOptions } from "./editor/project";
 import { useAppUpdater } from "./hooks/useAppUpdater";
+import { useCanvasViewPreferences } from "./hooks/useCanvasViewPreferences";
 import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
 import type { CursorPosition, ToolId } from "./types";
@@ -44,6 +45,7 @@ function App() {
     markSaved: project.markSaved,
     replaceDocument: project.replaceDocument,
   });
+  const canvasView = useCanvasViewPreferences();
   const { document } = project.state;
   const [activeTool, setActiveTool] = useState<ToolId>("pencil");
   const [activeColor, setActiveColor] = useState(document.palette[3]);
@@ -131,13 +133,19 @@ function App() {
         return;
       }
 
+      if (event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        canvasView.toggleGrid();
+        return;
+      }
+
       const tool = shortcutMap.get(event.key.toLowerCase());
       if (tool) setActiveTool(tool);
     }
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [modalOpen, openNewProject, persistence.isBusy, project.redo, project.undo, shortcutMap]);
+  }, [canvasView.toggleGrid, modalOpen, openNewProject, persistence.isBusy, project.redo, project.undo, shortcutMap]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -183,14 +191,18 @@ function App() {
           activePixels={project.activePixels}
           activeTool={activeTool}
           brushSize={brushSize}
+          canvasView={canvasView.preferences}
           document={document}
           isDirty={project.state.isDirty}
           opacity={opacity}
           pixelPerfect={pixelPerfect}
           zoom={zoom}
           onClearActiveCel={project.clearActiveCel}
+          onCanvasBackgroundChange={canvasView.setBackground}
           onCommitActiveCel={project.commitActiveCel}
           onCursorChange={setCursor}
+          onGridStyleChange={canvasView.setGridStyle}
+          onResetCanvasView={canvasView.resetPreferences}
           onZoomChange={setZoom}
         />
         <Inspector

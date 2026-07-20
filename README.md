@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.6.0` adds a complete New Project and canvas-setup flow while retaining dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.6.1` adds configurable canvas backgrounds and pixel-grid clarity while retaining the complete New Project flow, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -26,7 +26,9 @@ Version `0.6.0` adds a complete New Project and canvas-setup flow while retainin
 - Debounced crash recovery with restore/discard choices and visible recovery status
 - `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` project shortcuts with unsaved-work protection
 - Arcade Bloom confirmation before replacing unsaved work, with safe keyboard focus and Escape-to-cancel behavior
-- Transparent checkerboard artboards that preserve portrait, landscape, and square canvas proportions
+- Canvas View controls with checkerboard, dark neutral, mid neutral, and light neutral backgrounds plus Off, Subtle, Crisp, and Contrast grid styles
+- A clearer Crisp grid by default, adaptive line colors, a `G` grid toggle, and persistent view preferences that never dirty or alter project artwork
+- Artboards that preserve portrait, landscape, and square canvas proportions
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows
 - Automatic update checks after launch and every five minutes by default
@@ -89,6 +91,12 @@ Recovered work intentionally does not reuse its previous file path. Its next sav
 Undo and Redo history is kept for the current editing session and is not serialized into `.jtp` files. Saving preserves the current history and establishes a clean checkpoint, so undoing back to that position returns the status to **SAVED**. Opening or restoring a different project starts a fresh history.
 
 History shortcuts remain active while non-text controls such as the FPS range have focus. Individual frame-rate `+` and `−` clicks remain separate Undo steps, while a complete mouse or touch drag on the FPS slider is grouped into one step.
+
+## Canvas view
+
+Choose **Canvas view settings** beside the zoom controls to tailor the workspace around the artwork. **Checker** keeps the transparency pattern, while **Dark**, **Mid**, and **Light** provide neutral solid backgrounds for inspecting edges and contrast. The pixel grid can be **Off**, **Subtle**, **Crisp**, or **Contrast**; Crisp is the default for clear cell boundaries on small canvases.
+
+Press `G` to hide the grid or restore the last visible grid style. Canvas-view choices are remembered on the device, but they are editor preferences rather than project data: they are not written into `.jtp` files, do not mark a project unsaved, and do not add Undo/Redo entries. Use **Reset** in the Canvas View panel to return to Checker and Crisp.
 
 ## In-app updates
 
@@ -153,6 +161,7 @@ The editor foundation supports single-key tool switching when a form control is 
 | `T` | Text |
 | `I` | Eyedropper |
 | `H` | Hand |
+| `G` | Toggle the pixel grid |
 | `Space` | Play or pause animation |
 | `Ctrl+N` | Create a new project |
 | `Ctrl+O` | Open a project |
