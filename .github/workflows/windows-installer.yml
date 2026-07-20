@@ -1,0 +1,82 @@
+name: Windows installer
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-installer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows-installer:
+    name: Build Windows x64 installer
+    runs-on: windows-latest
+    timeout-minutes: 35
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            src-tauri/target
+          key: windows-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            windows-cargo-
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Check frontend types
+        run: npm run check
+
+      - name: Build NSIS installer
+        run: npm run tauri:build
+
+      - name: Create installer checksum
+        shell: pwsh
+        run: |
+          $bundleDirectory = "src-tauri/target/release/bundle/nsis"
+          $installers = @(Get-ChildItem -LiteralPath $bundleDirectory -Filter "*-setup.exe" -File)
+
+          if ($installers.Count -ne 1) {
+            throw "Expected exactly one NSIS installer, found $($installers.Count)."
+          }
+
+          $installer = $installers[0]
+          $hash = Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256
+          $checksum = "{0}  {1}" -f $hash.Hash.ToLowerInvariant(), $installer.Name
+          Set-Content -LiteralPath "$bundleDirectory/SHA256SUMS.txt" -Value $checksum -Encoding ascii
+
+      - name: Upload installable executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: jt-pixel-windows-x64-${{ github.sha }}
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

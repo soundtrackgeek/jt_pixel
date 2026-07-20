@@ -40,7 +40,13 @@ npm run dev
 Run the desktop application through Tauri:
 
 ```sh
-npm run tauri dev
+npm run tauri:dev
+```
+
+Build the native application and configured installer bundles:
+
+```sh
+npm run tauri:build
 ```
 
 ## Verification
@@ -58,6 +64,20 @@ Verify the Rust/Tauri layer:
 cd src-tauri
 cargo check
 ```
+
+## Windows installer CI
+
+Every push to any branch triggers the **Windows installer** workflow in GitHub Actions. The workflow:
+
+1. Installs the locked Node.js and Rust dependencies.
+2. Runs the frontend type check.
+3. Builds a release-mode Windows x64 NSIS installer.
+4. Generates `SHA256SUMS.txt` for integrity verification.
+5. Uploads the installer and checksum as a workflow artifact for 14 days.
+
+To download an installer, open the repository's **Actions** tab, select a successful **Windows installer** run, and download the `jt-pixel-windows-x64-<commit>` artifact from its Artifacts section. The downloaded archive contains an installable `JT Pixel_<version>_x64-setup.exe` file.
+
+CI installers are currently unsigned development builds. Windows may display a SmartScreen warning until a trusted code-signing certificate is configured in a later release phase.
 
 ## Keyboard shortcuts
 

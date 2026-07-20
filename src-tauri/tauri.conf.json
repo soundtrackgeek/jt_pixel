@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "JT Pixel",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.jtill.jtpixel",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -27,6 +27,19 @@
     }
   },
   "bundle": {
-    "active": false
+    "active": true,
+    "targets": ["nsis"],
+    "publisher": "JT Pixel",
+    "category": "DeveloperTool",
+    "shortDescription": "A focused pixel art and sprite animation studio",
+    "longDescription": "JT Pixel is a focused desktop studio for creating pixel art and sprite animation.",
+    "copyright": "Copyright © 2026 JT Pixel contributors",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false
+      }
+    }
   }
 }
