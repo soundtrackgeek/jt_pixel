@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.3.2` adds the first production document engine while retaining the signed desktop update channel:
+Version `0.3.3` adds the first production document engine while retaining the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -12,8 +12,8 @@ Version `0.3.2` adds the first production document engine while retaining the si
 - Interactive pencil and eraser behavior plus boundary-aware flood fill, persisted per layer and frame for the current app session
 - Tool selection with visible state and keyboard shortcuts
 - Color palette, brush size, opacity, and pixel-perfect controls
-- Functional frame-local layer creation, deletion, selection and visibility, with locked-reference safeguards and live thumbnails
-- Functional frame duplication and deletion with copied cel data and live timeline previews
+- Functional frame-local layer creation, deletion, selection, visibility, and selected-layer memory, with locked-reference safeguards and live thumbnails
+- Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
 - Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows

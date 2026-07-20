@@ -49,6 +49,7 @@ export interface EditorDocumentState {
   document: ProjectDocument;
   activeLayerId: string;
   activeFrameId: string;
+  frameLayerSelection: Record<string, string>;
   isDirty: boolean;
   revision: number;
 }
@@ -157,10 +158,14 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
 }
 
 export function createInitialEditorState(): EditorDocumentState {
+  const document = createProjectDocument();
   return {
-    document: createProjectDocument(),
+    document,
     activeLayerId: "layer-details",
     activeFrameId: "frame-3",
+    frameLayerSelection: Object.fromEntries(
+      document.frames.map((frame) => [frame.id, "layer-details"]),
+    ),
     isDirty: false,
     revision: 0,
   };
@@ -239,7 +244,14 @@ export function projectReducer(
       return document.layers.some(
         (layer) => layer.id === action.layerId && isLayerPresent(document, layer.id, state.activeFrameId),
       )
-        ? { ...state, activeLayerId: action.layerId }
+        ? {
+            ...state,
+            activeLayerId: action.layerId,
+            frameLayerSelection: {
+              ...state.frameLayerSelection,
+              [state.activeFrameId]: action.layerId,
+            },
+          }
         : state;
 
     case "layer/toggle-visibility": {
@@ -270,7 +282,12 @@ export function projectReducer(
           layers: [action.layer, ...document.layers],
           frameLayerPresence,
         }),
-        activeLayerId: action.layer.id,
+        activeLayerId:
+          state.activeFrameId === action.frameId ? action.layer.id : state.activeLayerId,
+        frameLayerSelection: {
+          ...state.frameLayerSelection,
+          [action.frameId]: action.layer.id,
+        },
       };
     }
 
@@ -317,32 +334,58 @@ export function projectReducer(
 
       const nextDocument = { ...document, layers, cels, frameLayerVisibility, frameLayerPresence };
       const next = changed(state, nextDocument);
+      const rememberedLayerId = state.frameLayerSelection[action.frameId]
+        ?? (state.activeFrameId === action.frameId ? state.activeLayerId : "");
+      const selectedLayerId = rememberedLayerId === action.layerId
+        ? layerForFrame(nextDocument, action.frameId, "")
+        : layerForFrame(nextDocument, action.frameId, rememberedLayerId);
       return {
         ...next,
-        activeLayerId:
-          state.activeFrameId === action.frameId && state.activeLayerId === action.layerId
-            ? layerForFrame(nextDocument, action.frameId, "")
-            : state.activeLayerId,
+        activeLayerId: state.activeFrameId === action.frameId
+          ? selectedLayerId
+          : state.activeLayerId,
+        frameLayerSelection: {
+          ...state.frameLayerSelection,
+          [action.frameId]: selectedLayerId,
+        },
       };
     }
 
-    case "frame/select":
-      return document.frames.some((frame) => frame.id === action.frameId)
-        ? {
-            ...state,
-            activeFrameId: action.frameId,
-            activeLayerId: layerForFrame(document, action.frameId, state.activeLayerId),
-          }
-        : state;
+    case "frame/select": {
+      if (!document.frames.some((frame) => frame.id === action.frameId)) return state;
+      const activeLayerId = layerForFrame(
+        document,
+        action.frameId,
+        state.frameLayerSelection[action.frameId] ?? "layer-details",
+      );
+      return {
+        ...state,
+        activeFrameId: action.frameId,
+        activeLayerId,
+        frameLayerSelection: {
+          ...state.frameLayerSelection,
+          [action.frameId]: activeLayerId,
+        },
+      };
+    }
 
     case "frame/advance": {
       const index = document.frames.findIndex((frame) => frame.id === state.activeFrameId);
       const nextIndex = index < 0 ? 0 : (index + 1) % document.frames.length;
       const activeFrameId = document.frames[nextIndex].id;
+      const activeLayerId = layerForFrame(
+        document,
+        activeFrameId,
+        state.frameLayerSelection[activeFrameId] ?? "layer-details",
+      );
       return {
         ...state,
         activeFrameId,
-        activeLayerId: layerForFrame(document, activeFrameId, state.activeLayerId),
+        activeLayerId,
+        frameLayerSelection: {
+          ...state.frameLayerSelection,
+          [activeFrameId]: activeLayerId,
+        },
       };
     }
 
@@ -377,15 +420,25 @@ export function projectReducer(
             document.frameLayerVisibility[visibilityKey];
         }
       }
+      const nextDocument = {
+        ...document,
+        frames,
+        cels,
+        frameLayerVisibility,
+        frameLayerPresence,
+      };
+      const sourceLayerId = source.id === state.activeFrameId
+        ? state.activeLayerId
+        : state.frameLayerSelection[source.id] ?? "layer-details";
+      const activeLayerId = layerForFrame(nextDocument, duplicate.id, sourceLayerId);
       return {
-        ...changed(state, {
-          ...document,
-          frames,
-          cels,
-          frameLayerVisibility,
-          frameLayerPresence,
-        }),
+        ...changed(state, nextDocument),
         activeFrameId: duplicate.id,
+        activeLayerId,
+        frameLayerSelection: {
+          ...state.frameLayerSelection,
+          [duplicate.id]: activeLayerId,
+        },
       };
     }
 
@@ -440,10 +493,22 @@ export function projectReducer(
       const activeFrameId = state.activeFrameId === action.frameId
         ? frames[Math.min(index, frames.length - 1)].id
         : state.activeFrameId;
+      const frameLayerSelection = Object.fromEntries(
+        frames.map((frame) => [
+          frame.id,
+          layerForFrame(
+            nextDocument,
+            frame.id,
+            state.frameLayerSelection[frame.id]
+              ?? (frame.id === state.activeFrameId ? state.activeLayerId : "layer-details"),
+          ),
+        ]),
+      );
       return {
         ...next,
         activeFrameId,
-        activeLayerId: layerForFrame(nextDocument, activeFrameId, state.activeLayerId),
+        activeLayerId: frameLayerSelection[activeFrameId],
+        frameLayerSelection,
       };
     }
 

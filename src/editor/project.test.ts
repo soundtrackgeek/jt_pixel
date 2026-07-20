@@ -28,6 +28,32 @@ describe("project document reducer", () => {
     expect(state.document.frames).toHaveLength(8);
     expect(state.document.layers.filter((layer) => layer.kind === "pixel")).toHaveLength(3);
     expect(state.document.layers.find((layer) => layer.kind === "reference")?.locked).toBe(true);
+    expect(state.frameLayerSelection["frame-3"]).toBe("layer-details");
+    expect(state.isDirty).toBe(false);
+  });
+
+  it("remembers the selected layer independently for every frame", () => {
+    let state = projectReducer(createInitialEditorState(), {
+      type: "layer/select",
+      layerId: "layer-color",
+    });
+    state = projectReducer(state, { type: "frame/select", frameId: "frame-4" });
+
+    expect(state.activeLayerId).toBe("layer-details");
+
+    state = projectReducer(state, {
+      type: "layer/select",
+      layerId: "layer-highlights",
+    });
+    state = projectReducer(state, { type: "frame/select", frameId: "frame-3" });
+    expect(state.activeLayerId).toBe("layer-color");
+
+    state = projectReducer(state, { type: "frame/select", frameId: "frame-4" });
+    expect(state.activeLayerId).toBe("layer-highlights");
+    expect(state.frameLayerSelection).toMatchObject({
+      "frame-3": "layer-color",
+      "frame-4": "layer-highlights",
+    });
     expect(state.isDirty).toBe(false);
   });
 
@@ -99,6 +125,8 @@ describe("project document reducer", () => {
     });
     expect(deleted.document.frameLayerVisibility[celKey("layer-details", "frame-3")]).toBeUndefined();
     expect(deleted.activeLayerId).not.toBe("layer-details");
+    expect(deleted.frameLayerSelection["frame-3"]).toBe(deleted.activeLayerId);
+    expect(deleted.frameLayerSelection["frame-4"]).toBe("layer-details");
   });
 
   it("adds layers to only the active frame and copies membership when duplicating", () => {
@@ -124,6 +152,9 @@ describe("project document reducer", () => {
     expect(isLayerPresent(added.document, layer.id, "frame-3")).toBe(true);
     expect(isLayerPresent(added.document, layer.id, "frame-4")).toBe(false);
     expect(isLayerPresent(duplicated.document, layer.id, "frame-local-copy")).toBe(true);
+    expect(added.frameLayerSelection["frame-3"]).toBe(layer.id);
+    expect(duplicated.activeLayerId).toBe(layer.id);
+    expect(duplicated.frameLayerSelection["frame-local-copy"]).toBe(layer.id);
 
     const invalidCommit = projectReducer(added, {
       type: "cel/commit",

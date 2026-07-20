@@ -4,6 +4,17 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.3] - 2026-07-20
+
+### Fixed
+
+- Remembered the selected layer independently for every frame so switching away and back restores the frame's previous working layer.
+- Kept per-frame selection valid when adding or deleting layers and copied the source selection when duplicating a frame.
+
+### Changed
+
+- Bumped the application version to `0.3.3`.
+
 ## [0.3.2] - 2026-07-20
 
 ### Fixed
