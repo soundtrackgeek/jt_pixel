@@ -4,11 +4,15 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.5.1` adds dependable session history while retaining persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.6.0` adds a complete New Project and canvas-setup flow while retaining dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
-- Versioned schema-v1 project document with a 64 × 64 canvas, palette, layers, frames, animation settings, and sparse pixel cels
+- Versioned schema-v1 project document with custom 1–512 pixel canvas dimensions, palette, layers, frames, animation settings, and sparse pixel cels
+- Arcade Bloom New Project dialog with project naming, 16 × 16 through 128 × 128 presets, independent width and height controls, live canvas blueprint, validation, and `Ctrl+N`
+- Blank Canvas projects with one frame and one editable layer, plus the original 64 × 64, eight-frame Courier Practice template
+- Styled unsaved-work confirmation before replacing the current session with a new project
+- Fresh-project lifecycle that clears the previous file path, recovery snapshot, playback state, and Undo/Redo history
 - Interactive pencil and eraser behavior plus boundary-aware flood fill, persisted per layer and frame
 - Tool selection with visible state and keyboard shortcuts
 - Color palette, brush size, opacity, and pixel-perfect controls
@@ -22,6 +26,7 @@ Version `0.5.1` adds dependable session history while retaining persistent proje
 - Debounced crash recovery with restore/discard choices and visible recovery status
 - `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` project shortcuts with unsaved-work protection
 - Arcade Bloom confirmation before replacing unsaved work, with safe keyboard focus and Escape-to-cancel behavior
+- Transparent checkerboard artboards that preserve portrait, landscape, and square canvas proportions
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows
 - Automatic update checks after launch and every five minutes by default
@@ -66,6 +71,10 @@ npm run tauri:build
 The normal local build does not create signed updater artifacts and does not require the release signing key. Signed updater bundles are generated only by the protected `master` CI release path.
 
 ## Project files and recovery
+
+Choose **New project** in the top toolbar or press `Ctrl+N` to open canvas setup. Blank projects support independent width and height values from 1 to 512 pixels, with quick square presets at 16, 32, 64, and 128 pixels. **Courier Practice** restores the original guided 64 × 64 project with eight animation frames, three paint layers, and its locked reference layer.
+
+New projects begin without a file path, recovery data, or Undo/Redo entries. Their first save opens the native Save dialog. If the current workspace contains unsaved changes, JT Pixel asks for confirmation inside the Arcade Bloom interface before replacing it.
 
 JT Pixel desktop projects use the `.jtp` extension. Project files are readable JSON with a versioned schema; files are validated before they can replace the active document, including their canvas bounds, palette colors, layers, frames, cel references, and pixel indices.
 
@@ -145,6 +154,7 @@ The editor foundation supports single-key tool switching when a form control is 
 | `I` | Eyedropper |
 | `H` | Hand |
 | `Space` | Play or pause animation |
+| `Ctrl+N` | Create a new project |
 | `Ctrl+O` | Open a project |
 | `Ctrl+S` | Save the current project |
 | `Ctrl+Shift+S` | Save to a new project file |

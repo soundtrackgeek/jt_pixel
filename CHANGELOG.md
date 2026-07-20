@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-07-20
+
+### Added
+
+- Arcade Bloom New Project dialog available from the top toolbar and `Ctrl+N`, with project naming, live canvas blueprint, and safe keyboard cancellation.
+- Custom blank canvases from 1 × 1 through 512 × 512 pixels, including 16, 32, 64, and 128 pixel square presets.
+- Blank Canvas setup with one frame and one editable layer, alongside the original 64 × 64, eight-frame Courier Practice template.
+- Styled confirmation before a new project replaces unsaved session work, with the safe **Keep editing** choice focused by default.
+- Automated coverage for blank and Courier document creation, validation boundaries, editable starter state, and custom project-file round trips.
+
+### Changed
+
+- Starting a new project now clears the previous file path, recovery snapshot, playback state, and Undo/Redo history before opening the clean document.
+- Canvas artboards now show transparency and preserve the true proportions of square, portrait, and landscape documents.
+- Bumped the application version to `0.6.0`.
+
 ## [0.5.1] - 2026-07-20
 
 ### Fixed

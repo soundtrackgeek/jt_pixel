@@ -3,6 +3,7 @@ import {
   PROJECT_SCHEMA_VERSION,
   celKey,
   createInitialEditorState,
+  createNewProjectDocument,
   getCelPixels,
   isLayerPresent,
   isLayerVisible,
@@ -21,6 +22,81 @@ function paintedState(): EditorDocumentState {
 }
 
 describe("project document reducer", () => {
+  it("creates a clean custom blank project with one editable frame", () => {
+    const document = createNewProjectDocument({
+      template: "blank",
+      name: "tiny hero",
+      width: 32,
+      height: 48,
+      now: "2026-07-20T12:00:00.000Z",
+    });
+
+    expect(document.name).toBe("tiny hero.jtp");
+    expect(document.width).toBe(32);
+    expect(document.height).toBe(48);
+    expect(document.frames).toEqual([{
+      id: "frame-1",
+      name: "Frame 1",
+      referenceOffset: "50% 50%",
+    }]);
+    expect(document.layers).toMatchObject([{
+      id: "layer-1",
+      name: "Layer 1",
+      kind: "pixel",
+      visible: true,
+    }]);
+    expect(document.layers.some((layer) => layer.kind === "reference")).toBe(false);
+    expect(document.workspace.activeFrameId).toBe("frame-1");
+    expect(document.createdAt).toBe("2026-07-20T12:00:00.000Z");
+
+    const state = createInitialEditorState();
+    const replaced = projectReducer(state, {
+      type: "document/replace",
+      document,
+    });
+    expect(replaced.activeFrameId).toBe("frame-1");
+    expect(replaced.activeLayerId).toBe("layer-1");
+    expect(replaced.isDirty).toBe(false);
+  });
+
+  it("creates a freshly identified Courier Practice project", () => {
+    const document = createNewProjectDocument({
+      template: "courier",
+      name: "courier lesson.jtp",
+      now: "2026-07-20T12:00:00.000Z",
+    });
+
+    expect(document.id).toMatch(/^project-/);
+    expect(document.id).not.toBe("project-courier-bloom");
+    expect(document.name).toBe("courier lesson.jtp");
+    expect(document.width).toBe(64);
+    expect(document.height).toBe(64);
+    expect(document.frames).toHaveLength(8);
+    expect(document.layers.find((layer) => layer.kind === "reference")?.locked).toBe(true);
+    expect(document.workspace.activeFrameId).toBe("frame-3");
+  });
+
+  it("rejects unsafe project names and canvas dimensions", () => {
+    expect(() => createNewProjectDocument({
+      template: "blank",
+      name: "bad/name",
+      width: 32,
+      height: 32,
+    })).toThrow(/file-system symbols/);
+    expect(() => createNewProjectDocument({
+      template: "blank",
+      name: "too-wide",
+      width: 513,
+      height: 32,
+    })).toThrow(/between 1 and 512/);
+    expect(() => createNewProjectDocument({
+      template: "blank",
+      name: "fractional",
+      width: 31.5,
+      height: 32,
+    })).toThrow(/between 1 and 512/);
+  });
+
   it("creates a versioned, editable seed document", () => {
     const state = createInitialEditorState();
 

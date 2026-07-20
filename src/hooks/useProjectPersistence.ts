@@ -43,10 +43,12 @@ export function useProjectPersistence({
   const [lastRecoveryAt, setLastRecoveryAt] = useState<Date | null>(null);
   const busyRef = useRef(false);
   const recoveryWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const recoveryReadGenerationRef = useRef(0);
   const latestRecoveryRevisionRef = useRef(state.revision);
   const wasDirtyRef = useRef(state.isDirty);
 
   const clearQueuedRecovery = useCallback(async () => {
+    recoveryReadGenerationRef.current += 1;
     latestRecoveryRevisionRef.current += 1;
     await recoveryWriteQueueRef.current.catch(() => undefined);
     await clearRecoverySnapshot();
@@ -54,8 +56,15 @@ export function useProjectPersistence({
 
   useEffect(() => {
     let cancelled = false;
+    const generation = recoveryReadGenerationRef.current;
     void readRecoverySnapshot().then((snapshot) => {
-      if (!cancelled && snapshot) setRecovery(snapshot);
+      if (
+        !cancelled
+        && generation === recoveryReadGenerationRef.current
+        && snapshot
+      ) {
+        setRecovery(snapshot);
+      }
     });
     return () => {
       cancelled = true;
@@ -244,6 +253,39 @@ export function useProjectPersistence({
     await openSelectedProject();
   }, [openSelectedProject, state.isDirty]);
 
+  const startNewProject = useCallback(async (document: ProjectDocument) => {
+    if (busyRef.current) return false;
+
+    busyRef.current = true;
+    setIsBusy(true);
+
+    try {
+      await clearQueuedRecovery();
+      replaceDocument(document);
+      setCurrentPath(null);
+      setOpenConfirmationRequested(false);
+      setRecovery(null);
+      setRecoveryStatus("idle");
+      setLastRecoveryAt(null);
+      setToast({
+        kind: "success",
+        title: "New project ready",
+        detail: `${document.name} is a clean, unsaved canvas.`,
+      });
+      return true;
+    } catch (error) {
+      setToast({
+        kind: "error",
+        title: "Project couldn’t be created",
+        detail: describeProjectStorageError(error),
+      });
+      return false;
+    } finally {
+      busyRef.current = false;
+      setIsBusy(false);
+    }
+  }, [clearQueuedRecovery, replaceDocument]);
+
   const cancelOpenProject = useCallback(() => {
     setOpenConfirmationRequested(false);
   }, []);
@@ -336,6 +378,7 @@ export function useProjectPersistence({
     recovery,
     restoreRecovery,
     saveProject,
+    startNewProject,
     toast,
   };
 }

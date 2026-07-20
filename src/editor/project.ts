@@ -1,4 +1,7 @@
 export const PROJECT_SCHEMA_VERSION = 1 as const;
+export const MIN_CANVAS_DIMENSION = 1;
+export const MAX_CANVAS_DIMENSION = 512;
+export const CANVAS_PRESETS = [16, 32, 64, 128] as const;
 
 export type PixelMap = Record<string, string>;
 const EMPTY_PIXEL_MAP: PixelMap = Object.freeze({});
@@ -47,6 +50,20 @@ export interface ProjectDocument {
   createdAt: string;
   updatedAt: string;
 }
+
+export type NewProjectOptions =
+  | {
+      template: "blank";
+      name: string;
+      width: number;
+      height: number;
+      now?: string;
+    }
+  | {
+      template: "courier";
+      name: string;
+      now?: string;
+    };
 
 export interface EditorDocumentState {
   document: ProjectDocument;
@@ -104,6 +121,32 @@ export function createProjectId(prefix: string) {
   return `${prefix}-${suffix}`;
 }
 
+export function getNewProjectNameError(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return "Give the project a name.";
+  if (/[<>:\"/\\|?*\u0000-\u001f]/.test(trimmed)) {
+    return "Use a name without file-system symbols.";
+  }
+  if (/[. ]$/.test(trimmed)) return "The name cannot end with a dot or space.";
+  const fileName = trimmed.toLowerCase().endsWith(".jtp")
+    ? trimmed
+    : `${trimmed}.jtp`;
+  return fileName.length > 255 ? "Keep the project name under 252 characters." : null;
+}
+
+export function normalizeNewProjectName(name: string) {
+  const error = getNewProjectNameError(name);
+  if (error) throw new Error(error);
+  const trimmed = name.trim();
+  return trimmed.toLowerCase().endsWith(".jtp") ? trimmed : `${trimmed}.jtp`;
+}
+
+export function isValidCanvasDimension(value: number) {
+  return Number.isInteger(value)
+    && value >= MIN_CANVAS_DIMENSION
+    && value <= MAX_CANVAS_DIMENSION;
+}
+
 export function celKey(layerId: string, frameId: string) {
   return `${layerId}::${frameId}`;
 }
@@ -157,6 +200,58 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
     frameLayerPresence: {},
     animation: { fps: 8, loop: true },
     workspace: { activeFrameId: "frame-3" },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function createNewProjectDocument(options: NewProjectOptions): ProjectDocument {
+  const now = options.now ?? new Date().toISOString();
+  const name = normalizeNewProjectName(options.name);
+
+  if (options.template === "courier") {
+    return {
+      ...createProjectDocument(now),
+      id: createProjectId("project"),
+      name,
+    };
+  }
+
+  if (!isValidCanvasDimension(options.width) || !isValidCanvasDimension(options.height)) {
+    throw new RangeError(
+      `Canvas dimensions must be whole numbers between ${MIN_CANVAS_DIMENSION} and ${MAX_CANVAS_DIMENSION}.`,
+    );
+  }
+
+  return {
+    schemaVersion: PROJECT_SCHEMA_VERSION,
+    id: createProjectId("project"),
+    name,
+    width: options.width,
+    height: options.height,
+    palette: [...DEFAULT_PALETTE],
+    layers: [
+      {
+        id: "layer-1",
+        name: "Layer 1",
+        kind: "pixel",
+        blendMode: "normal",
+        opacity: 100,
+        visible: true,
+      },
+    ],
+    frames: [
+      {
+        id: "frame-1",
+        name: "Frame 1",
+        referenceOffset: "50% 50%",
+      },
+    ],
+    cels: {},
+    frameLayerVisibility: {},
+    frameLayerPresence: {},
+    animation: { fps: 8, loop: true },
+    workspace: { activeFrameId: "frame-1" },
     createdAt: now,
     updatedAt: now,
   };

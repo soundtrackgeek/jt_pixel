@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CanvasStage } from "./components/CanvasStage";
 import { Inspector } from "./components/Inspector";
 import { ProjectOpenDialog } from "./components/ProjectOpenDialog";
+import { ProjectNewDialog } from "./components/ProjectNewDialog";
 import { ProjectRecoveryDialog } from "./components/ProjectRecoveryDialog";
 import { ProjectToast } from "./components/ProjectToast";
 import { StatusBar } from "./components/StatusBar";
@@ -12,6 +13,7 @@ import { TopBar } from "./components/TopBar";
 import { UpdateSettings } from "./components/UpdateSettings";
 import { UpdateToast } from "./components/UpdateToast";
 import { tools } from "./data/editor";
+import { createNewProjectDocument, type NewProjectOptions } from "./editor/project";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
@@ -53,14 +55,35 @@ function App() {
   const [cursor, setCursor] = useState<CursorPosition>({ x: 12, y: 28 });
   const [zoom, setZoom] = useState(800);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
   const updater = useAppUpdater();
   const activeFrameIndex = Math.max(
     0,
     document.frames.findIndex((frame) => frame.id === project.state.activeFrameId),
   );
   const modalOpen = settingsOpen
+    || newProjectOpen
     || persistence.openConfirmationRequested
     || persistence.recovery !== null;
+
+  const openNewProject = useCallback(() => {
+    if (!persistence.isBusy) setNewProjectOpen(true);
+  }, [persistence.isBusy]);
+
+  const createNewProject = useCallback(async (options: NewProjectOptions) => {
+    const nextDocument = createNewProjectDocument(options);
+    const created = await persistence.startNewProject(nextDocument);
+    if (!created) return false;
+
+    setNewProjectOpen(false);
+    setActiveTool("pencil");
+    setActiveColor(nextDocument.palette[3]);
+    setBrushSize(1);
+    setOpacity(100);
+    setIsPlaying(false);
+    setZoom(800);
+    return true;
+  }, [persistence.startNewProject]);
 
   const shortcutMap = useMemo(
     () => new Map(tools.map((tool) => [tool.shortcut.toLowerCase(), tool.id])),
@@ -82,8 +105,13 @@ function App() {
       ) return;
 
       if (event.ctrlKey || event.metaKey) {
-        if (isTextEditingTarget(target)) return;
         const key = event.key.toLowerCase();
+        if (key === "n" && !event.shiftKey) {
+          event.preventDefault();
+          openNewProject();
+          return;
+        }
+        if (isTextEditingTarget(target)) return;
         if (key === "z") {
           event.preventDefault();
           if (event.shiftKey) project.redo();
@@ -109,7 +137,7 @@ function App() {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [modalOpen, persistence.isBusy, project.redo, project.undo, shortcutMap]);
+  }, [modalOpen, openNewProject, persistence.isBusy, project.redo, project.undo, shortcutMap]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -127,6 +155,7 @@ function App() {
         width={document.width}
         height={document.height}
         isFileBusy={persistence.isBusy}
+        onNewProject={openNewProject}
         onOpenProject={() => void persistence.openProject()}
         onRedo={project.redo}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -229,6 +258,15 @@ function App() {
         onCancel={persistence.cancelOpenProject}
         onConfirm={() => void persistence.confirmOpenProject()}
       />
+      {newProjectOpen && (
+        <ProjectNewDialog
+          hasUnsavedChanges={project.state.isDirty}
+          isBusy={persistence.isBusy}
+          projectName={document.name}
+          onClose={() => setNewProjectOpen(false)}
+          onCreate={createNewProject}
+        />
+      )}
       <ProjectRecoveryDialog
         recovery={persistence.recovery}
         onDiscard={() => void persistence.discardRecovery()}

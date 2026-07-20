@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   celKey,
   createEditorStateForDocument,
+  createNewProjectDocument,
   createProjectDocument,
 } from "./project";
 import {
@@ -28,6 +29,23 @@ function projectWithPixels() {
 }
 
 describe("project files", () => {
+  it("round-trips a custom blank project", () => {
+    const source = createNewProjectDocument({
+      template: "blank",
+      name: "portrait-study",
+      width: 24,
+      height: 40,
+      now: "2026-07-20T09:00:00.000Z",
+    });
+    const parsed = parseProjectDocument(serializeProjectDocument(source));
+
+    expect(parsed).toEqual(source);
+    expect(parsed.layers).toHaveLength(1);
+    expect(parsed.frames).toHaveLength(1);
+    expect(parsed.width).toBe(24);
+    expect(parsed.height).toBe(40);
+  });
+
   it("round-trips a complete project document", () => {
     const source = projectWithPixels();
     const parsed = parseProjectDocument(serializeProjectDocument(source));

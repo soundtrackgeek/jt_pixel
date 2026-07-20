@@ -1,4 +1,6 @@
 import {
+  MAX_CANVAS_DIMENSION,
+  MIN_CANVAS_DIMENSION,
   PROJECT_SCHEMA_VERSION,
   celKey,
   isLayerPresent,
@@ -12,7 +14,6 @@ import {
 export const RECOVERY_SCHEMA_VERSION = 1 as const;
 
 const MAX_PROJECT_FILE_CHARACTERS = 25_000_000;
-const MAX_CANVAS_DIMENSION = 512;
 const MAX_FRAMES = 1_024;
 const MAX_LAYERS = 256;
 const MAX_PALETTE_COLORS = 256;
@@ -241,8 +242,8 @@ export function validateProjectDocument(value: unknown): ProjectDocument {
     );
   }
 
-  const width = expectInteger(source.width, "width", 1, MAX_CANVAS_DIMENSION);
-  const height = expectInteger(source.height, "height", 1, MAX_CANVAS_DIMENSION);
+  const width = expectInteger(source.width, "width", MIN_CANVAS_DIMENSION, MAX_CANVAS_DIMENSION);
+  const height = expectInteger(source.height, "height", MIN_CANVAS_DIMENSION, MAX_CANVAS_DIMENSION);
   const layers = parseLayers(source.layers);
   const frames = parseFrames(source.frames);
   const layerIds = new Set(layers.map((layer) => layer.id));

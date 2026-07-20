@@ -2,6 +2,7 @@ import {
   BoxSelect,
   Circle,
   Eraser,
+  FilePlus2,
   FolderOpen,
   PaintBucket,
   Pencil,
@@ -22,6 +23,7 @@ interface TopBarProps {
   fps: number;
   height: number;
   isFileBusy: boolean;
+  onNewProject: () => void;
   onOpenProject: () => void;
   onRedo: () => void;
   onOpenSettings: () => void;
@@ -52,6 +54,7 @@ export function TopBar({
   fps,
   height,
   isFileBusy,
+  onNewProject,
   onOpenProject,
   onRedo,
   onOpenSettings,
@@ -117,6 +120,17 @@ export function TopBar({
             <Redo2 size={18} />
           </button>
           <span className="command-divider" />
+          <button
+            className="icon-button"
+            aria-label="New project"
+            aria-keyshortcuts="Control+N Meta+N"
+            title="New project (Ctrl+N)"
+            disabled={isFileBusy}
+            data-busy={isFileBusy}
+            onClick={onNewProject}
+          >
+            <FilePlus2 size={18} />
+          </button>
           <button
             className="icon-button"
             aria-label="Open project"

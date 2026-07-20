@@ -184,6 +184,8 @@ export function CanvasStage({
             "--frame-shift": `${(activeFrameIndex - 3) * 0.35}px`,
             "--grid-width": document.width,
             "--grid-height": document.height,
+            "--canvas-fit-width": `${(document.width / document.height) * 100}cqh`,
+            aspectRatio: `${document.width} / ${document.height}`,
           } as CSSProperties}
         >
           {referenceLayer && isLayerVisible(document, referenceLayer.id, activeFrameId) && (
