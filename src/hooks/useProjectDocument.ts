@@ -5,6 +5,7 @@ import {
   getCelPixels,
   projectReducer,
   type PixelMap,
+  type ProjectDocument,
   type ProjectLayer,
 } from "../editor/project";
 
@@ -60,6 +61,18 @@ export function useProjectDocument() {
   );
   const deleteFrame = useCallback((frameId: string) => dispatch({ type: "frame/delete", frameId }), []);
   const setFps = useCallback((fps: number) => dispatch({ type: "animation/set-fps", fps }), []);
+  const replaceDocument = useCallback(
+    (document: ProjectDocument, dirty = false) => dispatch({
+      type: "document/replace",
+      document,
+      dirty,
+    }),
+    [],
+  );
+  const markSaved = useCallback(
+    (document?: ProjectDocument) => dispatch({ type: "document/mark-saved", document }),
+    [],
+  );
   const commitActiveCel = useCallback(
     (pixels: PixelMap) => dispatch({
       type: "cel/commit",
@@ -88,6 +101,8 @@ export function useProjectDocument() {
     duplicateFrame,
     deleteFrame,
     setFps,
+    replaceDocument,
+    markSaved,
     commitActiveCel,
     clearActiveCel,
   };

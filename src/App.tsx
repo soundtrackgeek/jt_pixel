@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CanvasStage } from "./components/CanvasStage";
 import { Inspector } from "./components/Inspector";
+import { ProjectRecoveryDialog } from "./components/ProjectRecoveryDialog";
+import { ProjectToast } from "./components/ProjectToast";
 import { StatusBar } from "./components/StatusBar";
 import { Timeline } from "./components/Timeline";
 import { ToolPanel } from "./components/ToolPanel";
@@ -11,10 +13,16 @@ import { UpdateToast } from "./components/UpdateToast";
 import { tools } from "./data/editor";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { useProjectDocument } from "./hooks/useProjectDocument";
+import { useProjectPersistence } from "./hooks/useProjectPersistence";
 import type { CursorPosition, ToolId } from "./types";
 
 function App() {
   const project = useProjectDocument();
+  const persistence = useProjectPersistence({
+    state: project.state,
+    markSaved: project.markSaved,
+    replaceDocument: project.replaceDocument,
+  });
   const { document } = project.state;
   const [activeTool, setActiveTool] = useState<ToolId>("pencil");
   const [activeColor, setActiveColor] = useState(document.palette[3]);
@@ -68,7 +76,10 @@ function App() {
         fps={document.animation.fps}
         width={document.width}
         height={document.height}
+        isFileBusy={persistence.isBusy}
+        onOpenProject={() => void persistence.openProject()}
         onOpenSettings={() => setSettingsOpen(true)}
+        onSaveProject={() => void persistence.saveProject()}
         onToolChange={setActiveTool}
       />
 
@@ -131,6 +142,7 @@ function App() {
         activeFrameIndex={activeFrameIndex}
         activeTool={activeTool}
         cursor={cursor}
+        documentStatus={persistence.documentStatus}
         frameCount={document.frames.length}
         height={document.height}
         width={document.width}
@@ -152,6 +164,15 @@ function App() {
         onCheckAgain={() => void updater.checkForUpdates()}
         onDismiss={updater.dismissToast}
         onInstall={() => void updater.installUpdate()}
+      />
+      <ProjectToast
+        toast={persistence.toast}
+        onDismiss={persistence.dismissToast}
+      />
+      <ProjectRecoveryDialog
+        recovery={persistence.recovery}
+        onDiscard={() => void persistence.discardRecovery()}
+        onRestore={persistence.restoreRecovery}
       />
     </div>
   );

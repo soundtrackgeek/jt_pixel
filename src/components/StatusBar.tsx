@@ -5,6 +5,7 @@ interface StatusBarProps {
   activeFrameIndex: number;
   activeTool: ToolId;
   cursor: CursorPosition;
+  documentStatus: string;
   frameCount: number;
   height: number;
   width: number;
@@ -16,6 +17,7 @@ export function StatusBar({
   activeFrameIndex,
   activeTool,
   cursor,
+  documentStatus,
   frameCount,
   height,
   width,
@@ -29,6 +31,7 @@ export function StatusBar({
         <span>Zoom {zoom}%</span>
         <span>X: {cursor.x}, Y: {cursor.y}</span>
         <span className="statusbar__tool">{activeTool}</span>
+        <span className="statusbar__document-state">{documentStatus}</span>
       </div>
       <div className="statusbar__group statusbar__color">
         <span>RGB</span>

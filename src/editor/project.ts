@@ -66,7 +66,8 @@ export type ProjectAction =
   | { type: "frame/duplicate"; frameId: string; duplicateId: string }
   | { type: "frame/delete"; frameId: string }
   | { type: "animation/set-fps"; fps: number }
-  | { type: "document/mark-saved" };
+  | { type: "document/replace"; document: ProjectDocument; dirty?: boolean }
+  | { type: "document/mark-saved"; document?: ProjectDocument };
 
 export const DEFAULT_PALETTE = [
   "#152034",
@@ -159,15 +160,31 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
 
 export function createInitialEditorState(): EditorDocumentState {
   const document = createProjectDocument();
+  return createEditorStateForDocument(document, false, 0, "frame-3");
+}
+
+export function createEditorStateForDocument(
+  document: ProjectDocument,
+  isDirty = false,
+  revision = 0,
+  preferredFrameId?: string,
+): EditorDocumentState {
+  const activeFrameId = document.frames.find(
+    (frame) => frame.id === preferredFrameId,
+  )?.id ?? document.frames[0].id;
+  const frameLayerSelection = Object.fromEntries(
+    document.frames.map((frame) => [
+      frame.id,
+      layerForFrame(document, frame.id, "layer-details"),
+    ]),
+  );
   return {
     document,
-    activeLayerId: "layer-details",
-    activeFrameId: "frame-3",
-    frameLayerSelection: Object.fromEntries(
-      document.frames.map((frame) => [frame.id, "layer-details"]),
-    ),
-    isDirty: false,
-    revision: 0,
+    activeLayerId: frameLayerSelection[activeFrameId],
+    activeFrameId,
+    frameLayerSelection,
+    isDirty,
+    revision,
   };
 }
 
@@ -521,7 +538,18 @@ export function projectReducer(
       });
     }
 
+    case "document/replace":
+      return createEditorStateForDocument(
+        action.document,
+        action.dirty ?? false,
+        state.revision + 1,
+      );
+
     case "document/mark-saved":
-      return { ...state, isDirty: false };
+      return {
+        ...state,
+        document: action.document ?? document,
+        isDirty: false,
+      };
   }
 }

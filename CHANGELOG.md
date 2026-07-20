@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-07-20
+
+### Added
+
+- Native Tauri Open and Save dialogs for `.jtp` project files, including current-path reuse and Save As through `Ctrl+Shift+S`.
+- Strict schema-v1 project validation for dimensions, palettes, layers, frames, animation settings, cel references, and pixel bounds before loading files.
+- Debounced crash-recovery snapshots in the application-data directory with a polished restore/discard experience on the next launch.
+- Project file notifications, visible `READY`, `SAVED`, `UNSAVED`, and `RECOVERY READY` status, unsaved-open confirmation, and close protection.
+- Automated coverage for project serialization, invalid-file rejection, recovery snapshots, native storage calls, document replacement, and save metadata.
+
+### Changed
+
+- Activated the existing Open and Save toolbar controls and added `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` shortcuts.
+- Added narrowly scoped Tauri dialog and filesystem permissions for user-selected project files and the single app-data recovery file.
+- Bumped the application version to `0.4.0`.
+
 ## [0.3.4] - 2026-07-20
 
 ### Fixed

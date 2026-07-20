@@ -213,4 +213,33 @@ describe("project document reducer", () => {
     expect(state.document.frames).toHaveLength(1);
     expect(unchanged).toBe(state);
   });
+
+  it("replaces a project with valid editor defaults and marks saved metadata", () => {
+    const initial = createInitialEditorState();
+    const replacement = {
+      ...initial.document,
+      name: "opened-project.jtp",
+      frames: initial.document.frames.slice(0, 2),
+    };
+    const recovered = projectReducer(initial, {
+      type: "document/replace",
+      document: replacement,
+      dirty: true,
+    });
+
+    expect(recovered.document).toBe(replacement);
+    expect(recovered.activeFrameId).toBe("frame-1");
+    expect(recovered.activeLayerId).toBe("layer-details");
+    expect(recovered.isDirty).toBe(true);
+    expect(recovered.revision).toBe(1);
+
+    const savedDocument = { ...replacement, name: "saved-project.jtp" };
+    const saved = projectReducer(recovered, {
+      type: "document/mark-saved",
+      document: savedDocument,
+    });
+    expect(saved.document).toBe(savedDocument);
+    expect(saved.activeFrameId).toBe("frame-1");
+    expect(saved.isDirty).toBe(false);
+  });
 });

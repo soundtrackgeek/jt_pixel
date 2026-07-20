@@ -4,17 +4,20 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.3.4` adds the first production document engine while retaining the signed desktop update channel:
+Version `0.4.0` adds persistent project files and crash recovery while retaining the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
 - Versioned schema-v1 project document with a 64 × 64 canvas, palette, layers, frames, animation settings, and sparse pixel cels
-- Interactive pencil and eraser behavior plus boundary-aware flood fill, persisted per layer and frame for the current app session
+- Interactive pencil and eraser behavior plus boundary-aware flood fill, persisted per layer and frame
 - Tool selection with visible state and keyboard shortcuts
 - Color palette, brush size, opacity, and pixel-perfect controls
 - Functional frame-local layer creation, deletion, selection, visibility, and instant selected-layer restoration, with locked-reference safeguards and live thumbnails
 - Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
 - Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
+- Native Open and Save dialogs for validated, human-readable `.jtp` project files
+- Debounced crash recovery with restore/discard choices and visible recovery status
+- `Ctrl+O`, `Ctrl+S`, and `Ctrl+Shift+S` project shortcuts with unsaved-work protection
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows
 - Automatic update checks after launch and every five minutes by default
@@ -22,7 +25,7 @@ Version `0.3.4` adds the first production document engine while retaining the si
 - Arcade Bloom update notifications with download and installation progress
 - Signed, in-app Windows updates published through GitHub Releases
 
-The document currently lives in memory, so closing or reloading the app discards edits. Native save/open dialogs and crash recovery are the next document milestone; undo history and export remain reserved for later phases.
+Undo history and image or sprite-sheet export remain reserved for later phases.
 
 ## Prerequisites
 
@@ -57,6 +60,18 @@ npm run tauri:build
 ```
 
 The normal local build does not create signed updater artifacts and does not require the release signing key. Signed updater bundles are generated only by the protected `master` CI release path.
+
+## Project files and recovery
+
+JT Pixel desktop projects use the `.jtp` extension. Project files are readable JSON with a versioned schema; files are validated before they can replace the active document, including their canvas bounds, palette colors, layers, frames, cel references, and pixel indices.
+
+- Choose **Save** or press `Ctrl+S` to save. A new or recovered project opens the native Save dialog; later saves reuse the selected path for the current session.
+- Press `Ctrl+Shift+S` to choose a different path and save a copy.
+- Choose **Open** or press `Ctrl+O` to open a `.jtp` file. JT Pixel asks before replacing unsaved work.
+- Unsaved edits are written shortly after each document change to a versioned recovery file in JT Pixel's application-data folder.
+- If recovery data is found on launch, choose **Restore work** to open it as an unsaved copy or **Discard recovery** to remove it.
+
+Recovered work intentionally does not reuse its previous file path. Its next save opens the native Save dialog, preventing an automatic overwrite after a crash.
 
 ## In-app updates
 
@@ -122,11 +137,15 @@ The editor foundation supports single-key tool switching when a form control is 
 | `I` | Eyedropper |
 | `H` | Hand |
 | `Space` | Play or pause animation |
+| `Ctrl+O` | Open a project |
+| `Ctrl+S` | Save the current project |
+| `Ctrl+Shift+S` | Save to a new project file |
 
 ## Project structure
 
 - `src/components/` — focused editor UI components
-- `src/editor/` — versioned project model, reducer, pixel operations, and reducer tests
+- `src/editor/` — versioned project model, validated file format, reducer, pixel operations, and tests
+- `src/services/` — native project storage and recovery adapters
 - `src/data/` — editor tool definitions
 - `src/assets/` — generated Arcade Bloom artwork
 - `src-tauri/` — Rust entry point, capabilities, icons, and Tauri configuration

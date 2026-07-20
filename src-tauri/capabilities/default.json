@@ -5,6 +5,20 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "dialog:allow-confirm",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    "fs:allow-exists",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-remove",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        { "path": "$APPDATA/project-recovery-v1.json" }
+      ]
+    },
     "process:allow-restart",
     "updater:default"
   ]

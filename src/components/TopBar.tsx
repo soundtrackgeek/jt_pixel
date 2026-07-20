@@ -19,7 +19,10 @@ interface TopBarProps {
   activeTool: ToolId;
   fps: number;
   height: number;
+  isFileBusy: boolean;
+  onOpenProject: () => void;
   onOpenSettings: () => void;
+  onSaveProject: () => void;
   onToolChange: (tool: ToolId) => void;
   width: number;
 }
@@ -42,7 +45,10 @@ export function TopBar({
   activeTool,
   fps,
   height,
+  isFileBusy,
+  onOpenProject,
   onOpenSettings,
+  onSaveProject,
   onToolChange,
   width,
 }: TopBarProps) {
@@ -89,10 +95,22 @@ export function TopBar({
             <Redo2 size={18} />
           </button>
           <span className="command-divider" />
-          <button className="icon-button" aria-label="Open project" title="Open project">
+          <button
+            className="icon-button"
+            aria-label="Open project"
+            title="Open project (Ctrl+O)"
+            disabled={isFileBusy}
+            onClick={onOpenProject}
+          >
             <FolderOpen size={18} />
           </button>
-          <button className="icon-button" aria-label="Save project" title="Save project">
+          <button
+            className="icon-button"
+            aria-label="Save project"
+            title="Save project (Ctrl+S)"
+            disabled={isFileBusy}
+            onClick={onSaveProject}
+          >
             <Save size={18} />
           </button>
           <button
