@@ -1,0 +1,16 @@
+[package]
+name = "jt-pixel"
+version = "0.1.0"
+description = "A focused pixel art and sprite animation studio"
+authors = ["JT Pixel contributors"]
+edition = "2024"
+
+[lib]
+name = "jt_pixel_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+tauri = { version = "2.11.5", features = [] }
