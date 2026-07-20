@@ -44,6 +44,13 @@ export function useProjectPersistence({
   const busyRef = useRef(false);
   const recoveryWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
   const latestRecoveryRevisionRef = useRef(state.revision);
+  const wasDirtyRef = useRef(state.isDirty);
+
+  const clearQueuedRecovery = useCallback(async () => {
+    latestRecoveryRevisionRef.current += 1;
+    await recoveryWriteQueueRef.current.catch(() => undefined);
+    await clearRecoverySnapshot();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +99,13 @@ export function useProjectPersistence({
   }, [state.activeFrameId, state.document, state.isDirty, state.revision]);
 
   useEffect(() => {
+    const wasDirty = wasDirtyRef.current;
+    wasDirtyRef.current = state.isDirty;
+    if (!wasDirty || state.isDirty || busyRef.current) return;
+    void clearQueuedRecovery().catch(() => undefined);
+  }, [clearQueuedRecovery, state.isDirty]);
+
+  useEffect(() => {
     if (toast?.kind !== "success" && toast?.kind !== "desktop-only") return;
     const timer = window.setTimeout(() => setToast(null), 4_000);
     return () => window.clearTimeout(timer);
@@ -106,12 +120,6 @@ export function useProjectPersistence({
     window.addEventListener("beforeunload", warnBeforeClose);
     return () => window.removeEventListener("beforeunload", warnBeforeClose);
   }, [state.isDirty]);
-
-  const clearQueuedRecovery = useCallback(async () => {
-    latestRecoveryRevisionRef.current += 1;
-    await recoveryWriteQueueRef.current.catch(() => undefined);
-    await clearRecoverySnapshot();
-  }, []);
 
   const saveProject = useCallback(async (saveAs = false) => {
     if (!desktopAvailable) {

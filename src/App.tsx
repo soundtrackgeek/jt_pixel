@@ -58,12 +58,24 @@ function App() {
         || (target instanceof HTMLElement && target.isContentEditable);
       if (
         event.defaultPrevented
-        || event.ctrlKey
-        || event.metaKey
         || event.altKey
         || typingTarget
         || modalOpen
+        || persistence.isBusy
       ) return;
+
+      if (event.ctrlKey || event.metaKey) {
+        const key = event.key.toLowerCase();
+        if (key === "z") {
+          event.preventDefault();
+          if (event.shiftKey) project.redo();
+          else project.undo();
+        } else if (key === "y" && !event.shiftKey) {
+          event.preventDefault();
+          project.redo();
+        }
+        return;
+      }
 
       if (event.code === "Space") {
         event.preventDefault();
@@ -77,7 +89,7 @@ function App() {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [modalOpen, shortcutMap]);
+  }, [modalOpen, persistence.isBusy, project.redo, project.undo, shortcutMap]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -89,14 +101,18 @@ function App() {
     <div className="app-shell">
       <TopBar
         activeTool={activeTool}
+        canRedo={project.canRedo}
+        canUndo={project.canUndo}
         fps={document.animation.fps}
         width={document.width}
         height={document.height}
         isFileBusy={persistence.isBusy}
         onOpenProject={() => void persistence.openProject()}
+        onRedo={project.redo}
         onOpenSettings={() => setSettingsOpen(true)}
         onSaveProject={() => void persistence.saveProject()}
         onToolChange={setActiveTool}
+        onUndo={project.undo}
       />
 
       <div className="workspace">

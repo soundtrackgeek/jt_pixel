@@ -17,13 +17,17 @@ import { Brand } from "./Brand";
 
 interface TopBarProps {
   activeTool: ToolId;
+  canRedo: boolean;
+  canUndo: boolean;
   fps: number;
   height: number;
   isFileBusy: boolean;
   onOpenProject: () => void;
+  onRedo: () => void;
   onOpenSettings: () => void;
   onSaveProject: () => void;
   onToolChange: (tool: ToolId) => void;
+  onUndo: () => void;
   width: number;
 }
 
@@ -43,13 +47,17 @@ const commandTools: Array<{
 
 export function TopBar({
   activeTool,
+  canRedo,
+  canUndo,
   fps,
   height,
   isFileBusy,
   onOpenProject,
+  onRedo,
   onOpenSettings,
   onSaveProject,
   onToolChange,
+  onUndo,
   width,
 }: TopBarProps) {
   return (
@@ -88,10 +96,24 @@ export function TopBar({
         </div>
 
         <div className="topbar-actions">
-          <button className="icon-button" aria-label="Undo" title="Undo">
+          <button
+            className="icon-button"
+            aria-label="Undo"
+            aria-keyshortcuts="Control+Z Meta+Z"
+            title="Undo (Ctrl+Z)"
+            disabled={!canUndo || isFileBusy}
+            onClick={onUndo}
+          >
             <Undo2 size={18} />
           </button>
-          <button className="icon-button" aria-label="Redo" title="Redo">
+          <button
+            className="icon-button"
+            aria-label="Redo"
+            aria-keyshortcuts="Control+Y Meta+Y Control+Shift+Z Meta+Shift+Z"
+            title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
+            disabled={!canRedo || isFileBusy}
+            onClick={onRedo}
+          >
             <Redo2 size={18} />
           </button>
           <span className="command-divider" />
@@ -100,6 +122,7 @@ export function TopBar({
             aria-label="Open project"
             title="Open project (Ctrl+O)"
             disabled={isFileBusy}
+            data-busy={isFileBusy}
             onClick={onOpenProject}
           >
             <FolderOpen size={18} />
@@ -109,6 +132,7 @@ export function TopBar({
             aria-label="Save project"
             title="Save project (Ctrl+S)"
             disabled={isFileBusy}
+            data-busy={isFileBusy}
             onClick={onSaveProject}
           >
             <Save size={18} />

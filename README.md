@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.4.3` restores the saved working frame when opening projects while retaining persistent project files, crash recovery, and the signed desktop update channel:
+Version `0.5.0` adds dependable session history while retaining persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -15,6 +15,8 @@ Version `0.4.3` restores the saved working frame when opening projects while ret
 - Functional frame-local layer creation, deletion, selection, visibility, and instant selected-layer restoration, with locked-reference safeguards and live thumbnails
 - Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
 - Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
+- Bounded 100-step Undo and Redo for complete drawing strokes, fills, cel clears, frame-local layer operations, frame operations, and frame-rate changes
+- Toolbar history controls plus `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z` shortcuts, with Redo cleared after a branched edit
 - Native Open and Save dialogs for validated, human-readable `.jtp` project files
 - Saved workspace position so projects and recovered work reopen on the frame where you left them
 - Debounced crash recovery with restore/discard choices and visible recovery status
@@ -27,7 +29,7 @@ Version `0.4.3` restores the saved working frame when opening projects while ret
 - Arcade Bloom update notifications with download and installation progress
 - Signed, in-app Windows updates published through GitHub Releases
 
-Undo history and image or sprite-sheet export remain reserved for later phases.
+Image and sprite-sheet export remain reserved for later phases.
 
 ## Prerequisites
 
@@ -74,6 +76,8 @@ JT Pixel desktop projects use the `.jtp` extension. Project files are readable J
 - If recovery data is found on launch, choose **Restore work** to open it as an unsaved copy or **Discard recovery** to remove it.
 
 Recovered work intentionally does not reuse its previous file path. Its next save opens the native Save dialog, preventing an automatic overwrite after a crash.
+
+Undo and Redo history is kept for the current editing session and is not serialized into `.jtp` files. Saving preserves the current history and establishes a clean checkpoint, so undoing back to that position returns the status to **SAVED**. Opening or restoring a different project starts a fresh history.
 
 ## In-app updates
 
@@ -142,6 +146,9 @@ The editor foundation supports single-key tool switching when a form control is 
 | `Ctrl+O` | Open a project |
 | `Ctrl+S` | Save the current project |
 | `Ctrl+Shift+S` | Save to a new project file |
+| `Ctrl+Z` | Undo the last document edit |
+| `Ctrl+Y` | Redo the next document edit |
+| `Ctrl+Shift+Z` | Redo the next document edit |
 
 ## Project structure
 

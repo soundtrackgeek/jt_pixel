@@ -1,16 +1,32 @@
 import { useCallback, useMemo, useReducer } from "react";
 import {
-  createInitialEditorState,
+  createInitialHistoryState,
+  editorHistoryReducer,
+} from "../editor/history";
+import {
   createProjectId,
   getCelPixels,
-  projectReducer,
   type PixelMap,
+  type ProjectAction,
   type ProjectDocument,
   type ProjectLayer,
 } from "../editor/project";
 
 export function useProjectDocument() {
-  const [state, dispatch] = useReducer(projectReducer, undefined, createInitialEditorState);
+  const [history, dispatch] = useReducer(
+    editorHistoryReducer,
+    undefined,
+    createInitialHistoryState,
+  );
+  const state = history.present.state;
+
+  const apply = useCallback(
+    (action: ProjectAction) => dispatch({
+      type: "history/apply",
+      action,
+    }),
+    [],
+  );
 
   const activeLayer = useMemo(
     () => state.document.layers.find((layer) => layer.id === state.activeLayerId) ?? state.document.layers[0],
@@ -25,14 +41,14 @@ export function useProjectDocument() {
     [activeFrame.id, activeLayer.id, state.document],
   );
 
-  const selectLayer = useCallback((layerId: string) => dispatch({ type: "layer/select", layerId }), []);
+  const selectLayer = useCallback((layerId: string) => apply({ type: "layer/select", layerId }), [apply]);
   const toggleLayerVisibility = useCallback(
-    (layerId: string) => dispatch({
+    (layerId: string) => apply({
       type: "layer/toggle-visibility",
       layerId,
       frameId: state.activeFrameId,
     }),
-    [state.activeFrameId],
+    [apply, state.activeFrameId],
   );
   const addLayer = useCallback(() => {
     const layer: ProjectLayer = {
@@ -43,55 +59,59 @@ export function useProjectDocument() {
       opacity: 100,
       visible: true,
     };
-    dispatch({ type: "layer/add", layer, frameId: state.activeFrameId });
-  }, [state.activeFrameId, state.document.layers]);
+    apply({ type: "layer/add", layer, frameId: state.activeFrameId });
+  }, [apply, state.activeFrameId, state.document.layers]);
   const deleteLayer = useCallback(
-    (layerId: string) => dispatch({
+    (layerId: string) => apply({
       type: "layer/delete",
       layerId,
       frameId: state.activeFrameId,
     }),
-    [state.activeFrameId],
+    [apply, state.activeFrameId],
   );
-  const selectFrame = useCallback((frameId: string) => dispatch({ type: "frame/select", frameId }), []);
-  const advanceFrame = useCallback(() => dispatch({ type: "frame/advance" }), []);
+  const selectFrame = useCallback((frameId: string) => apply({ type: "frame/select", frameId }), [apply]);
+  const advanceFrame = useCallback(() => apply({ type: "frame/advance" }), [apply]);
   const duplicateFrame = useCallback(
-    (frameId: string) => dispatch({ type: "frame/duplicate", frameId, duplicateId: createProjectId("frame") }),
-    [],
+    (frameId: string) => apply({ type: "frame/duplicate", frameId, duplicateId: createProjectId("frame") }),
+    [apply],
   );
-  const deleteFrame = useCallback((frameId: string) => dispatch({ type: "frame/delete", frameId }), []);
-  const setFps = useCallback((fps: number) => dispatch({ type: "animation/set-fps", fps }), []);
+  const deleteFrame = useCallback((frameId: string) => apply({ type: "frame/delete", frameId }), [apply]);
+  const setFps = useCallback((fps: number) => apply({ type: "animation/set-fps", fps }), [apply]);
   const replaceDocument = useCallback(
-    (document: ProjectDocument, dirty = false) => dispatch({
+    (document: ProjectDocument, dirty = false) => apply({
       type: "document/replace",
       document,
       dirty,
     }),
-    [],
+    [apply],
   );
   const markSaved = useCallback(
-    (document?: ProjectDocument) => dispatch({ type: "document/mark-saved", document }),
-    [],
+    (document?: ProjectDocument) => apply({ type: "document/mark-saved", document }),
+    [apply],
   );
   const commitActiveCel = useCallback(
-    (pixels: PixelMap) => dispatch({
+    (pixels: PixelMap) => apply({
       type: "cel/commit",
       layerId: state.activeLayerId,
       frameId: state.activeFrameId,
       pixels,
     }),
-    [state.activeFrameId, state.activeLayerId],
+    [apply, state.activeFrameId, state.activeLayerId],
   );
   const clearActiveCel = useCallback(
-    () => dispatch({ type: "cel/clear", layerId: state.activeLayerId, frameId: state.activeFrameId }),
-    [state.activeFrameId, state.activeLayerId],
+    () => apply({ type: "cel/clear", layerId: state.activeLayerId, frameId: state.activeFrameId }),
+    [apply, state.activeFrameId, state.activeLayerId],
   );
+  const undo = useCallback(() => dispatch({ type: "history/undo" }), []);
+  const redo = useCallback(() => dispatch({ type: "history/redo" }), []);
 
   return {
     state,
     activeLayer,
     activeFrame,
     activePixels,
+    canUndo: history.past.length > 0,
+    canRedo: history.future.length > 0,
     selectLayer,
     toggleLayerVisibility,
     addLayer,
@@ -105,5 +125,7 @@ export function useProjectDocument() {
     markSaved,
     commitActiveCel,
     clearActiveCel,
+    undo,
+    redo,
   };
 }

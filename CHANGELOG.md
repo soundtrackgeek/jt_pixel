@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-07-20
+
+### Added
+
+- Bounded 100-step project history for completed pencil and eraser strokes, bucket fills, cel clearing, frame-local layer changes, frame duplication and deletion, and animation frame-rate changes.
+- Functional Undo and Redo toolbar controls with `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z` shortcuts.
+- Automated history coverage for saved checkpoints, rejected edits, structural context restoration, branched edits, Save As metadata, opened projects, and the history limit.
+
+### Changed
+
+- Keep Undo and Redo available after saving while treating the saved history position as the clean checkpoint.
+- Restore the relevant frame and layer when undoing or redoing document structure, without recording ordinary frame or layer navigation as edits.
+- Clear Redo after a new branched edit, reset history after opening or restoring another document, and keep history session-only rather than storing it in `.jtp` files.
+- Remove obsolete recovery data when undo returns a project to its saved state.
+- Bumped the application version to `0.5.0`.
+
 ## [0.4.3] - 2026-07-20
 
 ### Added
