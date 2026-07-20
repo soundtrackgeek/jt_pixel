@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CanvasStage } from "./components/CanvasStage";
+import { ExportStudioDialog } from "./components/ExportStudioDialog";
+import { ExportToast } from "./components/ExportToast";
 import { Inspector } from "./components/Inspector";
 import { ProjectOpenDialog } from "./components/ProjectOpenDialog";
 import { ProjectNewDialog } from "./components/ProjectNewDialog";
@@ -16,6 +18,8 @@ import { tools } from "./data/editor";
 import { createNewProjectDocument, type NewProjectOptions } from "./editor/project";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { useCanvasViewPreferences } from "./hooks/useCanvasViewPreferences";
+import { useExportPreferences } from "./hooks/useExportPreferences";
+import { useProjectExport } from "./hooks/useProjectExport";
 import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
 import type { CursorPosition, ToolId } from "./types";
@@ -47,6 +51,11 @@ function App() {
   });
   const canvasView = useCanvasViewPreferences();
   const { document } = project.state;
+  const exportPreferences = useExportPreferences();
+  const projectExport = useProjectExport({
+    activeFrameId: project.state.activeFrameId,
+    document,
+  });
   const [activeTool, setActiveTool] = useState<ToolId>("pencil");
   const [activeColor, setActiveColor] = useState(document.palette[3]);
   const [brushSize, setBrushSize] = useState(1);
@@ -65,6 +74,7 @@ function App() {
   );
   const modalOpen = settingsOpen
     || newProjectOpen
+    || projectExport.isOpen
     || persistence.openConfirmationRequested
     || persistence.recovery !== null;
 
@@ -113,6 +123,11 @@ function App() {
           openNewProject();
           return;
         }
+        if (key === "e" && !event.shiftKey) {
+          event.preventDefault();
+          projectExport.openStudio();
+          return;
+        }
         if (isTextEditingTarget(target)) return;
         if (key === "z") {
           event.preventDefault();
@@ -145,7 +160,7 @@ function App() {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [canvasView.toggleGrid, modalOpen, openNewProject, persistence.isBusy, project.redo, project.undo, shortcutMap]);
+  }, [canvasView.toggleGrid, modalOpen, openNewProject, persistence.isBusy, project.redo, project.undo, projectExport.openStudio, shortcutMap]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -165,6 +180,7 @@ function App() {
         isFileBusy={persistence.isBusy}
         onNewProject={openNewProject}
         onOpenProject={() => void persistence.openProject()}
+        onOpenExport={projectExport.openStudio}
         onRedo={project.redo}
         onOpenSettings={() => setSettingsOpen(true)}
         onSaveProject={() => void persistence.saveProject()}
@@ -264,6 +280,11 @@ function App() {
         toast={persistence.toast}
         onDismiss={persistence.dismissToast}
       />
+      <ExportToast
+        toast={projectExport.toast}
+        onDismiss={projectExport.dismissToast}
+        onReveal={() => void projectExport.revealExport()}
+      />
       <ProjectOpenDialog
         open={persistence.openConfirmationRequested}
         projectName={document.name}
@@ -277,6 +298,19 @@ function App() {
           projectName={document.name}
           onClose={() => setNewProjectOpen(false)}
           onCreate={createNewProject}
+        />
+      )}
+      {projectExport.isOpen && (
+        <ExportStudioDialog
+          activeFrameId={project.state.activeFrameId}
+          document={document}
+          error={projectExport.error}
+          isBusy={projectExport.isBusy}
+          preferences={exportPreferences.preferences}
+          onClose={projectExport.closeStudio}
+          onExport={projectExport.exportArtwork}
+          onPreferencesChange={exportPreferences.updatePreferences}
+          onResetPreferences={exportPreferences.resetPreferences}
         />
       )}
       <ProjectRecoveryDialog

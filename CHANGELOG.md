@@ -4,6 +4,23 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-07-20
+
+### Added
+
+- Arcade Bloom Export Studio available from the top toolbar and `Ctrl+E`, with live pixel-perfect previews, exact output dimensions, PNG size estimates, and resettable remembered preferences.
+- Lossless current-frame PNG export and ranged sprite-sheet export with row, column, and configurable grid layouts.
+- Integer nearest-neighbor scaling from 1× through 32×, transparent or solid backgrounds, and adjustable sprite spacing and padding.
+- Optional sibling JSON metadata describing the image, frame coordinates, source and output dimensions, frame timing, FPS, and loop state.
+- Native save-path selection, narrowly scoped filesystem access, and an **Open folder** action after successful desktop exports.
+- Deterministic compositor, layout, metadata, preference, native-storage, and safety-limit test coverage.
+
+### Changed
+
+- Build exports exclusively from visible frame-local pixel layers so reference layers, hidden artwork, onion skin, canvas backgrounds, and grids remain editor-only.
+- Keep export preferences outside project files, dirty state, and Undo/Redo history.
+- Bumped the application version to `0.7.0`.
+
 ## [0.6.1] - 2026-07-20
 
 ### Added

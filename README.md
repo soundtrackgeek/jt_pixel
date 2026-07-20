@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.6.1` adds configurable canvas backgrounds and pixel-grid clarity while retaining the complete New Project flow, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.7.0` adds a polished Export Studio for lossless PNG artwork and sprite sheets while retaining configurable canvas views, the complete New Project flow, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -28,6 +28,12 @@ Version `0.6.1` adds configurable canvas backgrounds and pixel-grid clarity whil
 - Arcade Bloom confirmation before replacing unsaved work, with safe keyboard focus and Escape-to-cancel behavior
 - Canvas View controls with checkerboard, dark neutral, mid neutral, and light neutral backgrounds plus Off, Subtle, Crisp, and Contrast grid styles
 - A clearer Crisp grid by default, adaptive line colors, a `G` grid toggle, and persistent view preferences that never dirty or alter project artwork
+- Arcade Bloom Export Studio available from the top toolbar or `Ctrl+E`, with a live pixel-perfect preview and exact output dimensions
+- Lossless current-frame PNG export plus ranged sprite sheets arranged as a row, column, or configurable grid
+- Nearest-neighbor 1× through 32× scaling, transparent or solid backgrounds, and configurable sheet spacing and padding
+- Optional companion JSON metadata with frame coordinates, dimensions, timing, FPS, and loop state
+- Native Save dialog integration and post-export folder reveal, with remembered export preferences that never alter the project or its Undo/Redo history
+- Deterministic export compositing from visible pixel layers only; reference layers, onion skin, workspace backgrounds, and pixel grids are always excluded
 - Artboards that preserve portrait, landscape, and square canvas proportions
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows
@@ -36,7 +42,7 @@ Version `0.6.1` adds configurable canvas backgrounds and pixel-grid clarity whil
 - Arcade Bloom update notifications with download and installation progress
 - Signed, in-app Windows updates published through GitHub Releases
 
-Image and sprite-sheet export remain reserved for later phases.
+Animated GIF export is reserved for version `0.7.1`.
 
 ## Prerequisites
 
@@ -97,6 +103,14 @@ History shortcuts remain active while non-text controls such as the FPS range ha
 Choose **Canvas view settings** beside the zoom controls to tailor the workspace around the artwork. **Checker** keeps the transparency pattern, while **Dark**, **Mid**, and **Light** provide neutral solid backgrounds for inspecting edges and contrast. The pixel grid can be **Off**, **Subtle**, **Crisp**, or **Contrast**; Crisp is the default for clear cell boundaries on small canvases.
 
 Press `G` to hide the grid or restore the last visible grid style. Canvas-view choices are remembered on the device, but they are editor preferences rather than project data: they are not written into `.jtp` files, do not mark a project unsaved, and do not add Undo/Redo entries. Use **Reset** in the Canvas View panel to return to Checker and Crisp.
+
+## Exporting artwork
+
+Choose **Export artwork** in the top toolbar or press `Ctrl+E` to open Export Studio. **Current frame** creates one PNG from the active frame. **Sprite sheet** exports a contiguous frame range and can arrange it in a single row, a single column, or a grid with a chosen column count.
+
+Export Studio supports integer nearest-neighbor scaling from 1× through 32×, transparent or solid backgrounds, and adjustable spacing and outer padding for sprite sheets. The live preview reports exact output dimensions and estimates PNG size before export. Enable **JSON metadata** to create a sibling file containing each frame's rectangle, duration, source size, scale, FPS, and loop state.
+
+Exports flatten only visible pixel layers for each frame. Reference layers, hidden artwork, onion skin, canvas-view backgrounds, and grid lines are never included. Export preferences are remembered locally but do not modify the `.jtp` project, dirty state, or Undo/Redo history. Desktop builds use a native Save dialog and can reveal the completed export in File Explorer.
 
 ## In-app updates
 
@@ -167,6 +181,7 @@ The editor foundation supports single-key tool switching when a form control is 
 | `Ctrl+O` | Open a project |
 | `Ctrl+S` | Save the current project |
 | `Ctrl+Shift+S` | Save to a new project file |
+| `Ctrl+E` | Open Export Studio |
 | `Ctrl+Z` | Undo the last document edit |
 | `Ctrl+Y` | Redo the next document edit |
 | `Ctrl+Shift+Z` | Redo the next document edit |

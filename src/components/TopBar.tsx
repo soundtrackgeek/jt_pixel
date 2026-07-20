@@ -3,6 +3,7 @@ import {
   Circle,
   Eraser,
   FilePlus2,
+  FileOutput,
   FolderOpen,
   PaintBucket,
   Pencil,
@@ -25,6 +26,7 @@ interface TopBarProps {
   isFileBusy: boolean;
   onNewProject: () => void;
   onOpenProject: () => void;
+  onOpenExport: () => void;
   onRedo: () => void;
   onOpenSettings: () => void;
   onSaveProject: () => void;
@@ -56,6 +58,7 @@ export function TopBar({
   isFileBusy,
   onNewProject,
   onOpenProject,
+  onOpenExport,
   onRedo,
   onOpenSettings,
   onSaveProject,
@@ -150,6 +153,17 @@ export function TopBar({
             onClick={onSaveProject}
           >
             <Save size={18} />
+          </button>
+          <button
+            className="icon-button"
+            aria-label="Export artwork"
+            aria-keyshortcuts="Control+E Meta+E"
+            title="Export artwork (Ctrl+E)"
+            disabled={isFileBusy}
+            data-busy={isFileBusy}
+            onClick={onOpenExport}
+          >
+            <FileOutput size={18} />
           </button>
           <button
             className="icon-button"
