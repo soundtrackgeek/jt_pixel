@@ -4,6 +4,7 @@ import courierScene from "../assets/courier-scene.png";
 import { renderPixelMap } from "../editor/pixels";
 import {
   getCelPixels,
+  isLayerPresent,
   isLayerVisible,
   type PixelMap,
   type ProjectDocument,
@@ -74,15 +75,18 @@ export function LayersPanel({
   onLayerChange,
   onToggleVisibility,
 }: LayersPanelProps) {
-  const activeLayer = document.layers.find((layer) => layer.id === activeLayerId);
-  const pixelLayerCount = document.layers.filter((layer) => layer.kind === "pixel").length;
+  const frameLayers = document.layers.filter(
+    (layer) => isLayerPresent(document, layer.id, activeFrameId),
+  );
+  const activeLayer = frameLayers.find((layer) => layer.id === activeLayerId);
+  const pixelLayerCount = frameLayers.filter((layer) => layer.kind === "pixel").length;
   const deleteDisabled = !activeLayer || activeLayer.locked || activeLayer.kind !== "pixel" || pixelLayerCount <= 1;
 
   return (
     <section className="inspector-section layers-panel">
       <PanelHeader title="LAYERS" tone="coral" action="add" actionLabel="Add layer" onAction={onAddLayer} />
       <div className="layer-list">
-        {document.layers.map((layer) => {
+        {frameLayers.map((layer) => {
           const visible = isLayerVisible(document, layer.id, activeFrameId);
           return (
             <div

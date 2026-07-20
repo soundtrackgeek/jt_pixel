@@ -4,9 +4,11 @@ import {
   celKey,
   createInitialEditorState,
   getCelPixels,
+  isLayerPresent,
   isLayerVisible,
   projectReducer,
   type EditorDocumentState,
+  type ProjectLayer,
 } from "./project";
 
 function paintedState(): EditorDocumentState {
@@ -64,20 +66,94 @@ describe("project document reducer", () => {
     expect(isLayerVisible(duplicated.document, "layer-details", "frame-copy")).toBe(false);
   });
 
-  it("deletes editable layers and their cels but protects the reference", () => {
-    const source = projectReducer(paintedState(), {
+  it("deletes a layer only from the requested frame and protects the reference", () => {
+    const secondFramePainted = projectReducer(paintedState(), {
+      type: "cel/commit",
+      layerId: "layer-details",
+      frameId: "frame-4",
+      pixels: { "24": "#ff615d" },
+    });
+    const source = projectReducer(secondFramePainted, {
       type: "layer/toggle-visibility",
       layerId: "layer-details",
       frameId: "frame-3",
     });
-    const protectedState = projectReducer(source, { type: "layer/delete", layerId: "layer-reference" });
-    const deleted = projectReducer(source, { type: "layer/delete", layerId: "layer-details" });
+    const protectedState = projectReducer(source, {
+      type: "layer/delete",
+      layerId: "layer-reference",
+      frameId: "frame-3",
+    });
+    const deleted = projectReducer(source, {
+      type: "layer/delete",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
 
     expect(protectedState).toBe(source);
-    expect(deleted.document.layers.some((layer) => layer.id === "layer-details")).toBe(false);
+    expect(deleted.document.layers.some((layer) => layer.id === "layer-details")).toBe(true);
+    expect(isLayerPresent(deleted.document, "layer-details", "frame-3")).toBe(false);
+    expect(isLayerPresent(deleted.document, "layer-details", "frame-4")).toBe(true);
     expect(deleted.document.cels[celKey("layer-details", "frame-3")]).toBeUndefined();
+    expect(getCelPixels(deleted.document, "layer-details", "frame-4")).toEqual({
+      "24": "#ff615d",
+    });
     expect(deleted.document.frameLayerVisibility[celKey("layer-details", "frame-3")]).toBeUndefined();
     expect(deleted.activeLayerId).not.toBe("layer-details");
+  });
+
+  it("adds layers to only the active frame and copies membership when duplicating", () => {
+    const layer: ProjectLayer = {
+      id: "layer-local",
+      name: "Local layer",
+      kind: "pixel",
+      blendMode: "normal",
+      opacity: 100,
+      visible: true,
+    };
+    const added = projectReducer(createInitialEditorState(), {
+      type: "layer/add",
+      layer,
+      frameId: "frame-3",
+    });
+    const duplicated = projectReducer(added, {
+      type: "frame/duplicate",
+      frameId: "frame-3",
+      duplicateId: "frame-local-copy",
+    });
+
+    expect(isLayerPresent(added.document, layer.id, "frame-3")).toBe(true);
+    expect(isLayerPresent(added.document, layer.id, "frame-4")).toBe(false);
+    expect(isLayerPresent(duplicated.document, layer.id, "frame-local-copy")).toBe(true);
+
+    const invalidCommit = projectReducer(added, {
+      type: "cel/commit",
+      layerId: layer.id,
+      frameId: "frame-4",
+      pixels: { "1": "#42c8e3" },
+    });
+    expect(invalidCommit).toBe(added);
+  });
+
+  it("keeps at least one editable pixel layer on each frame", () => {
+    const initial = createInitialEditorState();
+    const withoutDetails = projectReducer(initial, {
+      type: "layer/delete",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
+    const withoutHighlights = projectReducer(withoutDetails, {
+      type: "layer/delete",
+      layerId: "layer-highlights",
+      frameId: "frame-3",
+    });
+    const unchanged = projectReducer(withoutHighlights, {
+      type: "layer/delete",
+      layerId: "layer-color",
+      frameId: "frame-3",
+    });
+
+    expect(unchanged).toBe(withoutHighlights);
+    expect(isLayerPresent(unchanged.document, "layer-color", "frame-3")).toBe(true);
   });
 
   it("scopes layer visibility to one frame and clamps animation speed", () => {

@@ -10,6 +10,7 @@ import {
 } from "../editor/pixels";
 import {
   getCelPixels,
+  isLayerPresent,
   isLayerVisible,
   type PixelMap,
   type ProjectDocument,
@@ -61,14 +62,19 @@ export function CanvasStage({
   const activeLayer = document.layers.find((layer) => layer.id === activeLayerId);
   const activeFrame = document.frames.find((frame) => frame.id === activeFrameId) ?? document.frames[0];
   const activeFrameIndex = document.frames.findIndex((frame) => frame.id === activeFrameId);
-  const referenceLayer = document.layers.find((layer) => layer.kind === "reference");
+  const referenceLayer = document.layers.find(
+    (layer) => layer.kind === "reference" && isLayerPresent(document, layer.id, activeFrameId),
+  );
   const pixelLayers = useMemo(
-    () => [...document.layers].reverse().filter((layer) => layer.kind === "pixel"),
-    [document.layers],
+    () => [...document.layers].reverse().filter(
+      (layer) => layer.kind === "pixel" && isLayerPresent(document, layer.id, activeFrameId),
+    ),
+    [activeFrameId, document.frameLayerPresence, document.layers],
   );
   const canPaint =
     activeLayer?.kind === "pixel" &&
     !activeLayer.locked &&
+    isLayerPresent(document, activeLayer.id, activeFrameId) &&
     isLayerVisible(document, activeLayer.id, activeFrameId);
 
   const registerCanvas = useCallback((layerId: string, canvas: HTMLCanvasElement | null) => {

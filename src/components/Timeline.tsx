@@ -15,6 +15,7 @@ import courierScene from "../assets/courier-scene.png";
 import { drawPixelMap } from "../editor/pixels";
 import {
   getCelPixels,
+  isLayerPresent,
   isLayerVisible,
   type ProjectDocument,
   type ProjectFrame,
@@ -27,14 +28,18 @@ interface FramePreviewProps {
 
 const FramePreview = memo(function FramePreview({ document, frame }: FramePreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const referenceLayer = document.layers.find((layer) => layer.kind === "reference");
+  const referenceLayer = document.layers.find(
+    (layer) => layer.kind === "reference" && isLayerPresent(document, layer.id, frame.id),
+  );
 
   useEffect(() => {
     const context = canvasRef.current?.getContext("2d");
     if (!context) return;
     context.clearRect(0, 0, document.width, document.height);
     context.imageSmoothingEnabled = false;
-    const pixelLayers = document.layers.filter((layer) => layer.kind === "pixel").reverse();
+    const pixelLayers = document.layers.filter(
+      (layer) => layer.kind === "pixel" && isLayerPresent(document, layer.id, frame.id),
+    ).reverse();
     for (const layer of pixelLayers) {
       if (!isLayerVisible(document, layer.id, frame.id)) continue;
       context.globalAlpha = layer.opacity / 100;

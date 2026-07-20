@@ -4,6 +4,19 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.3.2] - 2026-07-20
+
+### Fixed
+
+- Scoped layer deletion to the active frame so removing a layer no longer removes its artwork or membership from other frames.
+- Kept at least one editable pixel layer available on every frame and automatically selected a valid fallback after frame switches or deletion.
+
+### Changed
+
+- New layers now belong only to the frame where they are created, matching the frame-local deletion model.
+- Frame duplication now copies exact layer membership alongside cel pixels and visibility settings.
+- Bumped the application version to `0.3.2`.
+
 ## [0.3.1] - 2026-07-20
 
 ### Fixed

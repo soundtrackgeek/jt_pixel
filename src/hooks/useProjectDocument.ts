@@ -42,9 +42,16 @@ export function useProjectDocument() {
       opacity: 100,
       visible: true,
     };
-    dispatch({ type: "layer/add", layer });
-  }, [state.document.layers]);
-  const deleteLayer = useCallback((layerId: string) => dispatch({ type: "layer/delete", layerId }), []);
+    dispatch({ type: "layer/add", layer, frameId: state.activeFrameId });
+  }, [state.activeFrameId, state.document.layers]);
+  const deleteLayer = useCallback(
+    (layerId: string) => dispatch({
+      type: "layer/delete",
+      layerId,
+      frameId: state.activeFrameId,
+    }),
+    [state.activeFrameId],
+  );
   const selectFrame = useCallback((frameId: string) => dispatch({ type: "frame/select", frameId }), []);
   const advanceFrame = useCallback(() => dispatch({ type: "frame/advance" }), []);
   const duplicateFrame = useCallback(
