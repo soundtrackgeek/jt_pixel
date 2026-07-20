@@ -4,6 +4,19 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] - 2026-07-20
+
+### Fixed
+
+- Prevent Export Studio from freezing at **ENCODING…** before its Windows Save dialog appears by replacing the main-thread blocking dialog call with Tauri's asynchronous save API.
+- Preserve narrowly scoped PNG and optional sibling JSON filesystem access after the asynchronous dialog returns, including extension normalization and clean cancellation.
+
+### Changed
+
+- Added frontend ordering and cancellation coverage plus Rust export-path normalization tests for the native handoff.
+- Reserved animated GIF export for `0.7.2` so this critical responsiveness fix can ship as the `0.7.1` semantic patch release.
+- Bumped the application version to `0.7.1`.
+
 ## [0.7.0] - 2026-07-20
 
 ### Added

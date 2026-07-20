@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
   isTauri: vi.fn(),
   revealItemInDir: vi.fn(),
+  save: vi.fn(),
   writeFile: vi.fn(),
   writeTextFile: vi.fn(),
 }));
@@ -16,6 +17,9 @@ vi.mock("@tauri-apps/plugin-fs", () => ({
   writeFile: mocks.writeFile,
   writeTextFile: mocks.writeTextFile,
 }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({
+  save: mocks.save,
+}));
 vi.mock("@tauri-apps/plugin-opener", () => ({
   revealItemInDir: mocks.revealItemInDir,
 }));
@@ -26,6 +30,7 @@ describe("export storage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.isTauri.mockReturnValue(true);
+    mocks.save.mockResolvedValue("C:\\Sprites\\renamed-sheet.png");
     mocks.invoke.mockResolvedValue({
       imagePath: "C:\\Sprites\\renamed-sheet.png",
       metadataPath: "C:\\Sprites\\renamed-sheet.json",
@@ -44,8 +49,13 @@ describe("export storage", () => {
       createMetadata,
     );
 
-    expect(mocks.invoke).toHaveBeenCalledWith("choose_export_paths", {
-      defaultName: "project-sheet.png",
+    expect(mocks.save).toHaveBeenCalledWith({
+      title: "Export JT Pixel artwork",
+      defaultPath: "project-sheet.png",
+      filters: [{ name: "PNG image", extensions: ["png"] }],
+    });
+    expect(mocks.invoke).toHaveBeenCalledWith("prepare_export_paths", {
+      imagePath: "C:\\Sprites\\renamed-sheet.png",
       includeMetadata: true,
     });
     expect(createMetadata).toHaveBeenCalledWith("renamed-sheet.png");
@@ -65,14 +75,33 @@ describe("export storage", () => {
   });
 
   it("treats a cancelled native save dialog as a clean cancellation", async () => {
-    mocks.invoke.mockResolvedValue(null);
+    mocks.save.mockResolvedValue(null);
 
     await expect(saveExportArtifacts(
       "frame.png",
       new Uint8Array([1]),
       null,
     )).resolves.toBeNull();
+    expect(mocks.invoke).not.toHaveBeenCalled();
     expect(mocks.writeFile).not.toHaveBeenCalled();
+  });
+
+  it("lets the native path preparation normalize a missing PNG extension", async () => {
+    mocks.save.mockResolvedValue("C:\\Sprites\\frame");
+    mocks.invoke.mockResolvedValue({
+      imagePath: "C:\\Sprites\\frame.png",
+      metadataPath: null,
+    });
+
+    await saveExportArtifacts("frame", new Uint8Array([1]), null);
+
+    expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({
+      defaultPath: "frame.png",
+    }));
+    expect(mocks.invoke).toHaveBeenCalledWith("prepare_export_paths", {
+      imagePath: "C:\\Sprites\\frame",
+      includeMetadata: false,
+    });
   });
 
   it("reveals the saved image through the desktop file manager", async () => {

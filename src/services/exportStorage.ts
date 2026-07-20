@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
@@ -13,12 +14,18 @@ export interface SavedExport {
   metadataWritten: boolean;
 }
 
+const PNG_FILTER = [{ name: "PNG image", extensions: ["png"] }];
+
 function fileNameFromPath(path: string) {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
 function metadataFileName(imageFileName: string) {
   return imageFileName.replace(/\.png$/i, ".json");
+}
+
+function ensurePngExtension(path: string) {
+  return /\.png$/i.test(path) ? path : `${path}.png`;
 }
 
 function downloadBrowserFile(fileName: string, blob: Blob) {
@@ -59,11 +66,17 @@ export async function saveExportArtifacts(
     };
   }
 
-  const paths = await invoke<NativeExportPaths | null>("choose_export_paths", {
-    defaultName,
+  const selected = await save({
+    title: "Export JT Pixel artwork",
+    defaultPath: ensurePngExtension(defaultName),
+    filters: PNG_FILTER,
+  });
+  if (!selected) return null;
+
+  const paths = await invoke<NativeExportPaths>("prepare_export_paths", {
+    imagePath: selected,
     includeMetadata: createMetadata !== null,
   });
-  if (!paths) return null;
 
   const imageFileName = fileNameFromPath(paths.imagePath);
   const metadata = createMetadata?.(imageFileName) ?? null;

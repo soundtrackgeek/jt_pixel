@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.7.0` adds a polished Export Studio for lossless PNG artwork and sprite sheets while retaining configurable canvas views, the complete New Project flow, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.7.1` keeps Export Studio responsive while opening its native Windows Save dialog and retains lossless PNG artwork and sprite sheets, configurable canvas views, the complete New Project flow, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -42,7 +42,7 @@ Version `0.7.0` adds a polished Export Studio for lossless PNG artwork and sprit
 - Arcade Bloom update notifications with download and installation progress
 - Signed, in-app Windows updates published through GitHub Releases
 
-Animated GIF export is reserved for version `0.7.1`.
+Animated GIF export is reserved for version `0.7.2`; version `0.7.1` is the Export Studio responsiveness hotfix.
 
 ## Prerequisites
 
