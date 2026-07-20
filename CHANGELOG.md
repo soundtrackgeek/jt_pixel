@@ -4,6 +4,16 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-07-20
+
+### Changed
+
+- Upgraded the official GitHub checkout, Node setup, cache, and artifact actions to their current Node 24-compatible major versions.
+
+### Fixed
+
+- Removed deprecated Node 20 runtime annotations from Windows installer workflow runs.
+
 ## [0.1.1] - 2026-07-20
 
 ### Added
