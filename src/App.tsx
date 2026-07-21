@@ -102,6 +102,7 @@ function App() {
     canEdit: activeLayerCanEdit,
     documentId: document.id,
     height: document.height,
+    historyEntryId: project.historyEntryId,
     onCommit: project.commitActiveCel,
     width: document.width,
   });
@@ -136,14 +137,12 @@ function App() {
   }, [deselect, persistence.startNewProject]);
 
   const undo = useCallback(() => {
-    deselect();
     project.undo();
-  }, [deselect, project.undo]);
+  }, [project.undo]);
 
   const redo = useCallback(() => {
-    deselect();
     project.redo();
-  }, [deselect, project.redo]);
+  }, [project.redo]);
 
   const shortcutMap = useMemo(
     () => new Map(tools.map((tool) => [tool.shortcut.toLowerCase(), tool.id])),

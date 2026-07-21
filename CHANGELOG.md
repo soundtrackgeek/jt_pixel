@@ -4,6 +4,18 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.9.1] - 2026-07-21
+
+### Fixed
+
+- Preserve the active marquee through Undo and Redo instead of clearing it whenever document history changes.
+- Restore the matching pre-transform selection bounds on Undo and transformed bounds on Redo, allowing an alternate move immediately after stepping back.
+- Keep manually created selections stable while undoing unrelated drawing edits, without persisting selection geometry in `.jtp` project files.
+
+### Changed
+
+- Bumped the application version to `0.9.1`.
+
 ## [0.9.0] - 2026-07-21
 
 ### Added

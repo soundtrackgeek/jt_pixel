@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.9.0` adds rectangular pixel selections and a complete transform workflow while retaining frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.9.1` keeps marquee selections aligned with Undo and Redo while retaining the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -110,7 +110,7 @@ Choose **Select** (`S`) and drag across an editable, visible pixel layer to crea
 
 The contextual selection toolbar provides Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect. `Ctrl+A` selects the full canvas, `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, and `Ctrl+D` operate on the selection, `Delete` or `Backspace` clears selected pixels, and `Escape` removes the marquee. Clipboard pixels stay available inside JT Pixel when changing frames, layers, or projects; they are not written to project files or the system clipboard.
 
-An active marquee also masks Pencil, Eraser, Fill, Line, Rectangle, Ellipse, and the canvas Clear command so pixels outside the selection cannot change. Copy remains available on a locked layer because it is read-only, while Cut, Paste, Duplicate, movement, flips, rotation, and deletion remain disabled. Switching frames or layers clears the transient marquee safely. Every completed pixel transform is one Undo/Redo entry; selection geometry itself is temporary editor state and is not saved in `.jtp` files.
+An active marquee also masks Pencil, Eraser, Fill, Line, Rectangle, Ellipse, and the canvas Clear command so pixels outside the selection cannot change. Copy remains available on a locked layer because it is read-only, while Cut, Paste, Duplicate, movement, flips, rotation, and deletion remain disabled. Switching frames or layers clears the transient marquee safely. Every completed pixel transform is one Undo/Redo entry. Undo restores the matching pre-transform marquee and Redo restores its transformed bounds, so an alternate move can begin immediately; undoing unrelated drawing keeps the current selection. Selection geometry remains temporary editor state and is not saved in `.jtp` files.
 
 ## Precision drawing
 

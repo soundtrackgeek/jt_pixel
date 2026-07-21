@@ -123,6 +123,7 @@ export function useProjectDocument() {
 
   return {
     state,
+    historyEntryId: history.present.id,
     activeLayer,
     activeFrame,
     activePixels,

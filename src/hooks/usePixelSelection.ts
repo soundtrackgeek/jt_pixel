@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   copySelectionPixels,
   deleteSelectionPixels,
@@ -11,6 +11,7 @@ import {
   type SelectionFlipAxis,
 } from "../editor/selection";
 import type { PixelMap } from "../editor/project";
+import { SelectionHistoryTracker } from "../editor/selectionHistory";
 import type { PixelSelection, SelectionBounds } from "../types";
 
 interface UsePixelSelectionOptions {
@@ -20,6 +21,7 @@ interface UsePixelSelectionOptions {
   canEdit: boolean;
   documentId: string;
   height: number;
+  historyEntryId: number;
   onCommit: (pixels: PixelMap) => void;
   width: number;
 }
@@ -31,11 +33,18 @@ export function usePixelSelection({
   canEdit,
   documentId,
   height,
+  historyEntryId,
   onCommit,
   width,
 }: UsePixelSelectionOptions) {
   const [storedSelection, setStoredSelection] = useState<PixelSelection | null>(null);
   const [clipboard, setClipboard] = useState<SelectionClipboard | null>(null);
+  const storedSelectionRef = useRef<PixelSelection | null>(null);
+  const selectionHistoryRef = useRef(new SelectionHistoryTracker());
+  const historyKey = `${documentId}:${historyEntryId}`;
+  const contextKey = `${documentId}:${activeFrameId}:${activeLayerId}`;
+  const previousHistoryKeyRef = useRef(historyKey);
+  const previousContextKeyRef = useRef(contextKey);
   const selection = useMemo(
     () => storedSelection?.documentId === documentId
       && storedSelection.frameId === activeFrameId
@@ -45,32 +54,51 @@ export function usePixelSelection({
     [activeFrameId, activeLayerId, documentId, storedSelection],
   );
 
-  useEffect(() => {
-    setStoredSelection((current) => current?.documentId === documentId
-      && current.frameId === activeFrameId
-      && current.layerId === activeLayerId
-      ? current
-      : null);
-  }, [activeFrameId, activeLayerId, documentId]);
+  const updateSelection = useCallback((nextSelection: PixelSelection | null) => {
+    storedSelectionRef.current = nextSelection;
+    setStoredSelection(nextSelection);
+  }, []);
+
+  useLayoutEffect(() => {
+    const previousHistoryKey = previousHistoryKeyRef.current;
+    const contextChanged = previousContextKeyRef.current !== contextKey;
+    previousHistoryKeyRef.current = historyKey;
+    previousContextKeyRef.current = contextKey;
+
+    const nextSelection = selectionHistoryRef.current.resolve({
+      contextChanged,
+      currentSelection: storedSelectionRef.current,
+      nextHistoryKey: historyKey,
+      previousHistoryKey,
+    });
+    if (nextSelection !== storedSelectionRef.current) updateSelection(nextSelection);
+  }, [contextKey, historyKey, updateSelection]);
 
   const select = useCallback((bounds: SelectionBounds) => {
-    setStoredSelection({
+    updateSelection({
       ...bounds,
       documentId,
       frameId: activeFrameId,
       layerId: activeLayerId,
     });
-  }, [activeFrameId, activeLayerId, documentId]);
+  }, [activeFrameId, activeLayerId, documentId, updateSelection]);
 
-  const deselect = useCallback(() => setStoredSelection(null), []);
+  const deselect = useCallback(() => updateSelection(null), [updateSelection]);
 
   const selectAll = useCallback(() => {
     select({ x: 0, y: 0, width, height });
   }, [height, select, width]);
 
-  const commitIfChanged = useCallback((pixels: PixelMap) => {
-    if (!pixelMapsEqual(activePixels, pixels)) onCommit(pixels);
-  }, [activePixels, onCommit]);
+  const commitTransform = useCallback((
+    pixels: PixelMap,
+    nextSelection: PixelSelection | null,
+  ) => {
+    updateSelection(nextSelection);
+    if (pixelMapsEqual(activePixels, pixels)) return;
+
+    selectionHistoryRef.current.stageTransform(historyKey, selection, nextSelection);
+    onCommit(pixels);
+  }, [activePixels, historyKey, onCommit, selection, updateSelection]);
 
   const copy = useCallback(() => {
     if (!selection) return false;
@@ -81,15 +109,15 @@ export function usePixelSelection({
   const cut = useCallback(() => {
     if (!selection || !canEdit) return false;
     setClipboard(copySelectionPixels(activePixels, selection, width));
-    commitIfChanged(deleteSelectionPixels(activePixels, selection, width));
+    commitTransform(deleteSelectionPixels(activePixels, selection, width), selection);
     return true;
-  }, [activePixels, canEdit, commitIfChanged, selection, width]);
+  }, [activePixels, canEdit, commitTransform, selection, width]);
 
   const remove = useCallback(() => {
     if (!selection || !canEdit) return false;
-    commitIfChanged(deleteSelectionPixels(activePixels, selection, width));
+    commitTransform(deleteSelectionPixels(activePixels, selection, width), selection);
     return true;
-  }, [activePixels, canEdit, commitIfChanged, selection, width]);
+  }, [activePixels, canEdit, commitTransform, selection, width]);
 
   const paste = useCallback(() => {
     if (!clipboard || !canEdit) return false;
@@ -103,10 +131,14 @@ export function usePixelSelection({
       width,
       height,
     );
-    commitIfChanged(result.pixels);
-    select(result.bounds);
+    commitTransform(result.pixels, {
+      ...result.bounds,
+      documentId,
+      frameId: activeFrameId,
+      layerId: activeLayerId,
+    });
     return true;
-  }, [activePixels, canEdit, clipboard, commitIfChanged, height, select, selection, width]);
+  }, [activeFrameId, activeLayerId, activePixels, canEdit, clipboard, commitTransform, documentId, height, selection, width]);
 
   const duplicate = useCallback(() => {
     if (!selection || !canEdit) return false;
@@ -120,10 +152,9 @@ export function usePixelSelection({
       width,
       height,
     );
-    commitIfChanged(result.pixels);
-    select(result.bounds);
+    commitTransform(result.pixels, { ...selection, ...result.bounds });
     return true;
-  }, [activePixels, canEdit, commitIfChanged, height, select, selection, width]);
+  }, [activePixels, canEdit, commitTransform, height, selection, width]);
 
   const move = useCallback((deltaX: number, deltaY: number) => {
     if (!selection || !canEdit) return false;
@@ -135,24 +166,25 @@ export function usePixelSelection({
       width,
       height,
     );
-    commitIfChanged(result.pixels);
-    select(result.bounds);
+    commitTransform(result.pixels, { ...selection, ...result.bounds });
     return true;
-  }, [activePixels, canEdit, commitIfChanged, height, select, selection, width]);
+  }, [activePixels, canEdit, commitTransform, height, selection, width]);
 
   const flip = useCallback((axis: SelectionFlipAxis) => {
     if (!selection || !canEdit) return false;
-    commitIfChanged(flipSelectionPixels(activePixels, selection, axis, width, height));
+    commitTransform(
+      flipSelectionPixels(activePixels, selection, axis, width, height),
+      selection,
+    );
     return true;
-  }, [activePixels, canEdit, commitIfChanged, height, selection, width]);
+  }, [activePixels, canEdit, commitTransform, height, selection, width]);
 
   const rotate = useCallback(() => {
     if (!selection || !canEdit) return false;
     const result = rotateSelectionPixels(activePixels, selection, width, height);
-    commitIfChanged(result.pixels);
-    select(result.bounds);
+    commitTransform(result.pixels, { ...selection, ...result.bounds });
     return true;
-  }, [activePixels, canEdit, commitIfChanged, height, select, selection, width]);
+  }, [activePixels, canEdit, commitTransform, height, selection, width]);
 
   return {
     clipboard,
