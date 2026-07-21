@@ -24,6 +24,7 @@ import {
   isLayerVisible,
   type NewProjectOptions,
 } from "./editor/project";
+import { frameIdAfterDeletion } from "./editor/timeline";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { useCanvasViewPreferences } from "./hooks/useCanvasViewPreferences";
 import { useColorWorkspace } from "./hooks/useColorWorkspace";
@@ -33,6 +34,7 @@ import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
 import { useScreenPicker } from "./hooks/useScreenPicker";
 import { usePixelSelection } from "./hooks/usePixelSelection";
+import { useTimelineSelection } from "./hooks/useTimelineSelection";
 import type { EyedropperSource } from "./editor/colorOperations";
 import type { CursorPosition, ShapeMode, ToolId } from "./types";
 
@@ -91,6 +93,12 @@ function App() {
   const [zoom, setZoom] = useState(800);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const timelineSelection = useTimelineSelection(
+    document.frames,
+    project.state.activeFrameId,
+    project.selectFrame,
+    document.id,
+  );
   const updater = useAppUpdater();
   const activeLayerCanSelect = project.activeLayer.kind === "pixel"
     && isLayerPresent(document, project.activeLayer.id, project.state.activeFrameId)
@@ -292,11 +300,83 @@ function App() {
     undo,
   ]);
 
+  const togglePlayback = useCallback(() => {
+    if (!isPlaying) {
+      const activeIndex = document.frames.findIndex(
+        (frame) => frame.id === project.state.activeFrameId,
+      );
+      if (
+        activeIndex < timelineSelection.playbackRange.firstIndex
+        || activeIndex > timelineSelection.playbackRange.lastIndex
+      ) {
+        project.selectFrame(
+          document.frames[timelineSelection.playbackRange.firstIndex].id,
+        );
+      }
+    }
+    setIsPlaying((current) => !current);
+  }, [
+    document.frames,
+    isPlaying,
+    project.selectFrame,
+    project.state.activeFrameId,
+    timelineSelection.playbackRange,
+  ]);
+
+  const duplicateTimelineFrames = useCallback((frameIds: string[]) => {
+    const duplicateIds = project.duplicateFrames(frameIds);
+    if (duplicateIds.length > 0) {
+      timelineSelection.replaceSelection(duplicateIds, duplicateIds[0]);
+    }
+  }, [project.duplicateFrames, timelineSelection.replaceSelection]);
+
+  const deleteTimelineFrames = useCallback((frameIds: string[]) => {
+    if (frameIds.length >= document.frames.length) return;
+    const nextFrameId = frameIdAfterDeletion(
+      document.frames,
+      frameIds,
+      project.state.activeFrameId,
+    );
+    project.deleteFrames(frameIds);
+    timelineSelection.replaceSelection([nextFrameId], nextFrameId);
+  }, [
+    document.frames,
+    project.deleteFrames,
+    project.state.activeFrameId,
+    timelineSelection.replaceSelection,
+  ]);
+
   useEffect(() => {
     if (!isPlaying) return;
-    const timer = window.setInterval(project.advanceFrame, 1000 / document.animation.fps);
-    return () => window.clearInterval(timer);
-  }, [document.animation.fps, isPlaying, project.advanceFrame]);
+    const { firstIndex, lastIndex } = timelineSelection.playbackRange;
+    const activeIndex = document.frames.findIndex(
+      (frame) => frame.id === project.state.activeFrameId,
+    );
+    const playbackIndex = activeIndex < firstIndex || activeIndex > lastIndex
+      ? firstIndex
+      : activeIndex;
+    const activeFrame = document.frames[playbackIndex];
+    const timer = window.setTimeout(() => {
+      if (playbackIndex >= lastIndex) {
+        if (!document.animation.loop) {
+          setIsPlaying(false);
+          return;
+        }
+        project.selectFrame(document.frames[firstIndex].id);
+        return;
+      }
+      project.selectFrame(document.frames[playbackIndex + 1].id);
+    }, (1000 / document.animation.fps) * activeFrame.hold);
+    return () => window.clearTimeout(timer);
+  }, [
+    document.animation.fps,
+    document.animation.loop,
+    document.frames,
+    isPlaying,
+    project.selectFrame,
+    project.state.activeFrameId,
+    timelineSelection.playbackRange,
+  ]);
 
   return (
     <div className="app-shell">
@@ -403,14 +483,20 @@ function App() {
           document={document}
           isPlaying={isPlaying}
           onionSkin={onionSkin}
-          onDeleteFrame={project.deleteFrame}
-          onDuplicateFrame={project.duplicateFrame}
+          playbackRange={timelineSelection.playbackRange}
+          selectedFrameIds={timelineSelection.selectedFrameIds}
+          onDeleteFrames={deleteTimelineFrames}
+          onDuplicateFrames={duplicateTimelineFrames}
           onFpsChangeEnd={project.endFpsChange}
           onFpsChangeStart={project.beginFpsChange}
           onFpsChange={project.setFps}
+          onFrameSelect={timelineSelection.selectFrame}
           onFrameChange={project.selectFrame}
           onOnionSkinChange={setOnionSkin}
-          onTogglePlay={() => setIsPlaying((current) => !current)}
+          onReorderFrames={project.reorderFrames}
+          onSetFrameHold={project.setFrameHold}
+          onToggleLoop={project.toggleLoop}
+          onTogglePlay={togglePlayback}
         />
       </div>
 

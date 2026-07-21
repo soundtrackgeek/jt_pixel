@@ -1,7 +1,9 @@
 import {
   MAX_CANVAS_DIMENSION,
+  MAX_FRAME_HOLD,
   MAX_PALETTE_COLORS,
   MIN_CANVAS_DIMENSION,
+  MIN_FRAME_HOLD,
   PROJECT_SCHEMA_VERSION,
   celKey,
   isLayerPresent,
@@ -143,6 +145,14 @@ function parseFrames(value: unknown) {
         `frames[${index}].referenceOffset`,
         100,
       ),
+      hold: frame.hold === undefined
+        ? MIN_FRAME_HOLD
+        : expectInteger(
+            frame.hold,
+            `frames[${index}].hold`,
+            MIN_FRAME_HOLD,
+            MAX_FRAME_HOLD,
+          ),
     };
   });
 }

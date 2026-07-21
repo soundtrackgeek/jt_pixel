@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.11.0` adds a native system-wide screen picker while retaining the in-app Pixel Lens, dependable Palette Studio color management, marquee-aware Undo and Redo, the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.12.0` adds an advanced animation timeline with multi-frame editing, drag ordering, frame holds, selected-range playback, and duration-aware export while retaining the native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, marquee-aware Undo and Redo, the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -25,9 +25,9 @@ Version `0.11.0` adds a native system-wide screen picker while retaining the in-
 - Native Windows screen sampling from JT Pixel or any other application with `Shift+I`, a frozen multi-monitor desktop capture, a custom pipette cursor, and an edge-aware 9 × 9 Pixel Lens
 - Scoped color replacement across the active selection, current cel, matching layer across frames, or the complete project, with live impact counts and locked-artwork protection
 - Functional frame-local layer creation, deletion, selection, visibility, locking, and instant selected-layer restoration, with permanently locked-reference safeguards and live thumbnails
-- Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
-- Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
-- Bounded 100-step Undo and Redo for complete drawing strokes, fills, selection transforms, cel clears, palette edits, scoped color replacements, frame-local layer visibility and locks, structural layer operations, frame operations, and frame-rate changes, with one history step per completed transform or FPS slider drag
+- Shift-range and Ctrl-additive frame selection, WebView-safe pointer drag ordering with insertion feedback, batch duplication and deletion, and live timeline previews
+- Per-frame 1× through 12× hold timing, selected-range playback, functional Loop or Play once control, frame stepping, onion skin, adjustable base FPS, dynamic counts, and document dirty state
+- Bounded 100-step Undo and Redo for complete drawing strokes, fills, selection transforms, cel clears, palette edits, scoped color replacements, frame-local layer visibility and locks, structural layer operations, frame ordering, frame holds, batch frame operations, loop behavior, and frame-rate changes, with one history step per completed transform, batch operation, drag reorder, or FPS slider drag
 - Toolbar history controls plus `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z` shortcuts, with Redo cleared after a branched edit
 - Native Open and Save dialogs for validated, human-readable `.jtp` project files
 - Saved workspace position so projects and recovered work reopen on the frame where you left them
@@ -38,9 +38,9 @@ Version `0.11.0` adds a native system-wide screen picker while retaining the in-
 - A clearer Crisp grid by default, adaptive line colors, a `G` grid toggle, and persistent view preferences that never dirty or alter project artwork
 - Arcade Bloom Export Studio available from the top toolbar or `Ctrl+E`, with a live pixel-perfect preview and exact output dimensions
 - Lossless current-frame PNG export plus ranged sprite sheets arranged as a row, column, or configurable grid
-- Animated GIF export for any contiguous frame range, with a live playback preview, project FPS timing, and independent **Loop forever** or **Play once** behavior
+- Animated GIF export for any contiguous frame range, with a duration-aware live preview, ordered per-frame hold timing, and independent **Loop forever** or **Play once** behavior
 - Nearest-neighbor 1× through 32× scaling, transparent or solid backgrounds, and configurable sheet spacing and padding
-- Optional companion JSON metadata with frame coordinates, dimensions, timing, FPS, and loop state
+- Optional companion JSON metadata with ordered frame coordinates, dimensions, hold multipliers, effective timing, FPS, and loop state
 - Native Save dialog integration and post-export folder reveal, with remembered export preferences that never alter the project or its Undo/Redo history
 - Deterministic export compositing from visible pixel layers only; reference layers, onion skin, workspace backgrounds, and pixel grids are always excluded
 - Responsive worker-based GIF encoding with exact palettes where possible, automatic 256-color quantization when needed, and memory-safe animation limits
@@ -104,6 +104,8 @@ Recovered work intentionally does not reuse its previous file path. Its next sav
 
 Layer-row lock controls protect pixel artwork on the current frame. A locked layer remains visible and selectable, but Pencil, Eraser, Fill, precision shapes, and Clear cannot modify its cel until it is unlocked. Lock state is saved in `.jtp` files, crash recovery, and frame duplication; older project files open with pixel layers unlocked. The Courier Reference remains permanently locked. Lock and unlock changes participate in Undo/Redo and do not affect the same layer on other frames.
 
+Frame order and hold duration are project data. They are saved in `.jtp` files and recovery snapshots, and older schema-v1 projects without hold values open at the normal 1× duration. Frame selection itself is temporary workspace state and is not serialized.
+
 Undo and Redo history is kept for the current editing session and is not serialized into `.jtp` files. Saving preserves the current history and establishes a clean checkpoint, so undoing back to that position returns the status to **SAVED**. Opening or restoring a different project starts a fresh history.
 
 History shortcuts remain active while non-text controls such as the FPS range have focus. Individual frame-rate `+` and `−` clicks remain separate Undo steps, while a complete mouse or touch drag on the FPS slider is grouped into one step.
@@ -142,6 +144,14 @@ Choose **Line** (`L`), **Rectangle** (`R`), or **Ellipse** (`O`), then click and
 
 Precision settings are workspace controls rather than project data. Switching tools, frames, or projects does not create history entries or mark artwork unsaved; only a completed shape placement changes the document.
 
+## Animation timeline
+
+Click a frame to work on it. Hold `Shift` while clicking another frame to select the complete range between them, or hold `Ctrl` (`Cmd` on macOS) to add or remove individual frames. A single selected frame keeps playback scoped to the complete animation; two or more selected frames define a playback range from the earliest selected position to the latest.
+
+Drag any selected frame to move the complete selected block while preserving its internal order. The violet range rail marks the selection, cyan identifies the active frame, and an acid-lime insertion line shows the exact drop position. Timeline dragging uses pointer capture rather than native HTML drag-and-drop for dependable behavior in the Tauri WebView. The duplicate and delete actions operate on the complete selection, and deleting every frame remains blocked.
+
+Use **Hold** to keep selected frames on screen for 1× through 12× the base frame duration. The FPS control remains the animation's base tempo; for example, a 3× frame at 10 FPS displays for 300 ms. Playback, Loop or Play once, Export Studio's GIF preview, encoded GIF timing, and sprite-sheet metadata all follow the current frame order and holds. Reordering, hold changes, batch duplicate/delete, and loop changes each participate in Undo/Redo as atomic document edits.
+
 ## Canvas view
 
 Choose **Canvas view settings** beside the zoom controls to tailor the workspace around the artwork. **Checker** keeps the transparency pattern, while **Dark**, **Mid**, and **Light** provide neutral solid backgrounds for inspecting edges and contrast. The pixel grid can be **Off**, **Subtle**, **Crisp**, or **Contrast**; Crisp is the default for clear cell boundaries on small canvases.
@@ -152,7 +162,7 @@ Press `G` to hide the grid or restore the last visible grid style. Canvas-view c
 
 Choose **Export artwork** in the top toolbar or press `Ctrl+E` to open Export Studio. **Current frame** creates one PNG from the active frame. **Sprite sheet** exports a contiguous frame range and can arrange it in a single row, a single column, or a grid with a chosen column count. **Animated GIF** exports the chosen range as a playback-ready animation using the project's FPS.
 
-Export Studio supports integer nearest-neighbor scaling from 1× through 32×, transparent or solid backgrounds, and adjustable spacing and outer padding for sprite sheets. For GIFs, choose **Loop forever** or **Play once** without changing the project's timeline Loop setting; the preview follows the chosen behavior and stops on the final frame in Play once mode. PNG previews report exact output dimensions and estimate file size. Enable **JSON metadata** for sprite sheets to create a sibling file containing each frame's rectangle, duration, source size, scale, FPS, and project loop state.
+Export Studio supports integer nearest-neighbor scaling from 1× through 32×, transparent or solid backgrounds, and adjustable spacing and outer padding for sprite sheets. For GIFs, choose **Loop forever** or **Play once** without changing the project's timeline Loop setting; the duration-aware preview follows the chosen behavior and stops on the final frame in Play once mode. PNG previews report exact output dimensions and estimate file size. Enable **JSON metadata** for sprite sheets to create a sibling file containing each frame's ordered rectangle, hold multiplier, effective duration, source size, scale, FPS, and project loop state.
 
 GIF encoding runs in a background worker so Export Studio remains responsive while frames are compressed. Artwork with up to 256 exact colors per frame retains that palette directly; more complex frames are quantized automatically to the GIF format's 256-color limit. Transparent GIFs use one-bit alpha, while solid backgrounds flatten every frame before encoding.
 

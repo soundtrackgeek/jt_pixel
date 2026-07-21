@@ -121,10 +121,10 @@ export function ExportStudioDialog({
   const fileName = exportFileName(document, request);
   const selectedFrameCount = layout.frames.length;
   const animationFrameCount = renderedAnimation?.frames.length ?? 0;
-  const animationDelayMs = renderedAnimation?.frames[0]?.durationMs ?? 100;
   const previewAnimationFrame = renderedAnimation?.frames[
     animationFrameCount === 0 ? 0 : previewFrameIndex % animationFrameCount
   ];
+  const animationDelayMs = previewAnimationFrame?.durationMs ?? 100;
 
   useEffect(() => {
     selectedFormatButtonRef.current?.focus();

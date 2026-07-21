@@ -67,6 +67,7 @@ describe("project document reducer", () => {
       id: "frame-1",
       name: "Frame 1",
       referenceOffset: "50% 50%",
+      hold: 1,
     }]);
     expect(document.layers).toMatchObject([{
       id: "layer-1",
@@ -202,6 +203,65 @@ describe("project document reducer", () => {
     );
     expect(isLayerVisible(duplicated.document, "layer-details", "frame-copy")).toBe(false);
     expect(isLayerLocked(duplicated.document, "layer-details", "frame-copy")).toBe(true);
+  });
+
+  it("duplicates selected frames as one ordered block with their holds and artwork", () => {
+    const held = projectReducer(paintedState(), {
+      type: "frame/set-hold",
+      frameIds: ["frame-2", "frame-3"],
+      hold: 3,
+    });
+    const duplicated = projectReducer(held, {
+      type: "frame/duplicate-many",
+      frameIds: ["frame-3", "frame-2"],
+      duplicateIds: ["frame-3-copy", "frame-2-copy"],
+    });
+
+    expect(duplicated.document.frames.map((frame) => frame.id).slice(0, 5)).toEqual([
+      "frame-1",
+      "frame-2",
+      "frame-3",
+      "frame-2-copy",
+      "frame-3-copy",
+    ]);
+    expect(duplicated.document.frames.slice(3, 5).map((frame) => frame.hold)).toEqual([3, 3]);
+    expect(getCelPixels(duplicated.document, "layer-details", "frame-3-copy"))
+      .toEqual(getCelPixels(held.document, "layer-details", "frame-3"));
+    expect(duplicated.activeFrameId).toBe("frame-2-copy");
+  });
+
+  it("reorders selected frames as a stable block without disturbing frame data", () => {
+    const source = paintedState();
+    const reordered = projectReducer(source, {
+      type: "frame/reorder",
+      frameIds: ["frame-3", "frame-2"],
+      targetIndex: 8,
+    });
+
+    expect(reordered.document.frames.map((frame) => frame.id)).toEqual([
+      "frame-1",
+      "frame-4",
+      "frame-5",
+      "frame-6",
+      "frame-7",
+      "frame-8",
+      "frame-2",
+      "frame-3",
+    ]);
+    expect(getCelPixels(reordered.document, "layer-details", "frame-3"))
+      .toEqual(getCelPixels(source.document, "layer-details", "frame-3"));
+  });
+
+  it("sets bounded frame holds and toggles play-once mode", () => {
+    const held = projectReducer(createInitialEditorState(), {
+      type: "frame/set-hold",
+      frameIds: ["frame-3", "frame-4"],
+      hold: 99,
+    });
+    const playOnce = projectReducer(held, { type: "animation/toggle-loop" });
+
+    expect(held.document.frames.slice(2, 4).map((frame) => frame.hold)).toEqual([12, 12]);
+    expect(playOnce.document.animation.loop).toBe(false);
   });
 
   it("locks painting only on the requested frame and unlocks without changing pixels", () => {
@@ -363,6 +423,22 @@ describe("project document reducer", () => {
 
     expect(state.document.frames).toHaveLength(1);
     expect(unchanged).toBe(state);
+  });
+
+  it("deletes several frames atomically while retaining one frame", () => {
+    const source = paintedState();
+    const deleted = projectReducer(source, {
+      type: "frame/delete-many",
+      frameIds: ["frame-2", "frame-3", "frame-4"],
+    });
+
+    expect(deleted.document.frames.map((frame) => frame.id)).not.toContain("frame-3");
+    expect(deleted.document.cels[celKey("layer-details", "frame-3")]).toBeUndefined();
+    expect(deleted.activeFrameId).toBe("frame-5");
+    expect(projectReducer(deleted, {
+      type: "frame/delete-many",
+      frameIds: deleted.document.frames.map((frame) => frame.id),
+    })).toBe(deleted);
   });
 
   it("restores the saved active frame and marks saved metadata", () => {

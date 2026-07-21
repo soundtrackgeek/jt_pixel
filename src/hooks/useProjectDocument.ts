@@ -85,8 +85,39 @@ export function useProjectDocument() {
     (frameId: string) => apply({ type: "frame/duplicate", frameId, duplicateId: createProjectId("frame") }),
     [apply],
   );
+  const duplicateFrames = useCallback((frameIds: string[]) => {
+    const requestedIds = new Set(frameIds);
+    const orderedFrameIds = state.document.frames
+      .filter((frame) => requestedIds.has(frame.id))
+      .map((frame) => frame.id);
+    if (orderedFrameIds.length === 0) return [];
+    const duplicateIds = orderedFrameIds.map(() => createProjectId("frame"));
+    apply({
+      type: "frame/duplicate-many",
+      frameIds: orderedFrameIds,
+      duplicateIds,
+    });
+    return duplicateIds;
+  }, [apply, state.document.frames]);
   const deleteFrame = useCallback((frameId: string) => apply({ type: "frame/delete", frameId }), [apply]);
+  const deleteFrames = useCallback(
+    (frameIds: string[]) => apply({ type: "frame/delete-many", frameIds }),
+    [apply],
+  );
+  const reorderFrames = useCallback(
+    (frameIds: string[], targetIndex: number) => apply({
+      type: "frame/reorder",
+      frameIds,
+      targetIndex,
+    }),
+    [apply],
+  );
+  const setFrameHold = useCallback(
+    (frameIds: string[], hold: number) => apply({ type: "frame/set-hold", frameIds, hold }),
+    [apply],
+  );
   const setFps = useCallback((fps: number) => apply({ type: "animation/set-fps", fps }), [apply]);
+  const toggleLoop = useCallback(() => apply({ type: "animation/toggle-loop" }), [apply]);
   const setPalette = useCallback(
     (palette: string[]) => apply({ type: "palette/set", palette }),
     [apply],
@@ -150,8 +181,13 @@ export function useProjectDocument() {
     selectFrame,
     advanceFrame,
     duplicateFrame,
+    duplicateFrames,
     deleteFrame,
+    deleteFrames,
+    reorderFrames,
+    setFrameHold,
     setFps,
+    toggleLoop,
     setPalette,
     replaceColor,
     beginFpsChange,

@@ -90,6 +90,14 @@ describe("project files", () => {
     delete legacyLocks.frameLayerLocks;
     expect(parseProjectDocument(JSON.stringify(legacyLocks)).frameLayerLocks).toEqual({});
 
+    const legacyHolds = structuredClone(projectWithPixels()) as unknown as {
+      frames: Array<Record<string, unknown>>;
+    };
+    for (const frame of legacyHolds.frames) delete frame.hold;
+    expect(parseProjectDocument(JSON.stringify(legacyHolds)).frames.every(
+      (frame) => frame.hold === 1,
+    )).toBe(true);
+
     const invalidWorkspace = {
       ...projectWithPixels(),
       workspace: { activeFrameId: "frame-missing" },
@@ -97,6 +105,12 @@ describe("project files", () => {
     expect(() => parseProjectDocument(JSON.stringify(invalidWorkspace))).toThrow(
       /unknown frame/,
     );
+  });
+
+  it("rejects frame holds outside the supported range", () => {
+    const invalid = projectWithPixels();
+    invalid.frames[0].hold = 13;
+    expect(() => parseProjectDocument(JSON.stringify(invalid))).toThrow(/hold must be between 1 and 12/);
   });
 
   it("round-trips a versioned recovery snapshot", () => {

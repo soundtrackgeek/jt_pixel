@@ -39,8 +39,13 @@ const TRACKED_ACTIONS = new Set<ProjectAction["type"]>([
   "layer/add",
   "layer/delete",
   "frame/duplicate",
+  "frame/duplicate-many",
   "frame/delete",
+  "frame/delete-many",
+  "frame/reorder",
+  "frame/set-hold",
   "animation/set-fps",
+  "animation/toggle-loop",
   "palette/set",
   "color/replace",
 ]);

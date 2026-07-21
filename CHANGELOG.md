@@ -4,6 +4,25 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.12.0] - 2026-07-21
+
+### Added
+
+- Shift-range and Ctrl-additive frame selection with a violet range rail, cyan active-frame treatment, selected counts, and scrolling timeline thumbnails.
+- WebView-safe pointer-driven frame and selected-block reordering with acid-lime insertion feedback and preserved internal order.
+- Batch frame duplication and deletion that preserve artwork, frame-local layers, visibility, locks, remembered layer selection, and hold timing.
+- Per-frame 1× through 12× hold durations, compact thumbnail badges, selected-range playback, and a functional project Loop or Play once control.
+- Deterministic coverage for selection ranges, block ordering, batch edits, bounded holds, history, legacy project files, duration-aware metadata, and GIF timing.
+
+### Changed
+
+- Drive timeline playback from each frame's hold multiplier while retaining FPS as the base animation tempo.
+- Persist frame order and hold timing in `.jtp` files and crash recovery, with a backward-compatible 1× default for existing schema-v1 projects.
+- Make drag ordering, hold changes, batch duplicate/delete, and loop changes atomic Undo/Redo document edits.
+- Preserve ordered hold multipliers and effective durations in sprite-sheet JSON, animated GIF encoding, and Export Studio's GIF preview.
+- Expand and polish the Arcade Bloom timeline while retaining a usable scrolling strip and control rail at the 960 × 680 minimum desktop size.
+- Bumped the application version to `0.12.0`.
+
 ## [0.11.0] - 2026-07-21
 
 ### Added

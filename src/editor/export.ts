@@ -43,6 +43,7 @@ export interface ExportFramePlacement {
   frameId: string;
   name: string;
   sourceIndex: number;
+  hold: number;
   x: number;
   y: number;
   width: number;
@@ -67,6 +68,7 @@ export interface RenderedAnimationFrame {
   frameId: string;
   name: string;
   sourceIndex: number;
+  hold: number;
   durationMs: number;
   pixels: Uint8ClampedArray;
 }
@@ -204,11 +206,12 @@ export function calculateExportLayout(
       frameId: frame.id,
       name: frame.name,
       sourceIndex: document.frames.findIndex((candidate) => candidate.id === frame.id),
+      hold: frame.hold,
       x: padding + (column * (frameWidth + spacing)),
       y: padding + (row * (frameHeight + spacing)),
       width: frameWidth,
       height: frameHeight,
-      durationMs: Math.round(1000 / document.animation.fps),
+      durationMs: Math.round(1000 / document.animation.fps) * frame.hold,
     };
   });
 
@@ -441,7 +444,7 @@ export function renderAnimationExport(
   const validationError = getExportValidationError(layout, "animated-gif");
   if (validationError) throw new RangeError(validationError);
 
-  const durationMs = gifFrameDelayMs(document.animation.fps);
+  const baseDurationMs = gifFrameDelayMs(document.animation.fps);
   return {
     width: layout.frameWidth,
     height: layout.frameHeight,
@@ -449,7 +452,8 @@ export function renderAnimationExport(
       frameId: frame.id,
       name: frame.name,
       sourceIndex: document.frames.findIndex((candidate) => candidate.id === frame.id),
-      durationMs,
+      hold: frame.hold,
+      durationMs: baseDurationMs * frame.hold,
       pixels: scaleFramePixels(
         composeFramePixels(
           document,
@@ -502,6 +506,7 @@ export function serializeSpriteSheetMetadata(
     frames: rendered.placements.map((placement) => ({
       frame: placement.sourceIndex + 1,
       name: placement.name,
+      hold: placement.hold,
       x: placement.x,
       y: placement.y,
       width: placement.width,

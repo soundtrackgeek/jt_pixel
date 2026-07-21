@@ -310,6 +310,34 @@ describe("editor history", () => {
     expect(twiceUndone.present.state.document.animation.fps).toBe(8);
   });
 
+  it("undoes batch timeline edits as single history steps", () => {
+    let history = createInitialHistoryState();
+    history = reduce(history, {
+      type: "history/apply",
+      action: {
+        type: "frame/set-hold",
+        frameIds: ["frame-3", "frame-4"],
+        hold: 4,
+      },
+    });
+    history = reduce(history, {
+      type: "history/apply",
+      action: {
+        type: "frame/reorder",
+        frameIds: ["frame-3", "frame-4"],
+        targetIndex: 8,
+      },
+    });
+
+    expect(history.past).toHaveLength(2);
+    expect(history.present.state.document.frames.at(-1)?.id).toBe("frame-4");
+    const reorderedUndone = reduce(history, { type: "history/undo" });
+    expect(reorderedUndone.present.state.document.frames[2].id).toBe("frame-3");
+    expect(reorderedUndone.present.state.document.frames[2].hold).toBe(4);
+    const holdUndone = reduce(reorderedUndone, { type: "history/undo" });
+    expect(holdUndone.present.state.document.frames[2].hold).toBe(1);
+  });
+
   it("ignores rejected edits and bounds retained history", () => {
     let history = createInitialHistoryState();
     const rejected = reduce(history, {

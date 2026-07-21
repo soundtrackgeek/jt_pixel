@@ -76,6 +76,7 @@ function exportDocument(): ProjectDocument {
     id: "frame-2",
     name: "Frame 2",
     referenceOffset: "50% 50%",
+    hold: 1,
   });
   document.cels[celKey("bottom", "frame-2")] = {
     layerId: "bottom",
@@ -236,6 +237,7 @@ describe("sprite-sheet rendering", () => {
 
   it("serializes engine-friendly frame coordinates and timing", () => {
     const document = exportDocument();
+    document.frames[0].hold = 2;
     const exportRequest = request({
       kind: "sprite-sheet",
       layout: "vertical",
@@ -252,13 +254,14 @@ describe("sprite-sheet rendering", () => {
     expect(metadata.image).toBe("export-test-sheet.png");
     expect(metadata.frames).toHaveLength(2);
     expect(metadata.frames[1]).toMatchObject({ frame: 2, x: 0, y: 2 });
-    expect(metadata.frames[0].durationMs).toBe(125);
+    expect(metadata.frames[0]).toMatchObject({ hold: 2, durationMs: 250 });
   });
 });
 
 describe("animated GIF rendering", () => {
   it("renders the selected frame range as equally sized nearest-neighbor frames", () => {
     const document = exportDocument();
+    document.frames[0].hold = 2;
     const exportRequest = request({
       kind: "animated-gif",
       scale: 2,
@@ -272,13 +275,25 @@ describe("animated GIF rendering", () => {
     expect(rendered.frames.map((frame) => frame.sourceIndex)).toEqual([0, 1]);
     expect([...rendered.frames[0].pixels.slice(0, 4)]).toEqual([128, 0, 128, 255]);
     expect([...rendered.frames[0].pixels.slice(4, 8)]).toEqual([128, 0, 128, 255]);
-    expect(rendered.frames[0].durationMs).toBe(130);
+    expect(rendered.frames[0]).toMatchObject({ hold: 2, durationMs: 260 });
   });
 
   it("uses GIF-compatible centisecond timing with a safe high-FPS floor", () => {
     expect(gifFrameDelayMs(8)).toBe(130);
     expect(gifFrameDelayMs(24)).toBe(40);
     expect(gifFrameDelayMs(60)).toBe(20);
+  });
+
+  it("preserves reordered frames and their individual hold durations", () => {
+    const document = exportDocument();
+    document.frames[0].hold = 2;
+    document.frames[1].hold = 3;
+    document.frames.reverse();
+    const rendered = renderAnimationExport(document, request({ kind: "animated-gif" }));
+
+    expect(rendered.frames.map((frame) => frame.frameId)).toEqual(["frame-2", "frame-1"]);
+    expect(rendered.frames.map((frame) => frame.sourceIndex)).toEqual([0, 1]);
+    expect(rendered.frames.map((frame) => frame.durationMs)).toEqual([390, 260]);
   });
 
   it("rejects animations whose combined frames exceed the memory budget", () => {
