@@ -1,4 +1,4 @@
-import type { CursorPosition, ToolId } from "../types";
+import type { CursorPosition, PixelSelection, ToolId } from "../types";
 
 interface StatusBarProps {
   activeColor: string;
@@ -8,6 +8,7 @@ interface StatusBarProps {
   documentStatus: string;
   frameCount: number;
   height: number;
+  selection: PixelSelection | null;
   width: number;
   zoom: number;
 }
@@ -20,6 +21,7 @@ export function StatusBar({
   documentStatus,
   frameCount,
   height,
+  selection,
   width,
   zoom,
 }: StatusBarProps) {
@@ -31,6 +33,11 @@ export function StatusBar({
         <span>Zoom {zoom}%</span>
         <span>X: {cursor.x}, Y: {cursor.y}</span>
         <span className="statusbar__tool">{activeTool}</span>
+        {selection ? (
+          <span className="statusbar__selection">
+            SEL {selection.width}×{selection.height} @ {selection.x},{selection.y}
+          </span>
+        ) : null}
         <span className="statusbar__document-state">{documentStatus}</span>
       </div>
       <div className="statusbar__group statusbar__color">

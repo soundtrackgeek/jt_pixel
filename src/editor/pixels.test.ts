@@ -40,6 +40,22 @@ describe("floodFillPixelMap", () => {
     expect(floodFillPixelMap(pixels, { x: 2, y: 2 }, 5, 5, "#c9f53d")).toBe(false);
     expect(pixels).toEqual({ [pixelIndex(2, 2, 5)]: "#c9f53d" });
   });
+
+  it("constrains a fill to the active selection bounds", () => {
+    const pixels: PixelMap = {};
+
+    expect(floodFillPixelMap(
+      pixels,
+      { x: 1, y: 1 },
+      4,
+      4,
+      "#42c8e3",
+      { x: 1, y: 1, width: 2, height: 2 },
+    )).toBe(true);
+    expect(Object.keys(pixels)).toHaveLength(4);
+    expect(pixels[pixelIndex(2, 2, 4)]).toBe("#42c8e3");
+    expect(pixels[pixelIndex(0, 0, 4)]).toBeUndefined();
+  });
 });
 
 describe("applySquareBrush", () => {

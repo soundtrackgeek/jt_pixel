@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.8.1` adds frame-local pixel-layer locking while retaining precision Line, Rectangle, and Ellipse drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.9.0` adds rectangular pixel selections and a complete transform workflow while retaining frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -15,12 +15,15 @@ Version `0.8.1` adds frame-local pixel-layer locking while retaining precision L
 - Fresh-project lifecycle that clears the previous file path, recovery snapshot, playback state, and Undo/Redo history
 - Interactive pencil and eraser behavior, boundary-aware flood fill, and precision Line, Rectangle, and Ellipse tools, persisted per layer and frame
 - Live shape previews with brush-size and opacity support, outline or filled closed shapes, 45-degree Line snapping, square and circle constraints, and one Undo step per placement
+- Pixel-snapped rectangular selections with drag creation, Select All, live size/origin feedback, and selection-masked Pencil, Eraser, Fill, precision shapes, and Clear behavior
+- Drag or keyboard movement, Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect commands through a contextual Arcade Bloom toolbar
+- App-internal selection clipboard that can carry pixel regions across layers, frames, and projects without depending on the operating-system clipboard
 - Tool selection with visible state and keyboard shortcuts
 - Color palette, brush size, opacity, and pixel-perfect controls
 - Functional frame-local layer creation, deletion, selection, visibility, locking, and instant selected-layer restoration, with permanently locked-reference safeguards and live thumbnails
 - Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
 - Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
-- Bounded 100-step Undo and Redo for complete drawing strokes, fills, cel clears, frame-local layer visibility and locks, structural layer operations, frame operations, and frame-rate changes, with one history step per FPS slider drag
+- Bounded 100-step Undo and Redo for complete drawing strokes, fills, selection transforms, cel clears, frame-local layer visibility and locks, structural layer operations, frame operations, and frame-rate changes, with one history step per completed transform or FPS slider drag
 - Toolbar history controls plus `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z` shortcuts, with Redo cleared after a branched edit
 - Native Open and Save dialogs for validated, human-readable `.jtp` project files
 - Saved workspace position so projects and recovered work reopen on the frame where you left them
@@ -100,6 +103,14 @@ Layer-row lock controls protect pixel artwork on the current frame. A locked lay
 Undo and Redo history is kept for the current editing session and is not serialized into `.jtp` files. Saving preserves the current history and establishes a clean checkpoint, so undoing back to that position returns the status to **SAVED**. Opening or restoring a different project starts a fresh history.
 
 History shortcuts remain active while non-text controls such as the FPS range have focus. Individual frame-rate `+` and `−` clicks remain separate Undo steps, while a complete mouse or touch drag on the FPS slider is grouped into one step.
+
+## Selections and transforms
+
+Choose **Select** (`S`) and drag across an editable, visible pixel layer to create an inclusive rectangular marquee. The Draw panel and status bar report its exact size and origin. Choose **Move** (`M`) and drag inside the marquee, use the arrow keys for one-pixel nudges, or hold `Shift` with an arrow key for eight-pixel nudges. Selections always remain fully inside the canvas.
+
+The contextual selection toolbar provides Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect. `Ctrl+A` selects the full canvas, `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, and `Ctrl+D` operate on the selection, `Delete` or `Backspace` clears selected pixels, and `Escape` removes the marquee. Clipboard pixels stay available inside JT Pixel when changing frames, layers, or projects; they are not written to project files or the system clipboard.
+
+An active marquee also masks Pencil, Eraser, Fill, Line, Rectangle, Ellipse, and the canvas Clear command so pixels outside the selection cannot change. Copy remains available on a locked layer because it is read-only, while Cut, Paste, Duplicate, movement, flips, rotation, and deletion remain disabled. Switching frames or layers clears the transient marquee safely. Every completed pixel transform is one Undo/Redo entry; selection geometry itself is temporary editor state and is not saved in `.jtp` files.
 
 ## Precision drawing
 

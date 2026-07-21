@@ -15,13 +15,20 @@ import { TopBar } from "./components/TopBar";
 import { UpdateSettings } from "./components/UpdateSettings";
 import { UpdateToast } from "./components/UpdateToast";
 import { tools } from "./data/editor";
-import { createNewProjectDocument, type NewProjectOptions } from "./editor/project";
+import {
+  createNewProjectDocument,
+  isLayerLocked,
+  isLayerPresent,
+  isLayerVisible,
+  type NewProjectOptions,
+} from "./editor/project";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { useCanvasViewPreferences } from "./hooks/useCanvasViewPreferences";
 import { useExportPreferences } from "./hooks/useExportPreferences";
 import { useProjectExport } from "./hooks/useProjectExport";
 import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
+import { usePixelSelection } from "./hooks/usePixelSelection";
 import type { CursorPosition, ShapeMode, ToolId } from "./types";
 
 const TEXT_EDITING_INPUT_TYPES = new Set([
@@ -69,6 +76,35 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const updater = useAppUpdater();
+  const activeLayerCanSelect = project.activeLayer.kind === "pixel"
+    && isLayerPresent(document, project.activeLayer.id, project.state.activeFrameId)
+    && isLayerVisible(document, project.activeLayer.id, project.state.activeFrameId);
+  const activeLayerCanEdit = activeLayerCanSelect
+    && !isLayerLocked(document, project.activeLayer.id, project.state.activeFrameId);
+  const {
+    clipboard: selectionClipboard,
+    selection,
+    copy: copySelection,
+    cut: cutSelection,
+    deselect,
+    duplicate: duplicateSelection,
+    flip: flipSelection,
+    move: moveSelection,
+    paste: pasteSelection,
+    remove: deleteSelection,
+    rotate: rotateSelection,
+    select: selectBounds,
+    selectAll,
+  } = usePixelSelection({
+    activeFrameId: project.state.activeFrameId,
+    activeLayerId: project.state.activeLayerId,
+    activePixels: project.activePixels,
+    canEdit: activeLayerCanEdit,
+    documentId: document.id,
+    height: document.height,
+    onCommit: project.commitActiveCel,
+    width: document.width,
+  });
   const activeFrameIndex = Math.max(
     0,
     document.frames.findIndex((frame) => frame.id === project.state.activeFrameId),
@@ -95,8 +131,19 @@ function App() {
     setOpacity(100);
     setIsPlaying(false);
     setZoom(800);
+    deselect();
     return true;
-  }, [persistence.startNewProject]);
+  }, [deselect, persistence.startNewProject]);
+
+  const undo = useCallback(() => {
+    deselect();
+    project.undo();
+  }, [deselect, project.undo]);
+
+  const redo = useCallback(() => {
+    deselect();
+    project.redo();
+  }, [deselect, project.redo]);
 
   const shortcutMap = useMemo(
     () => new Map(tools.map((tool) => [tool.shortcut.toLowerCase(), tool.id])),
@@ -130,18 +177,52 @@ function App() {
           return;
         }
         if (isTextEditingTarget(target)) return;
-        if (key === "z") {
+        if (key === "a" && !event.shiftKey && activeLayerCanSelect) {
           event.preventDefault();
-          if (event.shiftKey) project.redo();
-          else project.undo();
+          selectAll();
+        } else if (key === "c" && !event.shiftKey) {
+          if (copySelection()) event.preventDefault();
+        } else if (key === "x" && !event.shiftKey) {
+          if (cutSelection()) event.preventDefault();
+        } else if (key === "v" && !event.shiftKey) {
+          if (pasteSelection()) event.preventDefault();
+        } else if (key === "d" && !event.shiftKey) {
+          if (duplicateSelection()) event.preventDefault();
+        } else if (key === "z") {
+          event.preventDefault();
+          if (event.shiftKey) redo();
+          else undo();
         } else if (key === "y" && !event.shiftKey) {
           event.preventDefault();
-          project.redo();
+          redo();
         }
         return;
       }
 
       if (typingTarget) return;
+
+      if (event.key === "Escape" && selection) {
+        event.preventDefault();
+        deselect();
+        return;
+      }
+
+      if ((event.key === "Delete" || event.key === "Backspace") && selection) {
+        if (deleteSelection()) event.preventDefault();
+        return;
+      }
+
+      if (selection && event.key.startsWith("Arrow")) {
+        const distance = event.shiftKey ? 8 : 1;
+        const deltaX = event.key === "ArrowLeft"
+          ? -distance
+          : event.key === "ArrowRight" ? distance : 0;
+        const deltaY = event.key === "ArrowUp"
+          ? -distance
+          : event.key === "ArrowDown" ? distance : 0;
+        if (moveSelection(deltaX, deltaY)) event.preventDefault();
+        return;
+      }
 
       if (event.code === "Space") {
         event.preventDefault();
@@ -161,7 +242,26 @@ function App() {
 
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [canvasView.toggleGrid, modalOpen, openNewProject, persistence.isBusy, project.redo, project.undo, projectExport.openStudio, shortcutMap]);
+  }, [
+    activeLayerCanSelect,
+    canvasView.toggleGrid,
+    copySelection,
+    cutSelection,
+    deleteSelection,
+    deselect,
+    duplicateSelection,
+    modalOpen,
+    moveSelection,
+    openNewProject,
+    pasteSelection,
+    persistence.isBusy,
+    projectExport.openStudio,
+    redo,
+    selectAll,
+    selection,
+    shortcutMap,
+    undo,
+  ]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -182,11 +282,11 @@ function App() {
         onNewProject={openNewProject}
         onOpenProject={() => void persistence.openProject()}
         onOpenExport={projectExport.openStudio}
-        onRedo={project.redo}
+        onRedo={redo}
         onOpenSettings={() => setSettingsOpen(true)}
         onSaveProject={() => void persistence.saveProject()}
         onToolChange={setActiveTool}
-        onUndo={project.undo}
+        onUndo={undo}
       />
 
       <div className="workspace">
@@ -196,7 +296,9 @@ function App() {
           brushSize={brushSize}
           opacity={opacity}
           pixelPerfect={pixelPerfect}
+          selection={selection}
           shapeMode={shapeMode}
+          clipboardAvailable={selectionClipboard !== null}
           onToolChange={setActiveTool}
           onBrushSizeChange={setBrushSize}
           onOpacityChange={setOpacity}
@@ -215,14 +317,26 @@ function App() {
           isDirty={project.state.isDirty}
           opacity={opacity}
           pixelPerfect={pixelPerfect}
+          clipboard={selectionClipboard}
+          selection={selection}
           shapeMode={shapeMode}
           zoom={zoom}
           onClearActiveCel={project.clearActiveCel}
           onCanvasBackgroundChange={canvasView.setBackground}
           onCommitActiveCel={project.commitActiveCel}
+          onCopySelection={copySelection}
           onCursorChange={setCursor}
+          onCutSelection={cutSelection}
+          onDeleteSelection={deleteSelection}
+          onDeselect={deselect}
+          onDuplicateSelection={duplicateSelection}
+          onFlipSelection={flipSelection}
           onGridStyleChange={canvasView.setGridStyle}
+          onMoveSelection={moveSelection}
+          onPasteSelection={pasteSelection}
           onResetCanvasView={canvasView.resetPreferences}
+          onRotateSelection={rotateSelection}
+          onSelectionChange={selectBounds}
           onZoomChange={setZoom}
         />
         <Inspector
@@ -261,6 +375,7 @@ function App() {
         documentStatus={persistence.documentStatus}
         frameCount={document.frames.length}
         height={document.height}
+        selection={selection}
         width={document.width}
         zoom={zoom}
       />

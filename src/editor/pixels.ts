@@ -1,4 +1,4 @@
-import type { CursorPosition } from "../types";
+import type { CursorPosition, SelectionBounds } from "../types";
 import type { PixelMap } from "./project";
 
 export function pixelIndex(x: number, y: number, width: number) {
@@ -74,7 +74,17 @@ export function floodFillPixelMap(
   width: number,
   height: number,
   color: string,
+  bounds?: SelectionBounds,
 ) {
+  if (
+    bounds
+    && (
+      start.x < bounds.x
+      || start.x >= bounds.x + bounds.width
+      || start.y < bounds.y
+      || start.y >= bounds.y + bounds.height
+    )
+  ) return false;
   const startIndex = pixelIndex(start.x, start.y, width);
   const targetColor = pixels[startIndex] ?? null;
   if (targetColor === color) return false;
@@ -88,10 +98,14 @@ export function floodFillPixelMap(
     if ((pixels[index] ?? null) !== targetColor) continue;
     pixels[index] = color;
 
-    if (position.x > 0) pending.push({ x: position.x - 1, y: position.y });
-    if (position.x < width - 1) pending.push({ x: position.x + 1, y: position.y });
-    if (position.y > 0) pending.push({ x: position.x, y: position.y - 1 });
-    if (position.y < height - 1) pending.push({ x: position.x, y: position.y + 1 });
+    const minimumX = bounds?.x ?? 0;
+    const maximumX = bounds ? bounds.x + bounds.width - 1 : width - 1;
+    const minimumY = bounds?.y ?? 0;
+    const maximumY = bounds ? bounds.y + bounds.height - 1 : height - 1;
+    if (position.x > minimumX) pending.push({ x: position.x - 1, y: position.y });
+    if (position.x < maximumX) pending.push({ x: position.x + 1, y: position.y });
+    if (position.y > minimumY) pending.push({ x: position.x, y: position.y - 1 });
+    if (position.y < maximumY) pending.push({ x: position.x, y: position.y + 1 });
   }
 
   return true;

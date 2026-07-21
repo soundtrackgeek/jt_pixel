@@ -1,13 +1,15 @@
 import { Minus, Plus } from "lucide-react";
 import { tools } from "../data/editor";
-import type { ShapeMode, ToolId } from "../types";
+import type { PixelSelection, ShapeMode, ToolId } from "../types";
 import { PanelHeader } from "./PanelHeader";
 
 interface ToolPanelProps {
   activeTool: ToolId;
   brushSize: number;
+  clipboardAvailable: boolean;
   opacity: number;
   pixelPerfect: boolean;
+  selection: PixelSelection | null;
   shapeMode: ShapeMode;
   onToolChange: (tool: ToolId) => void;
   onBrushSizeChange: (size: number) => void;
@@ -21,8 +23,10 @@ const brushPresets = [1, 2, 3, 4, 5, 7];
 export function ToolPanel({
   activeTool,
   brushSize,
+  clipboardAvailable,
   opacity,
   pixelPerfect,
+  selection,
   shapeMode,
   onToolChange,
   onBrushSizeChange,
@@ -32,6 +36,7 @@ export function ToolPanel({
 }: ToolPanelProps) {
   const precisionTool = ["line", "rectangle", "ellipse"].includes(activeTool);
   const closedShape = activeTool === "rectangle" || activeTool === "ellipse";
+  const selectionTool = activeTool === "select" || activeTool === "move";
 
   return (
     <aside className="tool-panel panel-surface">
@@ -54,67 +59,97 @@ export function ToolPanel({
         ))}
       </div>
 
-      <div className="control-section">
-        <div className="control-label-row">
-          <label htmlFor="brush-size">Size</label>
-          <div className="stepper">
-            <button
-              aria-label="Decrease brush size"
-              onClick={() => onBrushSizeChange(Math.max(1, brushSize - 1))}
-            >
-              <Minus size={13} />
-            </button>
-            <output id="brush-size">{brushSize} px</output>
-            <button
-              aria-label="Increase brush size"
-              onClick={() => onBrushSizeChange(Math.min(8, brushSize + 1))}
-            >
-              <Plus size={13} />
-            </button>
+      {selectionTool ? (
+        <div className="selection-guide" data-testid="selection-guide">
+          <div className="mini-heading">SELECTION</div>
+          {selection ? (
+            <div className="selection-guide__readout">
+              <div>
+                <span>SIZE</span>
+                <strong>{selection.width} × {selection.height}</strong>
+              </div>
+              <div>
+                <span>ORIGIN</span>
+                <strong>{selection.x}, {selection.y}</strong>
+              </div>
+            </div>
+          ) : (
+            <div className="selection-guide__empty">
+              {activeTool === "select"
+                ? "Drag across the canvas to create a pixel-perfect marquee."
+                : "Create a selection first, then drag inside it to move pixels."}
+            </div>
+          )}
+          <div className="selection-guide__shortcuts">
+            <span><kbd>ARROWS</kbd> Nudge 1 px</span>
+            <span><kbd>SHIFT</kbd> Nudge 8 px</span>
+            <span><kbd>ESC</kbd> Deselect</span>
           </div>
+          <p>{clipboardAvailable ? "Clipboard ready for Paste." : "Copy and Paste stay inside JT Pixel."}</p>
         </div>
-
-        <div className="brush-presets" aria-label="Brush size presets">
-          {brushPresets.map((size) => (
-            <button
-              key={size}
-              className={brushSize === size ? "is-active" : ""}
-              onClick={() => onBrushSizeChange(size)}
-              aria-label={`${size} pixel brush`}
-            >
-              <span style={{ width: size + 2, height: size + 2 }} />
-            </button>
-          ))}
-        </div>
-
-        <div className="control-label-row control-label-row--stacked">
-          <div>
-            <label htmlFor="opacity">Opacity</label>
-            <output>{opacity}%</output>
+      ) : (
+        <div className="control-section">
+          <div className="control-label-row">
+            <label htmlFor="brush-size">Size</label>
+            <div className="stepper">
+              <button
+                aria-label="Decrease brush size"
+                onClick={() => onBrushSizeChange(Math.max(1, brushSize - 1))}
+              >
+                <Minus size={13} />
+              </button>
+              <output id="brush-size">{brushSize} px</output>
+              <button
+                aria-label="Increase brush size"
+                onClick={() => onBrushSizeChange(Math.min(8, brushSize + 1))}
+              >
+                <Plus size={13} />
+              </button>
+            </div>
           </div>
-          <input
-            id="opacity"
-            className="range-control"
-            type="range"
-            min="1"
-            max="100"
-            value={opacity}
-            onChange={(event) => onOpacityChange(Number(event.target.value))}
-          />
+
+          <div className="brush-presets" aria-label="Brush size presets">
+            {brushPresets.map((size) => (
+              <button
+                key={size}
+                className={brushSize === size ? "is-active" : ""}
+                onClick={() => onBrushSizeChange(size)}
+                aria-label={`${size} pixel brush`}
+              >
+                <span style={{ width: size + 2, height: size + 2 }} />
+              </button>
+            ))}
+          </div>
+
+          <div className="control-label-row control-label-row--stacked">
+            <div>
+              <label htmlFor="opacity">Opacity</label>
+              <output>{opacity}%</output>
+            </div>
+            <input
+              id="opacity"
+              className="range-control"
+              type="range"
+              min="1"
+              max="100"
+              value={opacity}
+              onChange={(event) => onOpacityChange(Number(event.target.value))}
+            />
+          </div>
+
+          <label className="switch-row">
+            <span>Pixel Perfect</span>
+            <input
+              type="checkbox"
+              checked={pixelPerfect}
+              onChange={(event) => onPixelPerfectChange(event.target.checked)}
+            />
+            <span className="switch" aria-hidden="true" />
+          </label>
         </div>
+      )}
 
-        <label className="switch-row">
-          <span>Pixel Perfect</span>
-          <input
-            type="checkbox"
-            checked={pixelPerfect}
-            onChange={(event) => onPixelPerfectChange(event.target.checked)}
-          />
-          <span className="switch" aria-hidden="true" />
-        </label>
-      </div>
-
-      {precisionTool ? (
+      {selectionTool ? null : precisionTool ? (
         <div className="precision-section" data-testid="precision-options">
           <div className="mini-heading">PRECISION</div>
           {closedShape ? (

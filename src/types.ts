@@ -27,3 +27,16 @@ export interface CursorPosition {
   x: number;
   y: number;
 }
+
+export interface SelectionBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PixelSelection extends SelectionBounds {
+  documentId: string;
+  frameId: string;
+  layerId: string;
+}

@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-07-21
+
+### Added
+
+- Pixel-snapped rectangular marquee selections with drag creation, Select All, live size and origin feedback, and safe clearing when changing layers or frames.
+- Drag movement, one- or eight-pixel keyboard nudging, Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect commands.
+- An app-internal pixel clipboard that carries selections across frames, layers, and projects, plus a compact Arcade Bloom contextual toolbar and selection guidance panel.
+- Deterministic automated coverage for bounds normalization, movement clamping, clipboard coordinates, deletion, flips, rotation, selection masking, and bounded flood fill.
+
+### Changed
+
+- Constrain Pencil, Eraser, Fill, Line, Rectangle, Ellipse, and Clear edits to the active selection without changing pixels outside its marquee.
+- Treat every completed selection transform as one Undo/Redo cel edit while keeping the marquee and clipboard transient and outside `.jtp` project data.
+- Allow read-only copying from locked layers while blocking all selection commands that would mutate protected artwork.
+- Bumped the application version to `0.9.0`.
+
 ## [0.8.1] - 2026-07-21
 
 ### Added
