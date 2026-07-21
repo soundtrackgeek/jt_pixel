@@ -4,12 +4,14 @@ import {
   Eraser,
   FilePlus2,
   FileOutput,
+  FileInput,
   FolderOpen,
   Grid3X3,
   PaintBucket,
   Pencil,
   Redo2,
   Save,
+  Scaling,
   Settings,
   Spline,
   Square,
@@ -28,6 +30,8 @@ interface TopBarProps {
   onNewProject: () => void;
   onOpenProject: () => void;
   onOpenExport: () => void;
+  onOpenImport: () => void;
+  onOpenCanvasOperations: () => void;
   onRedo: () => void;
   onOpenSettings: () => void;
   onSaveProject: () => void;
@@ -62,6 +66,8 @@ export function TopBar({
   onNewProject,
   onOpenProject,
   onOpenExport,
+  onOpenImport,
+  onOpenCanvasOperations,
   onRedo,
   onOpenSettings,
   onSaveProject,
@@ -109,6 +115,27 @@ export function TopBar({
         </div>
 
         <div className="topbar-actions">
+          <button
+            className="icon-button"
+            aria-label="Import PNG artwork"
+            aria-keyshortcuts="Control+I Meta+I"
+            title="Import PNG artwork (Ctrl+I)"
+            disabled={isFileBusy}
+            data-busy={isFileBusy}
+            onClick={onOpenImport}
+          >
+            <FileInput size={18} />
+          </button>
+          <button
+            className="icon-button"
+            aria-label="Canvas operations"
+            title="Canvas operations"
+            disabled={isFileBusy}
+            data-busy={isFileBusy}
+            onClick={onOpenCanvasOperations}
+          >
+            <Scaling size={18} />
+          </button>
           <button
             className="icon-button"
             aria-label="Undo"

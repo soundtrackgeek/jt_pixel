@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.13.0` adds a complete Seamless Tiles and Symmetry workspace with wraparound drawing, live 3×3 previews, mirrored editing, seam offsets, persistent project settings, and responsive Arcade Bloom controls while retaining the advanced animation timeline, native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, marquee-aware Undo and Redo, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, crash recovery, and the signed desktop update channel:
+Version `0.14.0` adds a complete Import Studio and project-wide Canvas Operations with transparent PNG placement, sprite-sheet slicing, palette policies, anchored canvas resizing, nearest-neighbor scaling, live previews, and atomic Undo/Redo while retaining seamless tile and symmetry editing, the advanced animation timeline, native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, crash recovery, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -15,6 +15,9 @@ Version `0.13.0` adds a complete Seamless Tiles and Symmetry workspace with wrap
 - Fresh-project lifecycle that clears the previous file path, recovery snapshot, playback state, and Undo/Redo history
 - Interactive pencil and eraser behavior, boundary-aware flood fill, and precision Line, Rectangle, and Ellipse tools, persisted per layer and frame
 - Dedicated Tiles workspace with standard or seamless edge behavior, live 3×3 repeat preview, horizontal, vertical, and quad symmetry, center-seam and one-pixel offsets, and visible symmetry guides
+- Arcade Bloom Import Studio with PNG file selection or drag-and-drop, exact alpha-aware previews, palette keep/merge/replace policies, centered frame-local placement, active-cel replacement, and `Ctrl+I`
+- Sprite-sheet slicing with cell, row, column, spacing, margin, and frame-order controls, plus new-project or inserted-frame destinations
+- Project-wide Canvas Operations with nine-point anchored resizing, transparent or background-color expansion, nearest-neighbor scaling, aspect locking, before/after previews, clipping warnings, and one-step Undo/Redo
 - Live shape previews with brush-size and opacity support, outline or filled closed shapes, 45-degree Line snapping, square and circle constraints, and one Undo step per placement
 - Pixel-snapped rectangular selections with drag creation, Select All, live size/origin feedback, and selection-masked Pencil, Eraser, Fill, precision shapes, and Clear behavior
 - Drag or keyboard movement, Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect commands through a contextual Arcade Bloom toolbar
@@ -102,6 +105,16 @@ JT Pixel desktop projects use the `.jtp` extension. Project files are readable J
 - If recovery data is found on launch, choose **Restore work** to open it as an unsaved copy or **Discard recovery** to remove it.
 
 Recovered work intentionally does not reuse its previous file path. Its next save opens the native Save dialog, preventing an automatic overwrite after a crash.
+
+## Import Studio and canvas operations
+
+Choose **Import PNG artwork** in the top toolbar, press `Ctrl+I`, or drag a PNG onto the app to open Import Studio. PNG transparency and RGBA pixel values are preserved. Sources can be up to 64 MB, 8192 pixels on either side, and 33,554,432 total pixels; editable JT Pixel canvases remain bounded to 1–512 pixels per side.
+
+For a single PNG, choose **New project** to use the image dimensions, **New layer** to center it on a new layer present only in the active frame, or **Current cel** to replace the selected visible, unlocked pixel layer. Import Studio reports pixels that will be clipped when a source is larger than the current canvas. Palette handling can keep the current project palette, merge up to 256 most-used imported colors, or replace the palette with those imported colors. Imported pixels remain fully editable and are embedded in `.jtp` saves and crash recovery.
+
+Choose **Sprite sheet** to define cell width and height, rows, columns, horizontal and vertical spacing, outer margins, and row-major or column-major frame order. The live cyan grid is preview-only. A sheet can create a new animated project or insert frames after the active frame when every sliced cell matches the current canvas. Up to 1024 frames can be imported at once.
+
+Choose **Canvas operations** in the top toolbar to reframe the complete project. **Resize canvas** adds or removes space around every frame and pixel layer from one of nine anchors; expanded space can remain transparent or use the current background color, and a warning reports artwork that would be cropped. **Scale artwork** resamples every cel with crisp nearest-neighbor scaling and can lock the existing aspect ratio. Both operations show composited before/after previews and commit as one Undo/Redo step.
 
 Layer-row lock controls protect pixel artwork on the current frame. A locked layer remains visible and selectable, but Pencil, Eraser, Fill, precision shapes, and Clear cannot modify its cel until it is unlocked. Lock state is saved in `.jtp` files, crash recovery, and frame duplication; older project files open with pixel layers unlocked. The Courier Reference remains permanently locked. Lock and unlock changes participate in Undo/Redo and do not affect the same layer on other frames.
 

@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] - 2026-07-21
+
+### Added
+
+- Arcade Bloom Import Studio for transparent PNG artwork, with exact pixel previews, file-picker and drag-and-drop entry, source validation, palette keep/merge/replace policies, and an unsaved-work safeguard before creating a new project.
+- Editable single-image destinations for a new project, a frame-local layer, or the active cel, with centered placement, clipping warnings, alpha preservation, and atomic Undo/Redo.
+- Sprite-sheet slicing with configurable cell size, rows, columns, spacing, margins, row-major or column-major order, live grid overlays, and import as a new animated project or inserted frames.
+- Canvas Operations with side-by-side before/after previews, project-wide canvas resizing from nine anchors, transparent or background-color expansion, and nearest-neighbor artwork scaling with optional aspect locking.
+- Deterministic coverage for RGBA conversion, sprite slicing order, palette policies, clipping and anchoring, nearest-neighbor scaling, frame-local imports, multi-frame imports, background expansion, and complete-document history.
+
+### Changed
+
+- Apply imports and canvas transforms across their complete structural scope as one recoverable Undo/Redo operation while preserving frame-local layer selection.
+- Allow native PNG paths chosen or dropped by the user to enter the Tauri filesystem scope only after extension, file type, size, and canonical-path validation.
+- Bumped the application version to `0.14.0`.
+
 ## [0.13.0] - 2026-07-21
 
 ### Added

@@ -27,6 +27,35 @@ fn prepare_export_paths(
     }))
 }
 
+#[tauri::command]
+fn allow_import_path(window: tauri::Window, path: String) -> Result<String, String> {
+    const MAX_IMPORT_FILE_BYTES: u64 = 64 * 1024 * 1024;
+    let requested = PathBuf::from(path);
+    let extension_is_png = requested
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("png"));
+    if !extension_is_png {
+        return Err("JT Pixel currently imports PNG images only.".to_string());
+    }
+    let metadata = std::fs::metadata(&requested)
+        .map_err(|error| format!("The PNG image could not be accessed: {error}"))?;
+    if !metadata.is_file() {
+        return Err("Choose a PNG image file.".to_string());
+    }
+    if metadata.len() > MAX_IMPORT_FILE_BYTES {
+        return Err("Choose a PNG smaller than 64 MB.".to_string());
+    }
+    let canonical = requested
+        .canonicalize()
+        .map_err(|error| format!("The PNG image path could not be resolved: {error}"))?;
+    window
+        .fs_scope()
+        .allow_file(&canonical)
+        .map_err(|error| error.to_string())?;
+    Ok(canonical.to_string_lossy().into_owned())
+}
+
 fn normalized_export_paths(
     requested_path: &str,
     format: &str,
@@ -105,6 +134,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             prepare_export_paths,
+            allow_import_path,
             start_screen_picker
         ])
         .run(tauri::generate_context!())

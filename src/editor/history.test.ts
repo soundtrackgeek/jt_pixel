@@ -7,6 +7,7 @@ import {
   type EditorHistoryState,
 } from "./history";
 import { celKey, getCelPixels, isLayerLocked } from "./project";
+import { transformProjectDimensions } from "./importOperations";
 
 function reduce(
   history: EditorHistoryState,
@@ -355,6 +356,35 @@ describe("editor history", () => {
     expect(reorderedUndone.present.state.document.frames[2].hold).toBe(4);
     const holdUndone = reduce(reorderedUndone, { type: "history/undo" });
     expect(holdUndone.present.state.document.frames[2].hold).toBe(1);
+  });
+
+  it("undoes and redoes a complete canvas transform as one history step", () => {
+    const painted = paint(createInitialHistoryState(), 0, "#ff615d");
+    const transformedDocument = transformProjectDimensions(
+      painted.present.state.document,
+      32,
+      32,
+      "resize",
+      "top-left",
+    );
+    const transformed = reduce(painted, {
+      type: "history/apply",
+      action: {
+        type: "document/commit",
+        document: transformedDocument,
+        activeFrameId: "frame-3",
+        activeLayerId: "layer-details",
+      },
+    });
+
+    expect(transformed.past).toHaveLength(2);
+    expect(transformed.present.state.document.width).toBe(32);
+    const undone = reduce(transformed, { type: "history/undo" });
+    expect(undone.present.state.document.width).toBe(64);
+    expect(getCelPixels(undone.present.state.document, "layer-details", "frame-3"))
+      .toEqual({ 0: "#ff615d" });
+    const redone = reduce(undone, { type: "history/redo" });
+    expect(redone.present.state.document.width).toBe(32);
   });
 
   it("ignores rejected edits and bounds retained history", () => {

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FileInput } from "lucide-react";
 import { CanvasStage } from "./components/CanvasStage";
+import { CanvasOperationsDialog } from "./components/CanvasOperationsDialog";
 import { ColorReplaceDialog } from "./components/ColorReplaceDialog";
 import { ExportStudioDialog } from "./components/ExportStudioDialog";
 import { ExportToast } from "./components/ExportToast";
 import { Inspector } from "./components/Inspector";
+import { ImportStudioDialog, type ImportStudioRequest } from "./components/ImportStudioDialog";
 import { ProjectOpenDialog } from "./components/ProjectOpenDialog";
 import { ProjectNewDialog } from "./components/ProjectNewDialog";
 import { ProjectRecoveryDialog } from "./components/ProjectRecoveryDialog";
@@ -18,6 +21,12 @@ import { TopBar } from "./components/TopBar";
 import { UpdateSettings } from "./components/UpdateSettings";
 import { UpdateToast } from "./components/UpdateToast";
 import { tools } from "./data/editor";
+import {
+  appendImportedFrames,
+  createProjectFromImportedSlices,
+  importSliceAsLayer,
+  importSliceIntoCel,
+} from "./editor/importOperations";
 import {
   createNewProjectDocument,
   isLayerLocked,
@@ -35,6 +44,7 @@ import { useExportPreferences } from "./hooks/useExportPreferences";
 import { useProjectExport } from "./hooks/useProjectExport";
 import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
+import { useImageImport } from "./hooks/useImageImport";
 import { useScreenPicker } from "./hooks/useScreenPicker";
 import { usePixelSelection } from "./hooks/usePixelSelection";
 import { useTimelineSelection } from "./hooks/useTimelineSelection";
@@ -97,6 +107,8 @@ function App() {
   const [zoom, setZoom] = useState(800);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [canvasOperationsOpen, setCanvasOperationsOpen] = useState(false);
+  const imageImport = useImageImport();
   const timelineSelection = useTimelineSelection(
     document.frames,
     project.state.activeFrameId,
@@ -140,6 +152,8 @@ function App() {
   );
   const modalOpen = settingsOpen
     || newProjectOpen
+    || canvasOperationsOpen
+    || imageImport.asset !== null
     || replaceColorSource !== null
     || projectExport.isOpen
     || persistence.openConfirmationRequested
@@ -165,6 +179,81 @@ function App() {
     deselect();
     return true;
   }, [deselect, persistence.startNewProject]);
+
+  const importArtwork = useCallback((request: ImportStudioRequest) => imageImport.runBusy(async () => {
+    if (!imageImport.asset) return false;
+    if (request.destination === "current-cel" && !activeLayerCanEdit) {
+      throw new Error("Select a visible, unlocked pixel layer before replacing its cel.");
+    }
+    if (request.destination === "new-project") {
+      const nextDocument = createProjectFromImportedSlices(
+        imageImport.asset.name,
+        request.slices,
+        document.palette,
+        request.paletteMode,
+      );
+      const created = await persistence.startNewProject(nextDocument);
+      if (!created) return false;
+      setActiveTool("pencil");
+      setWorkspaceSection("canvas");
+      setBrushSize(1);
+      setOpacity(100);
+      setIsPlaying(false);
+      setZoom(800);
+      deselect();
+      imageImport.closeStudio();
+      return true;
+    }
+
+    const result = request.destination === "new-layer"
+      ? importSliceAsLayer(
+          document,
+          project.state.activeFrameId,
+          imageImport.asset.name,
+          request.slices[0],
+          request.paletteMode,
+        )
+      : request.destination === "current-cel"
+        ? importSliceIntoCel(
+            document,
+            project.state.activeFrameId,
+            project.state.activeLayerId,
+            request.slices[0],
+            request.paletteMode,
+          )
+        : appendImportedFrames(
+            document,
+            project.state.activeFrameId,
+            imageImport.asset.name,
+            request.slices,
+            request.paletteMode,
+          );
+    project.commitDocument(result.document, result.activeFrameId, result.activeLayerId);
+    timelineSelection.replaceSelection([result.activeFrameId], result.activeFrameId);
+    setIsPlaying(false);
+    deselect();
+    imageImport.closeStudio();
+    return true;
+  }), [
+    activeLayerCanEdit,
+    deselect,
+    document,
+    imageImport,
+    persistence.startNewProject,
+    project,
+    timelineSelection,
+  ]);
+
+  const applyCanvasOperation = useCallback((nextDocument: typeof document) => {
+    project.commitDocument(
+      nextDocument,
+      project.state.activeFrameId,
+      project.state.activeLayerId,
+    );
+    setCanvasOperationsOpen(false);
+    setIsPlaying(false);
+    deselect();
+  }, [deselect, project]);
 
   const applyColorReplacement = useCallback((options: Parameters<typeof project.replaceColor>[0]) => {
     project.replaceColor(options);
@@ -225,6 +314,11 @@ function App() {
         if (key === "e" && !event.shiftKey) {
           event.preventDefault();
           projectExport.openStudio();
+          return;
+        }
+        if (key === "i" && !event.shiftKey) {
+          event.preventDefault();
+          void imageImport.openStudio();
           return;
         }
         if (isTextEditingTarget(target)) return;
@@ -310,6 +404,7 @@ function App() {
     modalOpen,
     moveSelection,
     openNewProject,
+    imageImport.openStudio,
     pasteSelection,
     persistence.isBusy,
     projectExport.openStudio,
@@ -400,7 +495,13 @@ function App() {
   ]);
 
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      onDragEnter={imageImport.handleDragEnter}
+      onDragLeave={imageImport.handleDragLeave}
+      onDragOver={imageImport.handleDragOver}
+      onDrop={imageImport.handleDrop}
+    >
       <TopBar
         activeTool={activeTool}
         canRedo={project.canRedo}
@@ -412,6 +513,8 @@ function App() {
         onNewProject={openNewProject}
         onOpenProject={() => void persistence.openProject()}
         onOpenExport={projectExport.openStudio}
+        onOpenImport={() => void imageImport.openStudio()}
+        onOpenCanvasOperations={() => setCanvasOperationsOpen(true)}
         onRedo={redo}
         onOpenSettings={() => setSettingsOpen(true)}
         onSaveProject={() => void persistence.saveProject()}
@@ -575,6 +678,10 @@ function App() {
         toast={persistence.toast}
         onDismiss={persistence.dismissToast}
       />
+      <ProjectToast
+        toast={imageImport.toast ? { ...imageImport.toast, kind: "error" } : null}
+        onDismiss={imageImport.dismissToast}
+      />
       <ScreenPickerToast
         toast={screenPicker.toast}
         onDismiss={screenPicker.dismissToast}
@@ -598,6 +705,35 @@ function App() {
           onClose={() => setNewProjectOpen(false)}
           onCreate={createNewProject}
         />
+      )}
+      {imageImport.asset && (
+        <ImportStudioDialog
+          activeLayerLocked={!activeLayerCanEdit}
+          asset={imageImport.asset}
+          document={document}
+          error={imageImport.dialogError}
+          hasUnsavedChanges={project.state.isDirty}
+          isBusy={imageImport.isBusy}
+          onChooseAnother={() => void imageImport.openStudio()}
+          onClose={imageImport.closeStudio}
+          onImport={importArtwork}
+        />
+      )}
+      {canvasOperationsOpen && (
+        <CanvasOperationsDialog
+          activeFrameId={project.state.activeFrameId}
+          backgroundColor={colorWorkspace.backgroundColor}
+          document={document}
+          onApply={applyCanvasOperation}
+          onClose={() => setCanvasOperationsOpen(false)}
+        />
+      )}
+      {imageImport.isDragActive && !imageImport.asset && (
+        <div className="import-drop-overlay" aria-live="polite">
+          <span><FileInput size={26} /></span>
+          <strong>DROP PNG TO IMPORT</strong>
+          <small>Single artwork or sprite sheet</small>
+        </div>
       )}
       {projectExport.isOpen && (
         <ExportStudioDialog

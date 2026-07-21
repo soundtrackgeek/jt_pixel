@@ -49,6 +49,7 @@ const TRACKED_ACTIONS = new Set<ProjectAction["type"]>([
   "tiles/set-settings",
   "palette/set",
   "color/replace",
+  "document/commit",
 ]);
 
 export function createInitialHistoryState(): EditorHistoryState {

@@ -153,6 +153,16 @@ export function useProjectDocument() {
     }),
     [apply],
   );
+  const commitDocument = useCallback((
+    document: ProjectDocument,
+    activeFrameId?: string,
+    activeLayerId?: string,
+  ) => apply({
+    type: "document/commit",
+    document,
+    activeFrameId,
+    activeLayerId,
+  }), [apply]);
   const markSaved = useCallback(
     (document?: ProjectDocument) => apply({ type: "document/mark-saved", document }),
     [apply],
@@ -202,6 +212,7 @@ export function useProjectDocument() {
     beginFpsChange,
     endFpsChange,
     replaceDocument,
+    commitDocument,
     markSaved,
     commitActiveCel,
     clearActiveCel,

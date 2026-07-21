@@ -120,6 +120,12 @@ export type ProjectAction =
       bounds?: SelectionBounds;
       updatePaletteIndex?: number;
     }
+  | {
+      type: "document/commit";
+      document: ProjectDocument;
+      activeFrameId?: string;
+      activeLayerId?: string;
+    }
   | { type: "document/replace"; document: ProjectDocument; dirty?: boolean }
   | { type: "document/mark-saved"; document?: ProjectDocument };
 
@@ -891,6 +897,40 @@ export function projectReducer(
         ) nextDocument = { ...nextDocument, palette: normalized };
       }
       return nextDocument === document ? state : changed(state, nextDocument);
+    }
+
+    case "document/commit": {
+      const activeFrameId = action.document.frames.some(
+        (frame) => frame.id === action.activeFrameId,
+      )
+        ? action.activeFrameId as string
+        : action.document.frames.some((frame) => frame.id === state.activeFrameId)
+          ? state.activeFrameId
+          : action.document.frames[0].id;
+      const requestedLayerId = action.activeLayerId
+        ?? state.frameLayerSelection[activeFrameId]
+        ?? state.activeLayerId;
+      const activeLayerId = layerForFrame(action.document, activeFrameId, requestedLayerId);
+      const frameLayerSelection = Object.fromEntries(action.document.frames.map((frame) => [
+        frame.id,
+        layerForFrame(
+          action.document,
+          frame.id,
+          frame.id === activeFrameId
+            ? activeLayerId
+            : state.frameLayerSelection[frame.id] ?? requestedLayerId,
+        ),
+      ]));
+      const nextDocument = {
+        ...action.document,
+        workspace: { ...action.document.workspace, activeFrameId },
+      };
+      return {
+        ...changed(state, nextDocument),
+        activeFrameId,
+        activeLayerId,
+        frameLayerSelection,
+      };
     }
 
     case "document/replace":
