@@ -4,6 +4,19 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.7.3] - 2026-07-21
+
+### Added
+
+- Explicit **Loop forever** and **Play once** controls for Animated GIF export, independent of the project's timeline Loop setting.
+- Playback-aware GIF previews that continuously cycle in Loop forever mode and stop on the final frame in Play once mode.
+
+### Changed
+
+- Remember the GIF playback choice with other export preferences while migrating existing `v1` preferences to the new `v2` schema without losing prior selections.
+- Focus the remembered output format when Export Studio opens so keyboard focus and the visible selected state stay aligned.
+- Bumped the application version to `0.7.3`.
+
 ## [0.7.2] - 2026-07-21
 
 ### Added

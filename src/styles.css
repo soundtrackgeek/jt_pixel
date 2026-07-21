@@ -2849,6 +2849,59 @@ input:checked + .switch::after {
   font-size: 8px;
 }
 
+.export-playback-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.export-playback-options button {
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 43px;
+  padding: 6px 8px;
+  border: 1px solid #2d4b5e;
+  border-radius: 3px;
+  color: #748c9b;
+  background: #091824;
+  text-align: left;
+}
+
+.export-playback-options button:hover,
+.export-playback-options button.is-active {
+  color: var(--cyan);
+  border-color: #367888;
+  background: #102d38;
+}
+
+.export-playback-options button.is-active {
+  box-shadow: inset 2px 0 0 var(--cyan);
+}
+
+.export-playback-options button > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.export-playback-options strong {
+  color: #afc3cc;
+  font-size: 8px;
+  font-weight: 680;
+}
+
+.export-playback-options button.is-active strong {
+  color: var(--cyan);
+}
+
+.export-playback-options small {
+  margin-top: 1px;
+  color: #5f7787;
+  font-size: 7px;
+}
+
 .export-layout-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

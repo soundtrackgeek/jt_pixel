@@ -6,7 +6,8 @@ import {
   type ProjectFrame,
 } from "./project";
 
-export const EXPORT_PREFERENCES_STORAGE_KEY = "jt-pixel.export-preferences:v1";
+export const EXPORT_PREFERENCES_STORAGE_KEY = "jt-pixel.export-preferences:v2";
+export const LEGACY_EXPORT_PREFERENCES_STORAGE_KEY = "jt-pixel.export-preferences:v1";
 export const EXPORT_SCALE_PRESETS = [1, 2, 4, 8] as const;
 export const MAX_EXPORT_SCALE = 32;
 export const MAX_EXPORT_SPACING = 128;
@@ -16,6 +17,7 @@ export const MAX_GIF_DIMENSION = 4_096;
 
 export type ExportKind = "frame" | "sprite-sheet" | "animated-gif";
 export type ExportBackgroundMode = "transparent" | "solid";
+export type GifPlayback = "loop" | "once";
 export type SpriteSheetLayout = "horizontal" | "vertical" | "grid";
 
 export interface ExportPreferences {
@@ -23,6 +25,7 @@ export interface ExportPreferences {
   scale: number;
   backgroundMode: ExportBackgroundMode;
   backgroundColor: string;
+  gifPlayback: GifPlayback;
   layout: SpriteSheetLayout;
   columns: number;
   spacing: number;
@@ -79,6 +82,7 @@ export const DEFAULT_EXPORT_PREFERENCES: ExportPreferences = {
   scale: 1,
   backgroundMode: "transparent",
   backgroundColor: "#152034",
+  gifPlayback: "loop",
   layout: "horizontal",
   columns: 4,
   spacing: 0,
@@ -88,6 +92,7 @@ export const DEFAULT_EXPORT_PREFERENCES: ExportPreferences = {
 
 const exportKinds = new Set<ExportKind>(["frame", "sprite-sheet", "animated-gif"]);
 const backgroundModes = new Set<ExportBackgroundMode>(["transparent", "solid"]);
+const gifPlaybackModes = new Set<GifPlayback>(["loop", "once"]);
 const sheetLayouts = new Set<SpriteSheetLayout>(["horizontal", "vertical", "grid"]);
 const hexColorPattern = /^#[0-9a-f]{6}$/i;
 
@@ -103,6 +108,7 @@ export function parseExportPreferences(serialized: string | null): ExportPrefere
 
   try {
     const value = JSON.parse(serialized) as Partial<ExportPreferences>;
+    const gifPlayback = value.gifPlayback ?? DEFAULT_EXPORT_PREFERENCES.gifPlayback;
     if (
       !value
       || typeof value !== "object"
@@ -111,6 +117,7 @@ export function parseExportPreferences(serialized: string | null): ExportPrefere
       || !backgroundModes.has(value.backgroundMode as ExportBackgroundMode)
       || typeof value.backgroundColor !== "string"
       || !hexColorPattern.test(value.backgroundColor)
+      || !gifPlaybackModes.has(gifPlayback)
       || !sheetLayouts.has(value.layout as SpriteSheetLayout)
       || !isIntegerInRange(value.columns, 1, 512)
       || !isIntegerInRange(value.spacing, 0, MAX_EXPORT_SPACING)
@@ -123,6 +130,7 @@ export function parseExportPreferences(serialized: string | null): ExportPrefere
       scale: value.scale as number,
       backgroundMode: value.backgroundMode as ExportBackgroundMode,
       backgroundColor: value.backgroundColor,
+      gifPlayback,
       layout: value.layout as SpriteSheetLayout,
       columns: value.columns as number,
       spacing: value.spacing as number,
@@ -140,6 +148,7 @@ export function serializeExportPreferences(preferences: ExportPreferences) {
     scale: preferences.scale,
     backgroundMode: preferences.backgroundMode,
     backgroundColor: preferences.backgroundColor,
+    gifPlayback: preferences.gifPlayback,
     layout: preferences.layout,
     columns: preferences.columns,
     spacing: preferences.spacing,

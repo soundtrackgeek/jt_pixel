@@ -119,6 +119,10 @@ describe("export preferences", () => {
       ...DEFAULT_EXPORT_PREFERENCES,
       scale: 100,
     }))).toBe(DEFAULT_EXPORT_PREFERENCES);
+    expect(parseExportPreferences(JSON.stringify({
+      ...DEFAULT_EXPORT_PREFERENCES,
+      gifPlayback: "bounce",
+    }))).toBe(DEFAULT_EXPORT_PREFERENCES);
   });
 
   it("accepts animated GIF as a persisted output kind", () => {
@@ -127,11 +131,25 @@ describe("export preferences", () => {
       kind: "animated-gif" as const,
       scale: 2,
       backgroundMode: "solid" as const,
+      gifPlayback: "once" as const,
     };
 
     expect(parseExportPreferences(
       serializeExportPreferences(preferences),
     )).toEqual(preferences);
+  });
+
+  it("migrates legacy preferences to loop GIF playback", () => {
+    const { gifPlayback: _gifPlayback, ...legacyPreferences } = {
+      ...DEFAULT_EXPORT_PREFERENCES,
+      kind: "animated-gif" as const,
+      scale: 4,
+    };
+
+    expect(parseExportPreferences(JSON.stringify(legacyPreferences))).toEqual({
+      ...legacyPreferences,
+      gifPlayback: "loop",
+    });
   });
 });
 

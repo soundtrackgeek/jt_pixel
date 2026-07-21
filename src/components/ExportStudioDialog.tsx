@@ -7,6 +7,8 @@ import {
   Grid2X2,
   Layers3,
   PackageCheck,
+  Play,
+  Repeat2,
   RotateCcw,
   Rows3,
   ShieldCheck,
@@ -92,7 +94,7 @@ export function ExportStudioDialog({
   const [estimatedPngBytes, setEstimatedPngBytes] = useState<number | null>();
   const [previewFrameIndex, setPreviewFrameIndex] = useState(0);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const firstFormatButtonRef = useRef<HTMLButtonElement>(null);
+  const selectedFormatButtonRef = useRef<HTMLButtonElement>(null);
 
   const request = useMemo<ExportRequest>(() => ({
     ...preferences,
@@ -125,7 +127,7 @@ export function ExportStudioDialog({
   ];
 
   useEffect(() => {
-    firstFormatButtonRef.current?.focus();
+    selectedFormatButtonRef.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -145,15 +147,27 @@ export function ExportStudioDialog({
 
   useEffect(() => {
     setPreviewFrameIndex(0);
-  }, [firstFrameIndex, lastFrameIndex, preferences.kind]);
+  }, [firstFrameIndex, lastFrameIndex, preferences.gifPlayback, preferences.kind]);
 
   useEffect(() => {
     if (!isAnimatedGif || animationFrameCount <= 1) return;
-    const timer = window.setInterval(() => {
-      setPreviewFrameIndex((current) => (current + 1) % animationFrameCount);
+    if (
+      preferences.gifPlayback === "once"
+      && previewFrameIndex >= animationFrameCount - 1
+    ) return;
+    const timer = window.setTimeout(() => {
+      setPreviewFrameIndex((current) => preferences.gifPlayback === "loop"
+        ? (current + 1) % animationFrameCount
+        : Math.min(current + 1, animationFrameCount - 1));
     }, animationDelayMs);
-    return () => window.clearInterval(timer);
-  }, [animationDelayMs, animationFrameCount, isAnimatedGif]);
+    return () => window.clearTimeout(timer);
+  }, [
+    animationDelayMs,
+    animationFrameCount,
+    isAnimatedGif,
+    preferences.gifPlayback,
+    previewFrameIndex,
+  ]);
 
   useEffect(() => {
     const canvas = previewCanvasRef.current;
@@ -275,7 +289,7 @@ export function ExportStudioDialog({
             <fieldset className="export-section export-format-options">
               <legend>OUTPUT</legend>
               <button
-                ref={firstFormatButtonRef}
+                ref={preferences.kind === "frame" ? selectedFormatButtonRef : undefined}
                 data-testid="export-kind-frame"
                 type="button"
                 className={preferences.kind === "frame" ? "is-active" : ""}
@@ -289,6 +303,7 @@ export function ExportStudioDialog({
                 </span>
               </button>
               <button
+                ref={preferences.kind === "sprite-sheet" ? selectedFormatButtonRef : undefined}
                 data-testid="export-kind-sprite-sheet"
                 type="button"
                 className={preferences.kind === "sprite-sheet" ? "is-active" : ""}
@@ -302,6 +317,7 @@ export function ExportStudioDialog({
                 </span>
               </button>
               <button
+                ref={isAnimatedGif ? selectedFormatButtonRef : undefined}
                 data-testid="export-kind-animated-gif"
                 type="button"
                 className={isAnimatedGif ? "is-active" : ""}
@@ -416,6 +432,40 @@ export function ExportStudioDialog({
                   </div>
                 </fieldset>
 
+                {isAnimatedGif && (
+                  <fieldset className="export-section">
+                    <legend>PLAYBACK</legend>
+                    <div className="export-playback-options">
+                      <button
+                        type="button"
+                        data-testid="gif-playback-loop"
+                        className={preferences.gifPlayback === "loop" ? "is-active" : ""}
+                        aria-pressed={preferences.gifPlayback === "loop"}
+                        onClick={() => updatePreference("gifPlayback", "loop")}
+                      >
+                        <Repeat2 size={15} />
+                        <span>
+                          <strong>Loop forever</strong>
+                          <small>Repeat continuously</small>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        data-testid="gif-playback-once"
+                        className={preferences.gifPlayback === "once" ? "is-active" : ""}
+                        aria-pressed={preferences.gifPlayback === "once"}
+                        onClick={() => updatePreference("gifPlayback", "once")}
+                      >
+                        <Play size={15} />
+                        <span>
+                          <strong>Play once</strong>
+                          <small>Stop on final frame</small>
+                        </span>
+                      </button>
+                    </div>
+                  </fieldset>
+                )}
+
                 {preferences.kind === "sprite-sheet" && (
                   <>
                     <fieldset className="export-section">
@@ -505,7 +555,7 @@ export function ExportStudioDialog({
                     {preferences.kind === "frame"
                       ? `FRAME ${activeFrameIndex + 1}`
                       : isAnimatedGif
-                        ? `PLAYING · ${document.animation.fps} FPS`
+                        ? `${preferences.gifPlayback === "loop" ? "LOOPING" : "PLAY ONCE"} · ${document.animation.fps} FPS`
                         : `${selectedFrameCount} FRAMES`}
                   </span>
                 </div>
@@ -533,10 +583,10 @@ export function ExportStudioDialog({
                     <dd>{isAnimatedGif ? "CALCULATED ON EXPORT" : pngEstimate}</dd>
                   </div>
                   <div>
-                    <dt>{isAnimatedGif ? "LOOP" : "ALPHA"}</dt>
+                    <dt>{isAnimatedGif ? "PLAYBACK" : "ALPHA"}</dt>
                     <dd>
                       {isAnimatedGif
-                        ? document.animation.loop ? "FOREVER" : "PLAY ONCE"
+                        ? preferences.gifPlayback === "loop" ? "FOREVER" : "PLAY ONCE"
                         : preferences.backgroundMode === "transparent" ? "PRESERVED" : "FLATTENED"}
                     </dd>
                   </div>

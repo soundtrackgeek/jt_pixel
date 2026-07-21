@@ -43,4 +43,20 @@ describe("animated GIF encoding", () => {
     expect(controlExtension).toBeGreaterThan(0);
     expect(bytes[controlExtension + 3] & 0x01).toBe(1);
   });
+
+  it("omits the looping extension when playback should run once", () => {
+    const bytes = encodeGifFrames({
+      width: 1,
+      height: 1,
+      loop: false,
+      transparent: false,
+      frames: [
+        { durationMs: 100, pixels: new Uint8ClampedArray([255, 0, 0, 255]) },
+        { durationMs: 100, pixels: new Uint8ClampedArray([0, 0, 255, 255]) },
+      ],
+    });
+
+    expect(ascii(bytes)).not.toContain("NETSCAPE2.0");
+    expect(bytes.at(-1)).toBe(0x3b);
+  });
 });

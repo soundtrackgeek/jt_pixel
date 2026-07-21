@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   DEFAULT_EXPORT_PREFERENCES,
   EXPORT_PREFERENCES_STORAGE_KEY,
+  LEGACY_EXPORT_PREFERENCES_STORAGE_KEY,
   parseExportPreferences,
   serializeExportPreferences,
   type ExportPreferences,
@@ -10,7 +11,8 @@ import {
 function readSavedPreferences() {
   try {
     return parseExportPreferences(
-      window.localStorage.getItem(EXPORT_PREFERENCES_STORAGE_KEY),
+      window.localStorage.getItem(EXPORT_PREFERENCES_STORAGE_KEY)
+        ?? window.localStorage.getItem(LEGACY_EXPORT_PREFERENCES_STORAGE_KEY),
     );
   } catch {
     return DEFAULT_EXPORT_PREFERENCES;
@@ -26,6 +28,7 @@ export function useExportPreferences() {
         EXPORT_PREFERENCES_STORAGE_KEY,
         serializeExportPreferences(preferences),
       );
+      window.localStorage.removeItem(LEGACY_EXPORT_PREFERENCES_STORAGE_KEY);
     } catch {
       // Export preferences remain available for this session when storage is blocked.
     }

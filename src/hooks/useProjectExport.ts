@@ -87,7 +87,7 @@ export function useProjectExport({
         const { encodeAnimatedGif } = await import("../editor/gifEncoder");
         bytes = await encodeAnimatedGif(
           animation,
-          document.animation.loop,
+          request.gifPlayback === "loop",
           request.backgroundMode === "transparent",
           ({ completedFrames, totalFrames }) => setToast({
             kind: "busy",
