@@ -3,6 +3,7 @@ import {
   Columns3,
   Download,
   FileImage,
+  Film,
   Grid2X2,
   Layers3,
   PackageCheck,
@@ -22,14 +23,19 @@ import {
   MAX_EXPORT_SCALE,
   MAX_EXPORT_SPACING,
   calculateExportLayout,
-  exportPngFileName,
+  exportFileName,
   getExportValidationError,
+  renderAnimationExport,
   renderProjectExport,
   type ExportPreferences,
   type ExportRequest,
   type SpriteSheetLayout,
 } from "../editor/export";
-import { canvasToPngBlob, drawRenderedExport } from "../editor/exportCanvas";
+import {
+  canvasToPngBlob,
+  drawPixelBuffer,
+  drawRenderedExport,
+} from "../editor/exportCanvas";
 import type { ProjectDocument } from "../editor/project";
 
 interface ExportStudioDialogProps {
@@ -84,6 +90,7 @@ export function ExportStudioDialog({
   const [firstFrameIndex, setFirstFrameIndex] = useState(0);
   const [lastFrameIndex, setLastFrameIndex] = useState(document.frames.length - 1);
   const [estimatedPngBytes, setEstimatedPngBytes] = useState<number | null>();
+  const [previewFrameIndex, setPreviewFrameIndex] = useState(0);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const firstFormatButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -97,13 +104,25 @@ export function ExportStudioDialog({
     () => calculateExportLayout(document, request),
     [document, request],
   );
-  const validationError = getExportValidationError(layout);
+  const isAnimatedGif = preferences.kind === "animated-gif";
+  const validationError = getExportValidationError(layout, preferences.kind);
   const rendered = useMemo(
-    () => validationError ? null : renderProjectExport(document, request),
-    [document, request, validationError],
+    () => validationError || isAnimatedGif ? null : renderProjectExport(document, request),
+    [document, isAnimatedGif, request, validationError],
   );
-  const fileName = exportPngFileName(document, request);
+  const renderedAnimation = useMemo(
+    () => validationError || !isAnimatedGif
+      ? null
+      : renderAnimationExport(document, request),
+    [document, isAnimatedGif, request, validationError],
+  );
+  const fileName = exportFileName(document, request);
   const selectedFrameCount = layout.frames.length;
+  const animationFrameCount = renderedAnimation?.frames.length ?? 0;
+  const animationDelayMs = renderedAnimation?.frames[0]?.durationMs ?? 100;
+  const previewAnimationFrame = renderedAnimation?.frames[
+    animationFrameCount === 0 ? 0 : previewFrameIndex % animationFrameCount
+  ];
 
   useEffect(() => {
     firstFormatButtonRef.current?.focus();
@@ -125,8 +144,35 @@ export function ExportStudioDialog({
   }, [isBusy, onClose]);
 
   useEffect(() => {
+    setPreviewFrameIndex(0);
+  }, [firstFrameIndex, lastFrameIndex, preferences.kind]);
+
+  useEffect(() => {
+    if (!isAnimatedGif || animationFrameCount <= 1) return;
+    const timer = window.setInterval(() => {
+      setPreviewFrameIndex((current) => (current + 1) % animationFrameCount);
+    }, animationDelayMs);
+    return () => window.clearInterval(timer);
+  }, [animationDelayMs, animationFrameCount, isAnimatedGif]);
+
+  useEffect(() => {
     const canvas = previewCanvasRef.current;
-    if (!canvas || !rendered) {
+    if (!canvas) return;
+
+    if (isAnimatedGif) {
+      setEstimatedPngBytes(undefined);
+      if (previewAnimationFrame && renderedAnimation) {
+        drawPixelBuffer(
+          canvas,
+          renderedAnimation.width,
+          renderedAnimation.height,
+          previewAnimationFrame.pixels,
+        );
+      }
+      return;
+    }
+
+    if (!rendered) {
       setEstimatedPngBytes(undefined);
       return;
     }
@@ -151,7 +197,7 @@ export function ExportStudioDialog({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [rendered]);
+  }, [isAnimatedGif, previewAnimationFrame, rendered, renderedAnimation]);
 
   function updatePreference<Key extends keyof ExportPreferences>(
     key: Key,
@@ -230,6 +276,7 @@ export function ExportStudioDialog({
               <legend>OUTPUT</legend>
               <button
                 ref={firstFormatButtonRef}
+                data-testid="export-kind-frame"
                 type="button"
                 className={preferences.kind === "frame" ? "is-active" : ""}
                 aria-pressed={preferences.kind === "frame"}
@@ -242,6 +289,7 @@ export function ExportStudioDialog({
                 </span>
               </button>
               <button
+                data-testid="export-kind-sprite-sheet"
                 type="button"
                 className={preferences.kind === "sprite-sheet" ? "is-active" : ""}
                 aria-pressed={preferences.kind === "sprite-sheet"}
@@ -253,11 +301,24 @@ export function ExportStudioDialog({
                   <small>Arrange an animation range</small>
                 </span>
               </button>
+              <button
+                data-testid="export-kind-animated-gif"
+                type="button"
+                className={isAnimatedGif ? "is-active" : ""}
+                aria-pressed={isAnimatedGif}
+                onClick={() => updatePreference("kind", "animated-gif")}
+              >
+                <Film size={17} />
+                <span>
+                  <strong>Animated GIF</strong>
+                  <small>Playback-ready animation</small>
+                </span>
+              </button>
             </fieldset>
 
             <div className="export-studio__grid">
               <div className="export-studio__settings">
-                {preferences.kind === "sprite-sheet" && (
+                {preferences.kind !== "frame" && (
                   <fieldset className="export-section">
                     <legend>FRAME RANGE</legend>
                     <div className="export-frame-range">
@@ -440,33 +501,53 @@ export function ExportStudioDialog({
               <aside className="export-preview" aria-label="Export preview">
                 <div className="export-preview__header">
                   <span>OUTPUT PREVIEW</span>
-                  <span>{preferences.kind === "frame" ? `FRAME ${activeFrameIndex + 1}` : `${selectedFrameCount} FRAMES`}</span>
+                  <span>
+                    {preferences.kind === "frame"
+                      ? `FRAME ${activeFrameIndex + 1}`
+                      : isAnimatedGif
+                        ? `PLAYING · ${document.animation.fps} FPS`
+                        : `${selectedFrameCount} FRAMES`}
+                  </span>
                 </div>
                 <div
                   className={`export-preview__stage ${preferences.backgroundMode === "transparent" ? "is-transparent" : ""}`}
                 >
-                  {rendered ? (
+                  {rendered || previewAnimationFrame ? (
                     <canvas
                       ref={previewCanvasRef}
-                      aria-label={`${layout.width} by ${layout.height} pixel export preview`}
+                      aria-label={`${layout.width} by ${layout.height} pixel ${isAnimatedGif ? "animated GIF" : "export"} preview`}
                     />
                   ) : (
                     <span className="export-preview__invalid">PREVIEW PAUSED</span>
                   )}
                 </div>
                 <div className="export-preview__filename">
-                  <FileImage size={14} />
+                  {isAnimatedGif ? <Film size={14} /> : <FileImage size={14} />}
                   <span>{fileName}</span>
                 </div>
                 <dl className="export-preview__stats">
                   <div><dt>SIZE</dt><dd>{layout.width} × {layout.height} PX</dd></div>
                   <div><dt>FRAMES</dt><dd>{selectedFrameCount}</dd></div>
-                  <div><dt>PNG</dt><dd>{pngEstimate}</dd></div>
-                  <div><dt>ALPHA</dt><dd>{preferences.backgroundMode === "transparent" ? "PRESERVED" : "FLATTENED"}</dd></div>
+                  <div>
+                    <dt>{isAnimatedGif ? "GIF" : "PNG"}</dt>
+                    <dd>{isAnimatedGif ? "CALCULATED ON EXPORT" : pngEstimate}</dd>
+                  </div>
+                  <div>
+                    <dt>{isAnimatedGif ? "LOOP" : "ALPHA"}</dt>
+                    <dd>
+                      {isAnimatedGif
+                        ? document.animation.loop ? "FOREVER" : "PLAY ONCE"
+                        : preferences.backgroundMode === "transparent" ? "PRESERVED" : "FLATTENED"}
+                    </dd>
+                  </div>
                 </dl>
                 <div className="export-preview__assurance">
                   <ShieldCheck size={14} />
-                  <span>Nearest-neighbor scale · exact palette · visible layers only</span>
+                  <span>
+                    {isAnimatedGif
+                      ? "Project timing · 256-color palette · visible layers only"
+                      : "Nearest-neighbor scale · exact palette · visible layers only"}
+                  </span>
                 </div>
                 {(validationError || error) && (
                   <div className="export-preview__error" role="alert">
@@ -495,7 +576,7 @@ export function ExportStudioDialog({
                 data-testid="export-artwork"
               >
                 <Download size={15} />
-                {isBusy ? "ENCODING…" : "EXPORT PNG"}
+                {isBusy ? "ENCODING…" : isAnimatedGif ? "EXPORT GIF" : "EXPORT PNG"}
               </button>
             </div>
           </footer>

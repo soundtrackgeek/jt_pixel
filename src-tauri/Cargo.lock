@@ -1904,7 +1904,7 @@ dependencies = [
 
 [[package]]
 name = "jt-pixel"
-version = "0.7.1"
+version = "0.7.2"
 dependencies = [
  "serde_json",
  "tauri",

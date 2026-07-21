@@ -46,6 +46,7 @@ describe("export storage", () => {
     const saved = await saveExportArtifacts(
       "project-sheet.png",
       pngBytes,
+      "png",
       createMetadata,
     );
 
@@ -55,6 +56,7 @@ describe("export storage", () => {
       filters: [{ name: "PNG image", extensions: ["png"] }],
     });
     expect(mocks.invoke).toHaveBeenCalledWith("prepare_export_paths", {
+      format: "png",
       imagePath: "C:\\Sprites\\renamed-sheet.png",
       includeMetadata: true,
     });
@@ -80,6 +82,7 @@ describe("export storage", () => {
     await expect(saveExportArtifacts(
       "frame.png",
       new Uint8Array([1]),
+      "png",
       null,
     )).resolves.toBeNull();
     expect(mocks.invoke).not.toHaveBeenCalled();
@@ -93,15 +96,39 @@ describe("export storage", () => {
       metadataPath: null,
     });
 
-    await saveExportArtifacts("frame", new Uint8Array([1]), null);
+    await saveExportArtifacts("frame", new Uint8Array([1]), "png", null);
 
     expect(mocks.save).toHaveBeenCalledWith(expect.objectContaining({
       defaultPath: "frame.png",
     }));
     expect(mocks.invoke).toHaveBeenCalledWith("prepare_export_paths", {
+      format: "png",
       imagePath: "C:\\Sprites\\frame",
       includeMetadata: false,
     });
+  });
+
+  it("uses the animated GIF filter and native format preparation", async () => {
+    mocks.save.mockResolvedValue("C:\\Sprites\\walk.gif");
+    mocks.invoke.mockResolvedValue({
+      imagePath: "C:\\Sprites\\walk.gif",
+      metadataPath: null,
+    });
+    const bytes = new Uint8Array([71, 73, 70]);
+
+    await saveExportArtifacts("walk-animation.gif", bytes, "gif", null);
+
+    expect(mocks.save).toHaveBeenCalledWith({
+      title: "Export JT Pixel artwork",
+      defaultPath: "walk-animation.gif",
+      filters: [{ name: "Animated GIF", extensions: ["gif"] }],
+    });
+    expect(mocks.invoke).toHaveBeenCalledWith("prepare_export_paths", {
+      format: "gif",
+      imagePath: "C:\\Sprites\\walk.gif",
+      includeMetadata: false,
+    });
+    expect(mocks.writeFile).toHaveBeenCalledWith("C:\\Sprites\\walk.gif", bytes);
   });
 
   it("reveals the saved image through the desktop file manager", async () => {

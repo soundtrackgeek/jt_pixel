@@ -5,9 +5,11 @@ use tauri_plugin_fs::FsExt;
 fn prepare_export_paths(
     window: tauri::Window,
     image_path: String,
+    format: String,
     include_metadata: bool,
 ) -> Result<serde_json::Value, String> {
-    let (image_path, metadata_path) = normalized_export_paths(&image_path, include_metadata)?;
+    let (image_path, metadata_path) =
+        normalized_export_paths(&image_path, &format, include_metadata)?;
     let scope = window.fs_scope();
     scope
         .allow_file(&image_path)
@@ -24,25 +26,31 @@ fn prepare_export_paths(
 
 fn normalized_export_paths(
     requested_path: &str,
+    format: &str,
     include_metadata: bool,
 ) -> Result<(PathBuf, Option<PathBuf>), String> {
+    let extension = match format {
+        "gif" => "gif",
+        "png" => "png",
+        _ => return Err("JT Pixel only exports PNG and GIF artwork.".to_string()),
+    };
     let mut image_path = PathBuf::from(requested_path);
     if image_path
         .file_name()
         .and_then(|name| name.to_str())
         .is_none_or(|name| name.is_empty())
     {
-        return Err("Choose a file name for the PNG export.".to_string());
+        return Err("Choose a file name for the artwork export.".to_string());
     }
     if image_path
         .extension()
         .and_then(|extension| extension.to_str())
-        .is_none_or(|extension| !extension.eq_ignore_ascii_case("png"))
+        .is_none_or(|current| !current.eq_ignore_ascii_case(extension))
     {
-        image_path.set_extension("png");
+        image_path.set_extension(extension);
     }
 
-    let metadata_path = include_metadata.then(|| {
+    let metadata_path = (include_metadata && format == "png").then(|| {
         let mut path = image_path.clone();
         path.set_extension("json");
         path
@@ -70,7 +78,7 @@ mod tests {
 
     #[test]
     fn prepares_png_and_sibling_metadata_paths() {
-        let (image, metadata) = normalized_export_paths("exports/walk", true).unwrap();
+        let (image, metadata) = normalized_export_paths("exports/walk", "png", true).unwrap();
 
         assert_eq!(image, PathBuf::from("exports/walk.png"));
         assert_eq!(metadata, Some(PathBuf::from("exports/walk.json")));
@@ -78,9 +86,17 @@ mod tests {
 
     #[test]
     fn replaces_a_non_png_extension_without_metadata() {
-        let (image, metadata) = normalized_export_paths("exports/walk.jpeg", false).unwrap();
+        let (image, metadata) = normalized_export_paths("exports/walk.jpeg", "png", false).unwrap();
 
         assert_eq!(image, PathBuf::from("exports/walk.png"));
+        assert_eq!(metadata, None);
+    }
+
+    #[test]
+    fn prepares_gif_paths_without_png_metadata() {
+        let (image, metadata) = normalized_export_paths("exports/walk.png", "gif", true).unwrap();
+
+        assert_eq!(image, PathBuf::from("exports/walk.gif"));
         assert_eq!(metadata, None);
     }
 }

@@ -1,23 +1,28 @@
 import type { RenderedExport } from "./export";
 
-export function drawRenderedExport(
+export function drawPixelBuffer(
   canvas: HTMLCanvasElement,
-  rendered: RenderedExport,
+  width: number,
+  height: number,
+  pixels: Uint8ClampedArray,
 ) {
-  canvas.width = rendered.width;
-  canvas.height = rendered.height;
+  canvas.width = width;
+  canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("The export preview canvas is unavailable.");
   context.imageSmoothingEnabled = false;
   context.putImageData(
-    new ImageData(
-      new Uint8ClampedArray(rendered.pixels),
-      rendered.width,
-      rendered.height,
-    ),
+    new ImageData(new Uint8ClampedArray(pixels), width, height),
     0,
     0,
   );
+}
+
+export function drawRenderedExport(
+  canvas: HTMLCanvasElement,
+  rendered: RenderedExport,
+) {
+  drawPixelBuffer(canvas, rendered.width, rendered.height, rendered.pixels);
 }
 
 export function canvasToPngBlob(canvas: HTMLCanvasElement) {

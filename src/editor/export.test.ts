@@ -3,8 +3,11 @@ import {
   DEFAULT_EXPORT_PREFERENCES,
   calculateExportLayout,
   composeFramePixels,
+  exportFileName,
+  gifFrameDelayMs,
   getExportValidationError,
   parseExportPreferences,
+  renderAnimationExport,
   renderProjectExport,
   serializeExportPreferences,
   serializeSpriteSheetMetadata,
@@ -117,6 +120,19 @@ describe("export preferences", () => {
       scale: 100,
     }))).toBe(DEFAULT_EXPORT_PREFERENCES);
   });
+
+  it("accepts animated GIF as a persisted output kind", () => {
+    const preferences = {
+      ...DEFAULT_EXPORT_PREFERENCES,
+      kind: "animated-gif" as const,
+      scale: 2,
+      backgroundMode: "solid" as const,
+    };
+
+    expect(parseExportPreferences(
+      serializeExportPreferences(preferences),
+    )).toEqual(preferences);
+  });
 });
 
 describe("frame composition", () => {
@@ -219,5 +235,48 @@ describe("sprite-sheet rendering", () => {
     expect(metadata.frames).toHaveLength(2);
     expect(metadata.frames[1]).toMatchObject({ frame: 2, x: 0, y: 2 });
     expect(metadata.frames[0].durationMs).toBe(125);
+  });
+});
+
+describe("animated GIF rendering", () => {
+  it("renders the selected frame range as equally sized nearest-neighbor frames", () => {
+    const document = exportDocument();
+    const exportRequest = request({
+      kind: "animated-gif",
+      scale: 2,
+      backgroundMode: "transparent",
+    });
+    const rendered = renderAnimationExport(document, exportRequest);
+
+    expect(rendered.width).toBe(4);
+    expect(rendered.height).toBe(4);
+    expect(rendered.frames).toHaveLength(2);
+    expect(rendered.frames.map((frame) => frame.sourceIndex)).toEqual([0, 1]);
+    expect([...rendered.frames[0].pixels.slice(0, 4)]).toEqual([128, 0, 128, 255]);
+    expect([...rendered.frames[0].pixels.slice(4, 8)]).toEqual([128, 0, 128, 255]);
+    expect(rendered.frames[0].durationMs).toBe(130);
+  });
+
+  it("uses GIF-compatible centisecond timing with a safe high-FPS floor", () => {
+    expect(gifFrameDelayMs(8)).toBe(130);
+    expect(gifFrameDelayMs(24)).toBe(40);
+    expect(gifFrameDelayMs(60)).toBe(20);
+  });
+
+  it("rejects animations whose combined frames exceed the memory budget", () => {
+    const document = exportDocument();
+    document.width = 512;
+    document.height = 512;
+    const exportRequest = request({ kind: "animated-gif", scale: 8 });
+    const layout = calculateExportLayout(document, exportRequest);
+
+    expect(getExportValidationError(layout, exportRequest.kind)).toMatch(/frame budget/);
+  });
+
+  it("uses an animation-specific GIF filename", () => {
+    expect(exportFileName(
+      exportDocument(),
+      request({ kind: "animated-gif" }),
+    )).toBe("export-test-animation.gif");
   });
 });

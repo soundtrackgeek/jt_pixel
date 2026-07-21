@@ -4,6 +4,20 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.7.2] - 2026-07-21
+
+### Added
+
+- Animated GIF as a third Export Studio output, with contiguous frame ranges, live playback preview, project FPS timing, project loop behavior, integer scaling, and transparent or solid backgrounds.
+- Worker-based GIF encoding with exact per-frame palettes where possible, automatic 256-color quantization when needed, one-bit transparency, progress feedback, and memory-safe animation limits.
+- Deterministic GIF signature, looping, transparency, rendering, timing, filename, validation, native save-path, and storage coverage.
+
+### Changed
+
+- Extended the native export handoff and browser download fallback to save format-correct `.gif` or `.png` files with matching filters and MIME types.
+- Lazy-load GIF encoding code only when an animated export starts, keeping the normal editor bundle focused.
+- Bumped the application version to `0.7.2`.
+
 ## [0.7.1] - 2026-07-20
 
 ### Fixed

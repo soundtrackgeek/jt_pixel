@@ -12,8 +12,9 @@ export const MAX_EXPORT_SCALE = 32;
 export const MAX_EXPORT_SPACING = 128;
 export const MAX_EXPORT_DIMENSION = 16_384;
 export const MAX_EXPORT_PIXELS = 16_777_216;
+export const MAX_GIF_DIMENSION = 4_096;
 
-export type ExportKind = "frame" | "sprite-sheet";
+export type ExportKind = "frame" | "sprite-sheet" | "animated-gif";
 export type ExportBackgroundMode = "transparent" | "solid";
 export type SpriteSheetLayout = "horizontal" | "vertical" | "grid";
 
@@ -59,6 +60,20 @@ export interface RenderedExport extends ExportLayout {
   pixels: Uint8ClampedArray;
 }
 
+export interface RenderedAnimationFrame {
+  frameId: string;
+  name: string;
+  sourceIndex: number;
+  durationMs: number;
+  pixels: Uint8ClampedArray;
+}
+
+export interface RenderedAnimationExport {
+  width: number;
+  height: number;
+  frames: RenderedAnimationFrame[];
+}
+
 export const DEFAULT_EXPORT_PREFERENCES: ExportPreferences = {
   kind: "frame",
   scale: 1,
@@ -71,7 +86,7 @@ export const DEFAULT_EXPORT_PREFERENCES: ExportPreferences = {
   includeMetadata: false,
 };
 
-const exportKinds = new Set<ExportKind>(["frame", "sprite-sheet"]);
+const exportKinds = new Set<ExportKind>(["frame", "sprite-sheet", "animated-gif"]);
 const backgroundModes = new Set<ExportBackgroundMode>(["transparent", "solid"]);
 const sheetLayouts = new Set<SpriteSheetLayout>(["horizontal", "vertical", "grid"]);
 const hexColorPattern = /^#[0-9a-f]{6}$/i;
@@ -174,8 +189,8 @@ export function calculateExportLayout(
   const width = (padding * 2) + (columns * frameWidth) + (Math.max(0, columns - 1) * spacing);
   const height = (padding * 2) + (rows * frameHeight) + (Math.max(0, rows - 1) * spacing);
   const placements = frames.map((frame, index) => {
-    const column = index % columns;
-    const row = Math.floor(index / columns);
+    const column = request.kind === "animated-gif" ? 0 : index % columns;
+    const row = request.kind === "animated-gif" ? 0 : Math.floor(index / columns);
     return {
       frameId: frame.id,
       name: frame.name,
@@ -191,11 +206,26 @@ export function calculateExportLayout(
   return { width, height, frameWidth, frameHeight, frames, placements };
 }
 
-export function getExportValidationError(layout: ExportLayout) {
+export function getExportValidationError(
+  layout: ExportLayout,
+  kind: ExportKind = "sprite-sheet",
+) {
+  if (
+    kind === "animated-gif"
+    && (layout.width > MAX_GIF_DIMENSION || layout.height > MAX_GIF_DIMENSION)
+  ) {
+    return `Keep animated GIF edges at or below ${MAX_GIF_DIMENSION.toLocaleString()} pixels.`;
+  }
   if (layout.width > MAX_EXPORT_DIMENSION || layout.height > MAX_EXPORT_DIMENSION) {
     return `Keep each export edge at or below ${MAX_EXPORT_DIMENSION.toLocaleString()} pixels.`;
   }
-  if (layout.width * layout.height > MAX_EXPORT_PIXELS) {
+  const totalPixels = layout.width * layout.height * (
+    kind === "animated-gif" ? layout.frames.length : 1
+  );
+  if (totalPixels > MAX_EXPORT_PIXELS) {
+    if (kind === "animated-gif") {
+      return "This animation exceeds the 16 megapixel memory-safe frame budget. Reduce its range or scale.";
+    }
     return "This export exceeds the 16 megapixel memory-safe limit. Reduce scale or use a tighter sheet layout.";
   }
   return null;
@@ -326,7 +356,7 @@ export function renderProjectExport(
   request: ExportRequest,
 ): RenderedExport {
   const layout = calculateExportLayout(document, request);
-  const validationError = getExportValidationError(layout);
+  const validationError = getExportValidationError(layout, request.kind);
   if (validationError) throw new RangeError(validationError);
 
   const output = new Uint8ClampedArray(layout.width * layout.height * 4);
@@ -360,11 +390,78 @@ export function renderProjectExport(
   return { ...layout, pixels: output };
 }
 
-export function exportPngFileName(
+function scaleFramePixels(
+  source: Uint8ClampedArray,
+  sourceWidth: number,
+  sourceHeight: number,
+  scale: number,
+) {
+  const width = sourceWidth * scale;
+  const height = sourceHeight * scale;
+  const output = new Uint8ClampedArray(width * height * 4);
+
+  for (let sourceY = 0; sourceY < sourceHeight; sourceY += 1) {
+    for (let sourceX = 0; sourceX < sourceWidth; sourceX += 1) {
+      const sourceOffset = ((sourceY * sourceWidth) + sourceX) * 4;
+      for (let scaleY = 0; scaleY < scale; scaleY += 1) {
+        const outputY = (sourceY * scale) + scaleY;
+        for (let scaleX = 0; scaleX < scale; scaleX += 1) {
+          const outputX = (sourceX * scale) + scaleX;
+          const outputOffset = ((outputY * width) + outputX) * 4;
+          output[outputOffset] = source[sourceOffset];
+          output[outputOffset + 1] = source[sourceOffset + 1];
+          output[outputOffset + 2] = source[sourceOffset + 2];
+          output[outputOffset + 3] = source[sourceOffset + 3];
+        }
+      }
+    }
+  }
+
+  return output;
+}
+
+export function gifFrameDelayMs(fps: number) {
+  return Math.max(20, Math.round(100 / fps) * 10);
+}
+
+export function renderAnimationExport(
+  document: ProjectDocument,
+  request: ExportRequest,
+): RenderedAnimationExport {
+  const layout = calculateExportLayout(document, request);
+  const validationError = getExportValidationError(layout, "animated-gif");
+  if (validationError) throw new RangeError(validationError);
+
+  const durationMs = gifFrameDelayMs(document.animation.fps);
+  return {
+    width: layout.frameWidth,
+    height: layout.frameHeight,
+    frames: layout.frames.map((frame) => ({
+      frameId: frame.id,
+      name: frame.name,
+      sourceIndex: document.frames.findIndex((candidate) => candidate.id === frame.id),
+      durationMs,
+      pixels: scaleFramePixels(
+        composeFramePixels(
+          document,
+          frame.id,
+          request.backgroundMode,
+          request.backgroundColor,
+        ),
+        document.width,
+        document.height,
+        request.scale,
+      ),
+    })),
+  };
+}
+
+export function exportFileName(
   document: ProjectDocument,
   request: ExportRequest,
 ) {
   const projectName = document.name.replace(/\.jtp$/i, "") || "jt-pixel";
+  if (request.kind === "animated-gif") return `${projectName}-animation.gif`;
   if (request.kind === "sprite-sheet") return `${projectName}-sheet.png`;
   const frameIndex = Math.max(
     0,

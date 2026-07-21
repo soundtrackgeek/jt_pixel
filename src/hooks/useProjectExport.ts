@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  exportPngFileName,
+  exportFileName,
+  renderAnimationExport,
   renderProjectExport,
   serializeSpriteSheetMetadata,
   type ExportRequest,
@@ -66,23 +67,54 @@ export function useProjectExport({
     setError(null);
     setToast({
       kind: "busy",
-      title: "Preparing clean pixels",
-      detail: "Flattening visible artwork and encoding a lossless PNG…",
+      title: request.kind === "animated-gif" ? "Animating clean pixels" : "Preparing clean pixels",
+      detail: request.kind === "animated-gif"
+        ? "Rendering visible frames for the GIF encoder…"
+        : "Flattening visible artwork and encoding a lossless PNG…",
     });
 
     try {
-      const rendered = renderProjectExport(document, request);
-      const defaultName = exportPngFileName(document, request);
-      const pngBytes = await encodeRenderedExport(rendered);
-      const createMetadata = request.kind === "sprite-sheet" && request.includeMetadata
-        ? (imageFileName: string) => serializeSpriteSheetMetadata(
-            document,
-            request,
-            rendered,
-            imageFileName,
-          )
-        : null;
-      const saved = await saveExportArtifacts(defaultName, pngBytes, createMetadata);
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+      const defaultName = exportFileName(document, request);
+      let bytes: Uint8Array;
+      let createMetadata: ((imageFileName: string) => string) | null = null;
+      let format: "gif" | "png";
+      let width: number;
+      let height: number;
+
+      if (request.kind === "animated-gif") {
+        const animation = renderAnimationExport(document, request);
+        const { encodeAnimatedGif } = await import("../editor/gifEncoder");
+        bytes = await encodeAnimatedGif(
+          animation,
+          document.animation.loop,
+          request.backgroundMode === "transparent",
+          ({ completedFrames, totalFrames }) => setToast({
+            kind: "busy",
+            title: "Encoding animation",
+            detail: `Compressing frame ${completedFrames} of ${totalFrames}…`,
+          }),
+        );
+        format = "gif";
+        width = animation.width;
+        height = animation.height;
+      } else {
+        const rendered = renderProjectExport(document, request);
+        bytes = await encodeRenderedExport(rendered);
+        format = "png";
+        width = rendered.width;
+        height = rendered.height;
+        createMetadata = request.kind === "sprite-sheet" && request.includeMetadata
+          ? (imageFileName: string) => serializeSpriteSheetMetadata(
+              document,
+              request,
+              rendered,
+              imageFileName,
+            )
+          : null;
+      }
+
+      const saved = await saveExportArtifacts(defaultName, bytes, format, createMetadata);
       if (!saved) {
         setToast(null);
         return false;
@@ -93,7 +125,7 @@ export function useProjectExport({
       setToast({
         kind: "success",
         title: `Artwork ${destination}`,
-        detail: `${saved.fileName} · ${rendered.width} × ${rendered.height} · ${formatBytes(pngBytes.byteLength)}${saved.metadataWritten ? " · JSON included" : ""}`,
+        detail: `${saved.fileName} · ${width} × ${height} · ${formatBytes(bytes.byteLength)}${saved.metadataWritten ? " · JSON included" : ""}`,
         imagePath: saved.imagePath ?? undefined,
       });
       return true;

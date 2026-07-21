@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.7.1` keeps Export Studio responsive while opening its native Windows Save dialog and retains lossless PNG artwork and sprite sheets, configurable canvas views, the complete New Project flow, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.7.2` adds animated GIF export to the responsive Export Studio and retains lossless PNG artwork and sprite sheets, configurable canvas views, the complete New Project flow, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -30,10 +30,12 @@ Version `0.7.1` keeps Export Studio responsive while opening its native Windows 
 - A clearer Crisp grid by default, adaptive line colors, a `G` grid toggle, and persistent view preferences that never dirty or alter project artwork
 - Arcade Bloom Export Studio available from the top toolbar or `Ctrl+E`, with a live pixel-perfect preview and exact output dimensions
 - Lossless current-frame PNG export plus ranged sprite sheets arranged as a row, column, or configurable grid
+- Animated GIF export for any contiguous frame range, with a live playback preview, project FPS timing, and project loop behavior
 - Nearest-neighbor 1× through 32× scaling, transparent or solid backgrounds, and configurable sheet spacing and padding
 - Optional companion JSON metadata with frame coordinates, dimensions, timing, FPS, and loop state
 - Native Save dialog integration and post-export folder reveal, with remembered export preferences that never alter the project or its Undo/Redo history
 - Deterministic export compositing from visible pixel layers only; reference layers, onion skin, workspace backgrounds, and pixel grids are always excluded
+- Responsive worker-based GIF encoding with exact palettes where possible, automatic 256-color quantization when needed, and memory-safe animation limits
 - Artboards that preserve portrait, landscape, and square canvas proportions
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows
@@ -41,8 +43,6 @@ Version `0.7.1` keeps Export Studio responsive while opening its native Windows 
 - Persistent update cadence controls under either Settings button
 - Arcade Bloom update notifications with download and installation progress
 - Signed, in-app Windows updates published through GitHub Releases
-
-Animated GIF export is reserved for version `0.7.2`; version `0.7.1` is the Export Studio responsiveness hotfix.
 
 ## Prerequisites
 
@@ -106,9 +106,11 @@ Press `G` to hide the grid or restore the last visible grid style. Canvas-view c
 
 ## Exporting artwork
 
-Choose **Export artwork** in the top toolbar or press `Ctrl+E` to open Export Studio. **Current frame** creates one PNG from the active frame. **Sprite sheet** exports a contiguous frame range and can arrange it in a single row, a single column, or a grid with a chosen column count.
+Choose **Export artwork** in the top toolbar or press `Ctrl+E` to open Export Studio. **Current frame** creates one PNG from the active frame. **Sprite sheet** exports a contiguous frame range and can arrange it in a single row, a single column, or a grid with a chosen column count. **Animated GIF** exports the chosen range as a playback-ready animation using the project's FPS and loop setting.
 
-Export Studio supports integer nearest-neighbor scaling from 1× through 32×, transparent or solid backgrounds, and adjustable spacing and outer padding for sprite sheets. The live preview reports exact output dimensions and estimates PNG size before export. Enable **JSON metadata** to create a sibling file containing each frame's rectangle, duration, source size, scale, FPS, and loop state.
+Export Studio supports integer nearest-neighbor scaling from 1× through 32×, transparent or solid backgrounds, and adjustable spacing and outer padding for sprite sheets. PNG previews report exact output dimensions and estimate file size; GIF previews play the selected range and report the active FPS and loop behavior. Enable **JSON metadata** for sprite sheets to create a sibling file containing each frame's rectangle, duration, source size, scale, FPS, and loop state.
+
+GIF encoding runs in a background worker so Export Studio remains responsive while frames are compressed. Artwork with up to 256 exact colors per frame retains that palette directly; more complex frames are quantized automatically to the GIF format's 256-color limit. Transparent GIFs use one-bit alpha, while solid backgrounds flatten every frame before encoding.
 
 Exports flatten only visible pixel layers for each frame. Reference layers, hidden artwork, onion skin, canvas-view backgrounds, and grid lines are never included. Export preferences are remembered locally but do not modify the `.jtp` project, dirty state, or Undo/Redo history. Desktop builds use a native Save dialog and can reveal the completed export in File Explorer.
 

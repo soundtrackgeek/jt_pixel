@@ -8,24 +8,33 @@ interface NativeExportPaths {
   metadataPath: string | null;
 }
 
+export type ExportFileFormat = "gif" | "png";
+
 export interface SavedExport {
   fileName: string;
   imagePath: string | null;
   metadataWritten: boolean;
 }
 
-const PNG_FILTER = [{ name: "PNG image", extensions: ["png"] }];
+const EXPORT_FORMATS: Record<ExportFileFormat, {
+  filterName: string;
+  mimeType: string;
+}> = {
+  gif: { filterName: "Animated GIF", mimeType: "image/gif" },
+  png: { filterName: "PNG image", mimeType: "image/png" },
+};
 
 function fileNameFromPath(path: string) {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
 function metadataFileName(imageFileName: string) {
-  return imageFileName.replace(/\.png$/i, ".json");
+  return imageFileName.replace(/\.[^./\\]+$/i, ".json");
 }
 
-function ensurePngExtension(path: string) {
-  return /\.png$/i.test(path) ? path : `${path}.png`;
+function ensureExportExtension(path: string, format: ExportFileFormat) {
+  const extensionPattern = new RegExp(`\\.${format}$`, "i");
+  return extensionPattern.test(path) ? path : `${path}.${format}`;
 }
 
 function downloadBrowserFile(fileName: string, blob: Blob) {
@@ -46,21 +55,27 @@ export function nativeExportAvailable() {
 
 export async function saveExportArtifacts(
   defaultName: string,
-  pngBytes: Uint8Array,
+  bytes: Uint8Array,
+  format: ExportFileFormat,
   createMetadata: ((imageFileName: string) => string) | null,
 ): Promise<SavedExport | null> {
+  const formatDetails = EXPORT_FORMATS[format];
+  const normalizedDefaultName = ensureExportExtension(defaultName, format);
   if (!isTauri()) {
-    const pngBuffer = new Uint8Array(pngBytes).buffer;
-    downloadBrowserFile(defaultName, new Blob([pngBuffer], { type: "image/png" }));
-    const metadata = createMetadata?.(defaultName) ?? null;
+    const fileBuffer = new Uint8Array(bytes).buffer;
+    downloadBrowserFile(
+      normalizedDefaultName,
+      new Blob([fileBuffer], { type: formatDetails.mimeType }),
+    );
+    const metadata = createMetadata?.(normalizedDefaultName) ?? null;
     if (metadata) {
       downloadBrowserFile(
-        metadataFileName(defaultName),
+        metadataFileName(normalizedDefaultName),
         new Blob([metadata], { type: "application/json" }),
       );
     }
     return {
-      fileName: defaultName,
+      fileName: normalizedDefaultName,
       imagePath: null,
       metadataWritten: metadata !== null,
     };
@@ -68,19 +83,20 @@ export async function saveExportArtifacts(
 
   const selected = await save({
     title: "Export JT Pixel artwork",
-    defaultPath: ensurePngExtension(defaultName),
-    filters: PNG_FILTER,
+    defaultPath: normalizedDefaultName,
+    filters: [{ name: formatDetails.filterName, extensions: [format] }],
   });
   if (!selected) return null;
 
   const paths = await invoke<NativeExportPaths>("prepare_export_paths", {
+    format,
     imagePath: selected,
     includeMetadata: createMetadata !== null,
   });
 
   const imageFileName = fileNameFromPath(paths.imagePath);
   const metadata = createMetadata?.(imageFileName) ?? null;
-  await writeFile(paths.imagePath, pngBytes);
+  await writeFile(paths.imagePath, bytes);
   if (metadata && paths.metadataPath) {
     await writeTextFile(paths.metadataPath, metadata);
   }
