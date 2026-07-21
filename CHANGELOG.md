@@ -4,6 +4,19 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.14.1] - 2026-07-21
+
+### Fixed
+
+- Let Import Studio number fields remain temporarily empty while editing, so Backspace followed by a new value replaces the previous number instead of immediately forcing `1` and prefixing subsequent input.
+- Normalize blank, fractional, or out-of-range slice values only when editing ends, with an inline validation message and disabled import action while a draft is incomplete.
+
+### Changed
+
+- Replace the WebView's low-contrast native number spinners with larger, high-contrast up and down controls while retaining direct typing and keyboard arrow support.
+- Expand and rebalance Import Studio across maximized, standard, and minimum-size windows with a larger preview, more legible controls, and no content overlap or overflow.
+- Bumped the application version to `0.14.1`.
+
 ## [0.14.0] - 2026-07-21
 
 ### Added

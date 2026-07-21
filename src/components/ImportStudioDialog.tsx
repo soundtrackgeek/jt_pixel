@@ -1,4 +1,6 @@
 import {
+  ChevronDown,
+  ChevronUp,
   FileImage,
   FolderOpen,
   Grid2X2,
@@ -21,6 +23,10 @@ import {
 } from "../editor/importOperations";
 import type { ProjectDocument } from "../editor/project";
 import type { ImportImageAsset } from "../services/imageImport";
+import {
+  normalizeWholeNumberDraft,
+  parseWholeNumberDraft,
+} from "./importStudioFields";
 
 export type ImportSourceMode = "single" | "sheet";
 export type ImportDestination = "new-project" | "new-layer" | "current-cel" | "frames";
@@ -43,11 +49,20 @@ interface ImportStudioDialogProps {
   onImport: (request: ImportStudioRequest) => Promise<boolean>;
 }
 
-function bounded(value: string, minimum: number, maximum: number) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed)
-    ? Math.max(minimum, Math.min(maximum, Math.round(parsed)))
-    : minimum;
+type NumericSettingKey = Exclude<keyof SpriteSliceSettings, "order">;
+type NumericSettingDrafts = Record<NumericSettingKey, string>;
+
+function numericSettingDrafts(settings: SpriteSliceSettings): NumericSettingDrafts {
+  return {
+    cellWidth: String(settings.cellWidth),
+    cellHeight: String(settings.cellHeight),
+    columns: String(settings.columns),
+    rows: String(settings.rows),
+    spacingX: String(settings.spacingX),
+    spacingY: String(settings.spacingY),
+    marginX: String(settings.marginX),
+    marginY: String(settings.marginY),
+  };
 }
 
 function defaultSliceSettings(asset: ImportImageAsset, document: ProjectDocument): SpriteSliceSettings {
@@ -92,8 +107,31 @@ export function ImportStudioDialog({
   const [destination, setDestination] = useState<ImportDestination>("new-project");
   const [paletteMode, setPaletteMode] = useState<ImportPaletteMode>("merge");
   const [settings, setSettings] = useState(() => defaultSliceSettings(asset, document));
+  const [settingDrafts, setSettingDrafts] = useState(() => numericSettingDrafts(
+    defaultSliceSettings(asset, document),
+  ));
   const [confirmationRequested, setConfirmationRequested] = useState(false);
   const previewRef = useRef<HTMLCanvasElement>(null);
+
+  const numericFields = [
+    ["CELL W", "cellWidth", 1, 512],
+    ["CELL H", "cellHeight", 1, 512],
+    ["COLUMNS", "columns", 1, 1024],
+    ["ROWS", "rows", 1, 1024],
+    ["SPACING X", "spacingX", 0, asset.width],
+    ["SPACING Y", "spacingY", 0, asset.height],
+    ["MARGIN X", "marginX", 0, asset.width],
+    ["MARGIN Y", "marginY", 0, asset.height],
+  ] as const satisfies ReadonlyArray<readonly [string, NumericSettingKey, number, number]>;
+
+  const invalidNumericField = sourceMode === "sheet"
+    ? numericFields.find(([, key, minimum, maximum]) => (
+        parseWholeNumberDraft(settingDrafts[key], minimum, maximum) === null
+      ))
+    : undefined;
+  const numericDraftError = invalidNumericField
+    ? `${invalidNumericField[0]} must be a whole number from ${invalidNumericField[2]} to ${invalidNumericField[3]}.`
+    : null;
 
   const sheetError = sourceMode === "sheet"
     ? validateSpriteSliceSettings(asset, settings)
@@ -123,7 +161,8 @@ export function ImportStudioDialog({
   const newProjectDimensionsValid = slices.length > 0
     && slices[0].width <= 512
     && slices[0].height <= 512;
-  const validationError = sheetError
+  const validationError = numericDraftError
+    ?? sheetError
     ?? (!newProjectDimensionsValid && destination === "new-project"
       ? "New projects support imported cells up to 512 × 512 pixels."
       : destination === "frames" && !frameDimensionsMatch
@@ -164,6 +203,12 @@ export function ImportStudioDialog({
   }, [asset, settings, sheetError, sourceMode]);
 
   useEffect(() => {
+    const nextSettings = defaultSliceSettings(asset, document);
+    setSettings(nextSettings);
+    setSettingDrafts(numericSettingDrafts(nextSettings));
+  }, [asset.height, asset.name, asset.width, document.height, document.width]);
+
+  useEffect(() => {
     if (sourceMode === "single" && destination === "frames") setDestination("new-project");
     if (sourceMode === "sheet" && (destination === "new-layer" || destination === "current-cel")) {
       setDestination("new-project");
@@ -187,6 +232,44 @@ export function ImportStudioDialog({
     value: SpriteSliceSettings[Key],
   ) {
     setSettings((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateNumericDraft(
+    key: NumericSettingKey,
+    value: string,
+    minimum: number,
+    maximum: number,
+  ) {
+    setSettingDrafts((current) => ({ ...current, [key]: value }));
+    const parsed = parseWholeNumberDraft(value, minimum, maximum);
+    if (parsed !== null) updateSetting(key, parsed);
+  }
+
+  function finishNumericEdit(
+    key: NumericSettingKey,
+    minimum: number,
+    maximum: number,
+  ) {
+    const normalized = normalizeWholeNumberDraft(
+      settingDrafts[key],
+      settings[key],
+      minimum,
+      maximum,
+    );
+    updateSetting(key, normalized);
+    setSettingDrafts((current) => ({ ...current, [key]: String(normalized) }));
+  }
+
+  function stepNumericSetting(
+    key: NumericSettingKey,
+    delta: number,
+    minimum: number,
+    maximum: number,
+  ) {
+    const draftValue = parseWholeNumberDraft(settingDrafts[key], minimum, maximum);
+    const nextValue = Math.max(minimum, Math.min(maximum, (draftValue ?? settings[key]) + delta));
+    updateSetting(key, nextValue);
+    setSettingDrafts((current) => ({ ...current, [key]: String(nextValue) }));
   }
 
   function requestImport(event: FormEvent<HTMLFormElement>) {
@@ -293,29 +376,47 @@ export function ImportStudioDialog({
                 {sourceMode === "sheet" ? (
                   <>
                     <div className="import-studio__metrics">
-                      {([
-                        ["CELL W", "cellWidth", 1, 512],
-                        ["CELL H", "cellHeight", 1, 512],
-                        ["COLUMNS", "columns", 1, 1024],
-                        ["ROWS", "rows", 1, 1024],
-                        ["SPACING X", "spacingX", 0, asset.width],
-                        ["SPACING Y", "spacingY", 0, asset.height],
-                        ["MARGIN X", "marginX", 0, asset.width],
-                        ["MARGIN Y", "marginY", 0, asset.height],
-                      ] as const).map(([label, key, minimum, maximum]) => (
-                        <label key={key}>
-                          <span>{label}</span>
+                      {numericFields.map(([label, key, minimum, maximum]) => (
+                        <div className="import-studio__metric" key={key}>
+                          <label htmlFor={`import-setting-${key}`}>{label}</label>
+                          <div className="import-studio__number-field">
                           <input
+                            id={`import-setting-${key}`}
                             type="number"
+                            inputMode="numeric"
+                            step={1}
                             min={minimum}
                             max={maximum}
-                            value={settings[key]}
-                            onChange={(event) => updateSetting(
+                            value={settingDrafts[key]}
+                            aria-invalid={parseWholeNumberDraft(
+                              settingDrafts[key],
+                              minimum,
+                              maximum,
+                            ) === null}
+                            onFocus={(event) => event.currentTarget.select()}
+                            onClick={(event) => event.currentTarget.select()}
+                            onChange={(event) => updateNumericDraft(
                               key,
-                              bounded(event.target.value, minimum, maximum),
+                              event.target.value,
+                              minimum,
+                              maximum,
                             )}
+                            onBlur={() => finishNumericEdit(key, minimum, maximum)}
                           />
-                        </label>
+                            <span className="import-studio__steppers">
+                              <button
+                                type="button"
+                                aria-label={`Increase ${label}`}
+                                onClick={() => stepNumericSetting(key, 1, minimum, maximum)}
+                              ><ChevronUp size={14} /></button>
+                              <button
+                                type="button"
+                                aria-label={`Decrease ${label}`}
+                                onClick={() => stepNumericSetting(key, -1, minimum, maximum)}
+                              ><ChevronDown size={14} /></button>
+                            </span>
+                          </div>
+                        </div>
                       ))}
                     </div>
                     <span className="import-studio__label import-studio__order-label">FRAME ORDER</span>

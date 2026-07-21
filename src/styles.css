@@ -5046,8 +5046,9 @@ button.layer-lock:hover {
 }
 
 .import-studio-dialog {
-  width: min(1040px, 100%);
-  max-height: min(820px, calc(100vh - 32px));
+  width: min(1560px, calc(100vw - 64px));
+  height: min(920px, calc(100vh - 48px));
+  max-height: calc(100vh - 48px);
   background:
     linear-gradient(140deg, rgb(173 98 255 / 4%), transparent 26%),
     linear-gradient(155deg, #102438 0%, #081521 58%, #17152c 100%);
@@ -5059,6 +5060,10 @@ button.layer-lock:hover {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   max-height: inherit;
+}
+
+.import-studio-dialog form {
+  height: 100%;
 }
 
 .import-studio__header,
@@ -5078,7 +5083,7 @@ button.layer-lock:hover {
   position: relative;
   min-height: 0;
   overflow-y: auto;
-  padding: 15px 20px 17px;
+  padding: 18px 24px 20px;
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;
 }
@@ -5087,15 +5092,16 @@ button.layer-lock:hover {
 .canvas-ops__intro {
   margin: 0 0 13px;
   color: #8ba2b1;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
 .import-studio__grid {
   display: grid;
-  grid-template-columns: 126px minmax(270px, 1fr) 224px;
-  gap: 14px;
-  min-height: 300px;
+  grid-template-columns: 152px minmax(420px, 1fr) 300px;
+  gap: 18px;
+  height: min(560px, 58vh);
+  min-height: 360px;
 }
 
 .import-studio__source,
@@ -5110,7 +5116,7 @@ button.layer-lock:hover {
   margin-bottom: 7px;
   color: #738b9b;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 780;
   letter-spacing: 0.13em;
 }
@@ -5118,8 +5124,8 @@ button.layer-lock:hover {
 .import-studio__source > button:not(.import-studio__another) {
   display: grid;
   width: 100%;
-  min-height: 73px;
-  margin-bottom: 7px;
+  min-height: 92px;
+  margin-bottom: 9px;
   place-items: center;
   padding: 8px 5px;
   border: 1px solid #2d4b5e;
@@ -5135,13 +5141,13 @@ button.layer-lock:hover {
 .import-studio__source > button strong {
   color: #aec0c8;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 8px;
+  font-size: 9px;
   text-transform: uppercase;
 }
 
 .import-studio__source > button small {
   color: #5d7585;
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .import-studio__source > button:hover,
@@ -5161,14 +5167,14 @@ button.layer-lock:hover {
   justify-content: center;
   gap: 5px;
   width: 100%;
-  min-height: 29px;
+  min-height: 36px;
   margin-top: 10px;
   border: 1px solid #2c4657;
   border-radius: 3px;
   color: #657e8e;
   background: transparent;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 6px;
+  font-size: 7px;
   font-weight: 760;
   letter-spacing: 0.06em;
 }
@@ -5180,7 +5186,7 @@ button.layer-lock:hover {
 
 .import-studio__preview {
   display: grid;
-  grid-template-rows: 30px minmax(190px, 1fr) auto auto;
+  grid-template-rows: 35px minmax(230px, 1fr) auto auto;
   min-width: 0;
   overflow: hidden;
   border: 1px solid #354f63;
@@ -5196,7 +5202,7 @@ button.layer-lock:hover {
   padding: 0 9px;
   color: #6e8797;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 760;
   letter-spacing: 0.08em;
 }
@@ -5212,7 +5218,7 @@ button.layer-lock:hover {
 
 .import-studio__preview-stage {
   display: grid;
-  min-height: 190px;
+  min-height: 230px;
   place-items: center;
   overflow: hidden;
   padding: 13px;
@@ -5229,7 +5235,7 @@ button.layer-lock:hover {
 .import-studio__preview-stage canvas {
   display: block;
   max-width: 100%;
-  max-height: 220px;
+  max-height: min(460px, calc(100% - 20px));
   border: 1px solid rgb(177 217 228 / 20%);
   image-rendering: pixelated;
   object-fit: contain;
@@ -5245,7 +5251,7 @@ button.layer-lock:hover {
   color: #9ab0bc;
   border-bottom: 1px solid #223c4e;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 7px;
+  font-size: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5257,7 +5263,7 @@ button.layer-lock:hover {
 }
 
 .import-studio__summary {
-  min-height: 27px;
+  min-height: 32px;
   gap: 8px;
   justify-content: flex-start;
 }
@@ -5274,7 +5280,7 @@ button.layer-lock:hover {
   gap: 7px;
 }
 
-.import-studio__metrics label,
+.import-studio__metric,
 .canvas-ops__dimensions label {
   display: flex;
   min-width: 0;
@@ -5282,11 +5288,11 @@ button.layer-lock:hover {
   gap: 4px;
 }
 
-.import-studio__metrics label > span,
+.import-studio__metric > label,
 .canvas-ops__dimensions label > span {
   color: #607a8b;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 760;
   letter-spacing: 0.07em;
 }
@@ -5294,14 +5300,71 @@ button.layer-lock:hover {
 .import-studio__metrics input,
 .canvas-ops__dimensions input {
   width: 100%;
-  height: 31px;
-  padding: 0 7px;
+  height: 42px;
+  padding: 0 12px;
   border: 1px solid #304f63;
   border-radius: 3px;
   color: #b6cbd4;
   background: #071522;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 8px;
+  font-size: 11px;
+}
+
+.import-studio__number-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 27px;
+  overflow: hidden;
+  border: 1px solid #304f63;
+  border-radius: 3px;
+  background: #071522;
+}
+
+.import-studio__number-field:focus-within {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgb(66 217 227 / 12%);
+}
+
+.import-studio__number-field input {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  appearance: textfield;
+}
+
+.import-studio__number-field input::-webkit-inner-spin-button,
+.import-studio__number-field input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.import-studio__number-field input[aria-invalid="true"] {
+  color: #ff9a93;
+}
+
+.import-studio__steppers {
+  display: grid;
+  grid-template-rows: repeat(2, 1fr);
+  border-left: 1px solid #304f63;
+}
+
+.import-studio__steppers button {
+  display: grid;
+  min-width: 0;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  color: #8ba6b5;
+  background: #102432;
+}
+
+.import-studio__steppers button + button {
+  border-top: 1px solid #304f63;
+}
+
+.import-studio__steppers button:hover {
+  color: var(--cyan);
+  background: #163544;
 }
 
 .import-studio__metrics input:focus,
@@ -5321,12 +5384,12 @@ button.layer-lock:hover {
 
 .import-studio__segmented button,
 .canvas-ops__operation button {
-  height: 31px;
+  height: 38px;
   border: 1px solid #2d4b5e;
   color: #718999;
   background: #091824;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 760;
 }
 
@@ -5371,9 +5434,9 @@ button.layer-lock:hover {
 .import-studio__lower {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(290px, 1fr);
-  gap: 17px;
-  margin-top: 15px;
-  padding-top: 14px;
+  gap: 24px;
+  margin-top: 20px;
+  padding-top: 18px;
   border-top: 1px solid #29465a;
 }
 
@@ -5403,7 +5466,7 @@ button.layer-lock:hover {
 .import-studio__palette-options button {
   display: grid;
   min-width: 0;
-  min-height: 49px;
+  min-height: 62px;
   align-items: center;
   gap: 7px;
   padding: 6px 8px;
@@ -5426,14 +5489,14 @@ button.layer-lock:hover {
 
 .import-studio__destination-options strong {
   color: #aebfc7;
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .import-studio__destination-options small,
 .import-studio__palette-options small {
   margin-top: 1px;
   color: #5c7484;
-  font-size: 6px;
+  font-size: 7px;
 }
 
 .import-studio__destination-options button:hover:not(:disabled),
@@ -5459,7 +5522,7 @@ button.layer-lock:hover {
   grid-template-columns: 17px minmax(0, 1fr);
   grid-template-rows: auto auto;
   font-family: "JetBrains Mono Variable", monospace;
-  font-size: 7px;
+  font-size: 8px;
   text-align: center;
 }
 
@@ -5847,9 +5910,13 @@ button.layer-lock:hover {
 }
 
 @media (max-width: 1040px) {
+  .import-studio-dialog {
+    width: calc(100vw - 32px);
+  }
+
   .import-studio__grid {
-    grid-template-columns: 112px minmax(235px, 1fr) 205px;
-    gap: 10px;
+    grid-template-columns: 124px minmax(250px, 1fr) 230px;
+    gap: 12px;
   }
 
   .canvas-ops__controls {
@@ -5897,7 +5964,8 @@ button.layer-lock:hover {
   }
 
   .import-studio__grid {
-    min-height: 250px;
+    height: min(360px, calc(100vh - 340px));
+    min-height: 340px;
   }
 
   .import-studio__preview-stage {
@@ -5905,7 +5973,7 @@ button.layer-lock:hover {
   }
 
   .import-studio__preview-stage canvas {
-    max-height: 175px;
+    max-height: 205px;
   }
 
   .canvas-ops__preview > div {
