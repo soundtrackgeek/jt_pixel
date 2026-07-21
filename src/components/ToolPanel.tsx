@@ -1,4 +1,4 @@
-import { Layers3, Minus, Pipette, Plus } from "lucide-react";
+import { Layers3, Minus, MonitorUp, Pipette, Plus } from "lucide-react";
 import { tools } from "../data/editor";
 import type { EyedropperSource } from "../editor/colorOperations";
 import type { PixelSelection, ShapeMode, ToolId } from "../types";
@@ -11,6 +11,8 @@ interface ToolPanelProps {
   eyedropperSource: EyedropperSource;
   opacity: number;
   pixelPerfect: boolean;
+  screenPickerAvailable: boolean;
+  screenPickerBusy: boolean;
   selection: PixelSelection | null;
   shapeMode: ShapeMode;
   onToolChange: (tool: ToolId) => void;
@@ -18,6 +20,7 @@ interface ToolPanelProps {
   onEyedropperSourceChange: (source: EyedropperSource) => void;
   onOpacityChange: (opacity: number) => void;
   onPixelPerfectChange: (enabled: boolean) => void;
+  onPickScreenColor: () => void;
   onShapeModeChange: (mode: ShapeMode) => void;
 }
 
@@ -30,6 +33,8 @@ export function ToolPanel({
   eyedropperSource,
   opacity,
   pixelPerfect,
+  screenPickerAvailable,
+  screenPickerBusy,
   selection,
   shapeMode,
   onToolChange,
@@ -37,6 +42,7 @@ export function ToolPanel({
   onEyedropperSourceChange,
   onOpacityChange,
   onPixelPerfectChange,
+  onPickScreenColor,
   onShapeModeChange,
 }: ToolPanelProps) {
   const precisionTool = ["line", "rectangle", "ellipse"].includes(activeTool);
@@ -114,6 +120,21 @@ export function ToolPanel({
               <span><strong>Visible</strong><small>Composited paint</small></span>
             </button>
           </div>
+          <button
+            className="screen-picker-launch"
+            data-testid="screen-picker-launch"
+            data-desktop-available={screenPickerAvailable}
+            disabled={screenPickerBusy}
+            aria-keyshortcuts="Shift+I"
+            onClick={onPickScreenColor}
+          >
+            <MonitorUp size={16} />
+            <span>
+              <strong>PICK FROM SCREEN</strong>
+              <small>{screenPickerAvailable ? "Full desktop and every monitor" : "Windows desktop app"}</small>
+            </span>
+            <kbd>⇧I</kbd>
+          </button>
           <div className="eyedropper-guide__tip">
             <kbd>ALT</kbd>
             <span>Hold while using any drawing tool for a temporary color sample.</span>

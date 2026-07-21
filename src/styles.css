@@ -1890,6 +1890,69 @@ input:checked + .switch::after {
   line-height: 1.4;
 }
 
+.screen-picker-launch {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 43px;
+  margin-top: 9px;
+  padding: 7px 8px;
+  border: 1px solid #4e3c70;
+  border-radius: 3px;
+  color: #be8ff2;
+  background:
+    linear-gradient(135deg, rgb(173 98 255 / 12%), rgb(66 200 227 / 5%)),
+    #10182a;
+  text-align: left;
+  box-shadow: inset 0 -2px 0 rgb(173 98 255 / 48%);
+}
+
+.screen-picker-launch:hover:not(:disabled),
+.screen-picker-launch:focus-visible {
+  color: #ddbcff;
+  border-color: #8057ac;
+  background:
+    linear-gradient(135deg, rgb(173 98 255 / 20%), rgb(66 200 227 / 8%)),
+    #121b2e;
+}
+
+.screen-picker-launch > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.screen-picker-launch strong {
+  font-size: 8px;
+  letter-spacing: 0.05em;
+}
+
+.screen-picker-launch small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: #718b9c;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screen-picker-launch kbd {
+  padding: 3px 4px;
+  color: #d9b5ff;
+  border: 1px solid #67458e;
+  border-radius: 2px;
+  background: #211a36;
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 7px;
+}
+
+.screen-picker-launch:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .eyedropper-guide__tip kbd {
   padding: 3px 5px;
   color: #d0a1ff;
@@ -2651,6 +2714,24 @@ button.layer-lock:hover {
 
 .project-toast > button:hover {
   color: #dbe8ed;
+}
+
+.screen-picker-toast {
+  top: 152px;
+}
+
+.screen-picker-toast .project-toast__copy > span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.screen-picker-toast__swatch {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #dce9ee;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #172939, 0 3px 8px rgb(0 0 0 / 35%);
 }
 
 .recovery-backdrop {
@@ -5022,6 +5103,10 @@ button.layer-lock:hover {
     top: 56px;
     right: 12px;
     width: calc(100vw - 24px);
+  }
+
+  .screen-picker-toast {
+    top: 140px;
   }
 
   .recovery-backdrop {

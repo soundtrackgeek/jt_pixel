@@ -4,6 +4,21 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] - 2026-07-21
+
+### Added
+
+- A native Windows screen picker that samples from a frozen capture of the complete virtual desktop, including monitors with negative coordinates.
+- An always-on-top Arcade Bloom Pixel Lens with a 9 × 9 neighborhood, custom pipette cursor, exact hex, RGB, and screen-coordinate readouts, and monitor-aware edge placement.
+- **Pick from screen** actions in the Eyedropper panel and Color footer plus a global editor shortcut at `Shift+I`.
+- Deterministic coverage for desktop pixel addressing, edge-aware lens placement, native-result validation, and foreground/background role handling.
+
+### Changed
+
+- Left-click now returns a system-picked color to the foreground role, right-click returns it to the background role, and `Escape` cancels while reliably restoring and focusing JT Pixel.
+- Browser builds now explain that system-wide sampling requires the Windows desktop app.
+- Bumped the application version to `0.11.0`.
+
 ## [0.10.2] - 2026-07-21
 
 ### Added

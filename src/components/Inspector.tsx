@@ -18,6 +18,8 @@ interface InspectorProps {
   onOpenColorReplace: (sourceColor: string) => void;
   onPaletteChange: (palette: string[]) => void;
   onPickColor: () => void;
+  onPickScreenColor: () => void;
+  screenPickerBusy: boolean;
   onSwapColors: () => void;
   onToggleLayerLock: (layerId: string) => void;
   onToggleLayerVisibility: (layerId: string) => void;
@@ -39,6 +41,8 @@ export function Inspector({
   onOpenColorReplace,
   onPaletteChange,
   onPickColor,
+  onPickScreenColor,
+  screenPickerBusy,
   onSwapColors,
   onToggleLayerLock,
   onToggleLayerVisibility,
@@ -57,6 +61,8 @@ export function Inspector({
         onOpenReplace={onOpenColorReplace}
         onPaletteChange={onPaletteChange}
         onPickColor={onPickColor}
+        onPickScreenColor={onPickScreenColor}
+        screenPickerBusy={screenPickerBusy}
         onSwapColors={onSwapColors}
       />
       <LayersPanel

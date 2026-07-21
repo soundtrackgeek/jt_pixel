@@ -4,6 +4,7 @@ import {
   Copy,
   Droplets,
   Minus,
+  MonitorUp,
   Palette,
   Pipette,
   Plus,
@@ -43,6 +44,8 @@ interface ColorPanelProps {
   onOpenReplace: (sourceColor: string) => void;
   onPaletteChange: (palette: string[]) => void;
   onPickColor: () => void;
+  onPickScreenColor: () => void;
+  screenPickerBusy: boolean;
   onSwapColors: () => void;
 }
 
@@ -69,6 +72,8 @@ export function ColorPanel({
   onOpenReplace,
   onPaletteChange,
   onPickColor,
+  onPickScreenColor,
+  screenPickerBusy,
   onSwapColors,
 }: ColorPanelProps) {
   const palette = document.palette;
@@ -439,6 +444,16 @@ export function ColorPanel({
         </div>
         <button className="icon-button" aria-label="Pick color from canvas" onClick={onPickColor}>
           <Pipette size={15} />
+        </button>
+        <button
+          className="icon-button screen-picker-icon"
+          aria-label="Pick color from screen"
+          aria-keyshortcuts="Shift+I"
+          title="Pick color from screen (Shift+I)"
+          disabled={screenPickerBusy}
+          onClick={onPickScreenColor}
+        >
+          <MonitorUp size={15} />
         </button>
       </div>
     </section>

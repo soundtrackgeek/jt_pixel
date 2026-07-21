@@ -8,6 +8,7 @@ import { ProjectOpenDialog } from "./components/ProjectOpenDialog";
 import { ProjectNewDialog } from "./components/ProjectNewDialog";
 import { ProjectRecoveryDialog } from "./components/ProjectRecoveryDialog";
 import { ProjectToast } from "./components/ProjectToast";
+import { ScreenPickerToast } from "./components/ScreenPickerToast";
 import { StatusBar } from "./components/StatusBar";
 import { Timeline } from "./components/Timeline";
 import { ToolPanel } from "./components/ToolPanel";
@@ -30,6 +31,7 @@ import { useExportPreferences } from "./hooks/useExportPreferences";
 import { useProjectExport } from "./hooks/useProjectExport";
 import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
+import { useScreenPicker } from "./hooks/useScreenPicker";
 import { usePixelSelection } from "./hooks/usePixelSelection";
 import type { EyedropperSource } from "./editor/colorOperations";
 import type { CursorPosition, ShapeMode, ToolId } from "./types";
@@ -73,6 +75,10 @@ function App() {
     document.palette[0],
   );
   const { activeColor } = colorWorkspace;
+  const screenPicker = useScreenPicker({
+    onBackgroundColor: colorWorkspace.setBackground,
+    onForegroundColor: colorWorkspace.commitForeground,
+  });
   const [eyedropperSource, setEyedropperSource] = useState<EyedropperSource>("visible-pixels");
   const [replaceColorSource, setReplaceColorSource] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(1);
@@ -125,6 +131,7 @@ function App() {
     || replaceColorSource !== null
     || projectExport.isOpen
     || persistence.openConfirmationRequested
+    || screenPicker.isPicking
     || persistence.recovery !== null;
 
   const openNewProject = useCallback(() => {
@@ -216,6 +223,12 @@ function App() {
 
       if (typingTarget) return;
 
+      if (event.shiftKey && event.key.toLowerCase() === "i") {
+        event.preventDefault();
+        void screenPicker.pick();
+        return;
+      }
+
       if (event.key === "Escape" && selection) {
         event.preventDefault();
         deselect();
@@ -274,6 +287,7 @@ function App() {
     redo,
     selectAll,
     selection,
+    screenPicker.pick,
     shortcutMap,
     undo,
   ]);
@@ -311,6 +325,8 @@ function App() {
           brushSize={brushSize}
           opacity={opacity}
           pixelPerfect={pixelPerfect}
+          screenPickerAvailable={screenPicker.desktopAvailable}
+          screenPickerBusy={screenPicker.isPicking}
           selection={selection}
           shapeMode={shapeMode}
           eyedropperSource={eyedropperSource}
@@ -319,6 +335,7 @@ function App() {
           onBrushSizeChange={setBrushSize}
           onOpacityChange={setOpacity}
           onPixelPerfectChange={setPixelPerfect}
+          onPickScreenColor={() => void screenPicker.pick()}
           onShapeModeChange={setShapeMode}
           onEyedropperSourceChange={setEyedropperSource}
         />
@@ -375,6 +392,8 @@ function App() {
           onOpenColorReplace={setReplaceColorSource}
           onPaletteChange={project.setPalette}
           onPickColor={() => setActiveTool("eyedropper")}
+          onPickScreenColor={() => void screenPicker.pick()}
+          screenPickerBusy={screenPicker.isPicking}
           onSwapColors={colorWorkspace.swapColors}
           onToggleLayerLock={project.toggleLayerLock}
           onToggleLayerVisibility={project.toggleLayerVisibility}
@@ -427,6 +446,10 @@ function App() {
       <ProjectToast
         toast={persistence.toast}
         onDismiss={persistence.dismissToast}
+      />
+      <ScreenPickerToast
+        toast={screenPicker.toast}
+        onDismiss={screenPicker.dismissToast}
       />
       <ExportToast
         toast={projectExport.toast}

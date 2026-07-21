@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 use tauri_plugin_fs::FsExt;
 
+#[cfg(target_os = "windows")]
+mod screen_picker;
+
 #[tauri::command]
 fn prepare_export_paths(
     window: tauri::Window,
@@ -58,6 +61,40 @@ fn normalized_export_paths(
     Ok((image_path, metadata_path))
 }
 
+#[tauri::command]
+async fn start_screen_picker(window: tauri::Window) -> Result<Option<serde_json::Value>, String> {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = window;
+        return Err("The system-wide screen picker is currently available on Windows.".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        window.hide().map_err(|error| error.to_string())?;
+        let picker_task =
+            tauri::async_runtime::spawn_blocking(screen_picker::pick_screen_color).await;
+        let show_result = window.show().map_err(|error| error.to_string());
+        let focus_result = window.set_focus().map_err(|error| error.to_string());
+        show_result?;
+        focus_result?;
+
+        let picker_result = picker_task
+            .map_err(|error| format!("The screen picker stopped unexpectedly: {error}"))?;
+
+        picker_result.map(|picked| {
+            picked.map(|picked| {
+                serde_json::json!({
+                    "color": picked.color,
+                    "role": picked.role,
+                    "x": picked.x,
+                    "y": picked.y,
+                })
+            })
+        })
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -66,7 +103,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![prepare_export_paths])
+        .invoke_handler(tauri::generate_handler![
+            prepare_export_paths,
+            start_screen_picker
+        ])
         .run(tauri::generate_context!())
         .expect("error while running JT Pixel");
 }
