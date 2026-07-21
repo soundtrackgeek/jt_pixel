@@ -86,6 +86,15 @@ describe("project files", () => {
       "frame-1",
     );
 
+    const legacyTiles = projectWithPixels() as ReturnType<typeof projectWithPixels>;
+    const legacyWorkspace = legacyTiles.workspace as Partial<typeof legacyTiles.workspace>;
+    delete legacyWorkspace.tiles;
+    expect(parseProjectDocument(JSON.stringify(legacyTiles)).workspace.tiles).toEqual({
+      mode: "standard",
+      repeatPreview: "off",
+      symmetry: "off",
+    });
+
     const legacyLocks = projectWithPixels() as Partial<ReturnType<typeof projectWithPixels>>;
     delete legacyLocks.frameLayerLocks;
     expect(parseProjectDocument(JSON.stringify(legacyLocks)).frameLayerLocks).toEqual({});
@@ -111,6 +120,25 @@ describe("project files", () => {
     const invalid = projectWithPixels();
     invalid.frames[0].hold = 13;
     expect(() => parseProjectDocument(JSON.stringify(invalid))).toThrow(/hold must be between 1 and 12/);
+  });
+
+  it("round-trips tile settings and rejects unsupported workspace values", () => {
+    const source = projectWithPixels();
+    source.workspace.tiles = {
+      mode: "seamless",
+      repeatPreview: "3x3",
+      symmetry: "quad",
+    };
+    expect(parseProjectDocument(serializeProjectDocument(source)).workspace.tiles)
+      .toEqual(source.workspace.tiles);
+
+    const invalid = structuredClone(source) as unknown as {
+      workspace: { tiles: { mode: string } };
+    };
+    invalid.workspace.tiles.mode = "infinite";
+    expect(() => parseProjectDocument(JSON.stringify(invalid))).toThrow(
+      /workspace\.tiles\.mode is not supported/,
+    );
   });
 
   it("round-trips a versioned recovery snapshot", () => {
@@ -141,6 +169,7 @@ describe("project files", () => {
     expect(saved.name).toBe("courier-final.jtp");
     expect(saved.updatedAt).toBe("2026-07-20T12:00:00.000Z");
     expect(saved.workspace.activeFrameId).toBe("frame-4");
+    expect(saved.workspace.tiles).toEqual(projectWithPixels().workspace.tiles);
 
     const reopened = createEditorStateForDocument(
       parseProjectDocument(serializeProjectDocument(saved)),

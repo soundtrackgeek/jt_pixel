@@ -147,6 +147,23 @@ function forEachEllipsePoint(
   }
 }
 
+export function forEachPrecisionShapePoint(
+  tool: PrecisionToolId,
+  start: CursorPosition,
+  end: CursorPosition,
+  mode: ShapeMode,
+  visit: (position: CursorPosition) => void,
+) {
+  if (tool === "line") {
+    forEachLinePoint(start, end, visit);
+    return;
+  }
+
+  const bounds = boundsBetween(start, end);
+  if (tool === "rectangle") forEachRectanglePoint(bounds, mode, visit);
+  else forEachEllipsePoint(bounds, mode, visit);
+}
+
 export function applyPrecisionShape(
   pixels: PixelMap,
   tool: PrecisionToolId,
@@ -176,14 +193,7 @@ export function applyPrecisionShape(
     changed = true;
   };
 
-  if (tool === "line") {
-    forEachLinePoint(start, end, paintOutlinePoint);
-    return changed;
-  }
-
   const visit = mode === "filled" ? paintFilledPoint : paintOutlinePoint;
-  const bounds = boundsBetween(start, end);
-  if (tool === "rectangle") forEachRectanglePoint(bounds, mode, visit);
-  else forEachEllipsePoint(bounds, mode, visit);
+  forEachPrecisionShapePoint(tool, start, end, mode, visit);
   return changed;
 }

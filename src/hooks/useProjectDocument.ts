@@ -13,6 +13,7 @@ import {
 } from "../editor/project";
 import type { ColorReplacementScope } from "../editor/colorOperations";
 import type { SelectionBounds } from "../types";
+import type { TileWorkspaceSettings } from "../editor/tiles";
 
 export function useProjectDocument() {
   const [history, dispatch] = useReducer(
@@ -118,6 +119,13 @@ export function useProjectDocument() {
   );
   const setFps = useCallback((fps: number) => apply({ type: "animation/set-fps", fps }), [apply]);
   const toggleLoop = useCallback(() => apply({ type: "animation/toggle-loop" }), [apply]);
+  const setTileSettings = useCallback(
+    (settings: Partial<TileWorkspaceSettings>) => apply({
+      type: "tiles/set-settings",
+      settings,
+    }),
+    [apply],
+  );
   const setPalette = useCallback(
     (palette: string[]) => apply({ type: "palette/set", palette }),
     [apply],
@@ -188,6 +196,7 @@ export function useProjectDocument() {
     setFrameHold,
     setFps,
     toggleLoop,
+    setTileSettings,
     setPalette,
     replaceColor,
     beginFpsChange,

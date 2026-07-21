@@ -28,6 +28,25 @@ function paint(history: EditorHistoryState, index: number, color = "#42c8e3") {
 }
 
 describe("editor history", () => {
+  it("undoes and redoes tile workspace settings", () => {
+    const initial = createInitialHistoryState();
+    const edited = reduce(initial, {
+      type: "history/apply",
+      action: {
+        type: "tiles/set-settings",
+        settings: { mode: "seamless", repeatPreview: "3x3", symmetry: "quad" },
+      },
+    });
+    const undone = reduce(edited, { type: "history/undo" });
+    const redone = reduce(undone, { type: "history/redo" });
+
+    expect(edited.present.state.document.workspace.tiles.mode).toBe("seamless");
+    expect(undone.present.state.document.workspace.tiles.mode).toBe("standard");
+    expect(redone.present.state.document.workspace.tiles).toEqual(
+      edited.present.state.document.workspace.tiles,
+    );
+  });
+
   it("undoes and redoes palette edits and scoped color replacement", () => {
     const painted = paint(createInitialHistoryState(), 12);
     const paletteEdited = reduce(painted, {

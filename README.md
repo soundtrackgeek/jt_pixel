@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.12.1` refines the advanced animation timeline with balanced control-rail spacing while retaining multi-frame editing, drag ordering, frame holds, selected-range playback, duration-aware export, the native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, marquee-aware Undo and Redo, the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.13.0` adds a complete Seamless Tiles and Symmetry workspace with wraparound drawing, live 3×3 previews, mirrored editing, seam offsets, persistent project settings, and responsive Arcade Bloom controls while retaining the advanced animation timeline, native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, marquee-aware Undo and Redo, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, crash recovery, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -14,6 +14,7 @@ Version `0.12.1` refines the advanced animation timeline with balanced control-r
 - Styled unsaved-work confirmation before replacing the current session with a new project
 - Fresh-project lifecycle that clears the previous file path, recovery snapshot, playback state, and Undo/Redo history
 - Interactive pencil and eraser behavior, boundary-aware flood fill, and precision Line, Rectangle, and Ellipse tools, persisted per layer and frame
+- Dedicated Tiles workspace with standard or seamless edge behavior, live 3×3 repeat preview, horizontal, vertical, and quad symmetry, center-seam and one-pixel offsets, and visible symmetry guides
 - Live shape previews with brush-size and opacity support, outline or filled closed shapes, 45-degree Line snapping, square and circle constraints, and one Undo step per placement
 - Pixel-snapped rectangular selections with drag creation, Select All, live size/origin feedback, and selection-masked Pencil, Eraser, Fill, precision shapes, and Clear behavior
 - Drag or keyboard movement, Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect commands through a contextual Arcade Bloom toolbar
@@ -143,6 +144,18 @@ Choose **Line** (`L`), **Rectangle** (`R`), or **Ellipse** (`O`), then click and
 - A cancelled shape gesture restores the active cel without placing its preview.
 
 Precision settings are workspace controls rather than project data. Switching tools, frames, or projects does not create history entries or mark artwork unsaved; only a completed shape placement changes the document.
+
+## Seamless tiles and symmetry
+
+Choose **Tiles** from the left workspace rail to open the tile controls without leaving the current frame or layer. **Standard** keeps normal canvas boundaries. **Seamless** wraps Pencil, Eraser, Fill, Line, Rectangle, and Ellipse edits across opposite edges so a stroke leaving one side continues on the other. Active selections remain strict masks and intentionally disable edge wrapping beyond the selected bounds.
+
+Enable **3×3** Repeat Preview to inspect the visible pixel-layer composite as a live repeating texture. The floating preview refreshes during drawing, respects per-frame layer presence, visibility, opacity, and blend mode, and never includes reference artwork, grid lines, or canvas-view backgrounds. Close the preview from its header or choose **Off** in the Tiles panel.
+
+Symmetry can be **Horizontal**, **Vertical**, or **Quad**. Cyan and violet artboard guides show the active axes, and odd-sized canvases deduplicate pixels that land directly on a center line. Symmetry works with Pencil, Eraser, Fill, and precision shapes; one completed gesture remains one Undo/Redo entry.
+
+The Offset Seam pad shifts the complete active pixel cel by one pixel in any direction with wraparound. Its center control offsets by half the canvas width and height, bringing both outer seams into the middle for inspection and repair. Offset actions respect layer visibility and locking and each create one Undo/Redo step.
+
+Tile mode, Repeat Preview, and Symmetry are saved in `.jtp` files and crash recovery. Existing schema-v1 projects open safely with Standard mode, Repeat Preview Off, and Symmetry Off. Workspace switching itself does not modify the project.
 
 ## Animation timeline
 

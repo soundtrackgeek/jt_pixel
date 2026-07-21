@@ -4,6 +4,23 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] - 2026-07-21
+
+### Added
+
+- A complete Arcade Bloom Tiles workspace reached from the left rail, with Standard and Seamless drawing modes and compact controls that remain fully accessible at the 960 × 680 minimum window size.
+- Wraparound Pencil, Eraser, Fill, Line, Rectangle, and Ellipse behavior across opposite canvas edges, including selection masking and locked-layer protection.
+- Horizontal, vertical, and quad symmetry with deduplicated center-line pixels on odd canvases plus cyan and violet artboard guides.
+- A floating live 3×3 repeat preview that composites visible pixel layers during drawing while excluding reference artwork and editor-only overlays.
+- One-pixel directional offsets and a center-seams action that shift the complete active cel toroidally as atomic Undo/Redo edits.
+- Deterministic coverage for corner wrapping, clipped and selected brushes, seamless flood-fill connectivity, symmetry, precision shapes, offsets, history, and legacy project files.
+
+### Changed
+
+- Persist Tile mode, Repeat Preview, and Symmetry in project files and crash recovery with backward-compatible defaults for existing schema-v1 `.jtp` files.
+- Make the top mode control and workspace rail reflect Canvas or Tiles context while preserving the established editor shell.
+- Bumped the application version to `0.13.0`.
+
 ## [0.12.1] - 2026-07-21
 
 ### Fixed

@@ -13,6 +13,12 @@ import {
   type ProjectFrame,
   type ProjectLayer,
 } from "./project";
+import {
+  DEFAULT_TILE_WORKSPACE_SETTINGS,
+  type TileMode,
+  type TileRepeatPreview,
+  type TileSymmetry,
+} from "./tiles";
 
 export const RECOVERY_SCHEMA_VERSION = 1 as const;
 
@@ -162,7 +168,10 @@ function parseWorkspace(
   frameIds: Set<string>,
   fallbackFrameId: string,
 ) {
-  if (value === undefined) return { activeFrameId: fallbackFrameId };
+  if (value === undefined) return {
+    activeFrameId: fallbackFrameId,
+    tiles: { ...DEFAULT_TILE_WORKSPACE_SETTINGS },
+  };
 
   const workspace = expectRecord(value, "workspace");
   const activeFrameId = expectString(
@@ -173,7 +182,33 @@ function parseWorkspace(
   if (!frameIds.has(activeFrameId)) {
     throw new ProjectFileError("workspace.activeFrameId references an unknown frame.");
   }
-  return { activeFrameId };
+  if (workspace.tiles === undefined) return {
+    activeFrameId,
+    tiles: { ...DEFAULT_TILE_WORKSPACE_SETTINGS },
+  };
+
+  const tiles = expectRecord(workspace.tiles, "workspace.tiles");
+  const mode = expectString(tiles.mode, "workspace.tiles.mode", 20) as TileMode;
+  const repeatPreview = expectString(
+    tiles.repeatPreview,
+    "workspace.tiles.repeatPreview",
+    20,
+  ) as TileRepeatPreview;
+  const symmetry = expectString(
+    tiles.symmetry,
+    "workspace.tiles.symmetry",
+    20,
+  ) as TileSymmetry;
+  if (mode !== "standard" && mode !== "seamless") {
+    throw new ProjectFileError("workspace.tiles.mode is not supported.");
+  }
+  if (repeatPreview !== "off" && repeatPreview !== "3x3") {
+    throw new ProjectFileError("workspace.tiles.repeatPreview is not supported.");
+  }
+  if (!["off", "horizontal", "vertical", "quad"].includes(symmetry)) {
+    throw new ProjectFileError("workspace.tiles.symmetry is not supported.");
+  }
+  return { activeFrameId, tiles: { mode, repeatPreview, symmetry } };
 }
 
 function parsePixelMap(value: unknown, label: string, pixelCount: number): PixelMap {
@@ -358,7 +393,7 @@ export function createRecoverySnapshot(
     savedAt: expectTimestamp(savedAt, "savedAt"),
     document: validateProjectDocument({
       ...document,
-      workspace: { activeFrameId },
+      workspace: { ...document.workspace, activeFrameId },
     }),
   };
 }
@@ -403,6 +438,7 @@ export function prepareProjectDocumentForSave(
     ...document,
     name: projectFileName(path),
     workspace: {
+      ...document.workspace,
       activeFrameId: options.activeFrameId ?? document.workspace.activeFrameId,
     },
     updatedAt: options.savedAt ?? new Date().toISOString(),

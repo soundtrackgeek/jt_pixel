@@ -34,6 +34,13 @@ import {
   type SelectionFlipAxis,
 } from "../editor/selection";
 import {
+  applyTileBrush,
+  applyTilePrecisionShape,
+  DEFAULT_TILE_WORKSPACE_SETTINGS,
+  floodFillTilePixelMap,
+  type TileWorkspaceSettings,
+} from "../editor/tiles";
+import {
   getCelPixels,
   isLayerLocked,
   isLayerPresent,
@@ -58,6 +65,7 @@ import { CanvasViewMenu } from "./CanvasViewMenu";
 import { PixelLayerCanvas } from "./PixelLayerCanvas";
 import { PixelLens, type PixelLensHandle } from "./PixelLens";
 import { SelectionToolbar } from "./SelectionToolbar";
+import { TilePreview, type TilePreviewHandle } from "./TilePreview";
 
 const PAINT_TOOLS: ToolId[] = ["pencil", "eraser", "bucket", "line", "rectangle", "ellipse"];
 
@@ -81,6 +89,8 @@ interface CanvasStageProps {
   pixelPerfect: boolean;
   selection: PixelSelection | null;
   shapeMode: ShapeMode;
+  tileSettings: TileWorkspaceSettings;
+  tileWorkspaceActive: boolean;
   zoom: number;
   onClearActiveCel: () => void;
   onCanvasBackgroundChange: (background: CanvasBackground) => void;
@@ -100,6 +110,7 @@ interface CanvasStageProps {
   onResetCanvasView: () => void;
   onRotateSelection: () => void;
   onSelectionChange: (bounds: SelectionBounds) => void;
+  onTileSettingsChange: (settings: Partial<TileWorkspaceSettings>) => void;
   onZoomChange: (zoom: number) => void;
 }
 
@@ -119,6 +130,8 @@ export function CanvasStage({
   pixelPerfect,
   selection,
   shapeMode,
+  tileSettings,
+  tileWorkspaceActive,
   zoom,
   onClearActiveCel,
   onCanvasBackgroundChange,
@@ -138,10 +151,12 @@ export function CanvasStage({
   onResetCanvasView,
   onRotateSelection,
   onSelectionChange,
+  onTileSettingsChange,
   onZoomChange,
 }: CanvasStageProps) {
   const interactionCanvasRef = useRef<HTMLCanvasElement>(null);
   const pixelLensRef = useRef<PixelLensHandle>(null);
+  const tilePreviewRef = useRef<TilePreviewHandle>(null);
   const selectionOverlayRef = useRef<HTMLDivElement>(null);
   const layerCanvasesRef = useRef(new Map<string, HTMLCanvasElement>());
   const basePixelsRef = useRef<PixelMap>({});
@@ -188,6 +203,9 @@ export function CanvasStage({
   const selectedPixelCount = selection
     ? countSelectedPixels(activePixels, selection, document.width)
     : 0;
+  const activeTileSettings = tileWorkspaceActive
+    ? tileSettings
+    : DEFAULT_TILE_WORKSPACE_SETTINGS;
 
   const registerCanvas = useCallback((layerId: string, canvas: HTMLCanvasElement | null) => {
     if (canvas) layerCanvasesRef.current.set(layerId, canvas);
@@ -300,19 +318,31 @@ export function CanvasStage({
   function redrawDraft() {
     const canvas = layerCanvasesRef.current.get(activeLayerId);
     if (canvas) renderPixelMap(canvas, draftPixelsRef.current, document.width, document.height);
+    tilePreviewRef.current?.renderDraft(draftPixelsRef.current);
   }
 
   function paintPoint(position: CursorPosition) {
     if (selection && !isPositionInSelection(position, selection)) return;
     const color = drawingToolRef.current === "eraser" ? null : hexWithOpacity(activeColor, opacity);
-    changedRef.current = applySquareBrush(
-      draftPixelsRef.current,
-      position,
-      brushSize,
-      document.width,
-      document.height,
-      color,
-    ) || changedRef.current;
+    changedRef.current = (tileWorkspaceActive
+      ? applyTileBrush(
+          draftPixelsRef.current,
+          position,
+          brushSize,
+          document.width,
+          document.height,
+          color,
+          activeTileSettings,
+          selection ?? undefined,
+        )
+      : applySquareBrush(
+          draftPixelsRef.current,
+          position,
+          brushSize,
+          document.width,
+          document.height,
+          color,
+        )) || changedRef.current;
   }
 
   function paintTo(position: CursorPosition) {
@@ -338,18 +368,32 @@ export function CanvasStage({
       document.height,
     );
     draftPixelsRef.current = { ...basePixelsRef.current };
-    changedRef.current = applyPrecisionShape(
-      draftPixelsRef.current,
-      tool,
-      start,
-      end,
-      shapeMode,
-      brushSize,
-      document.width,
-      document.height,
-      hexWithOpacity(activeColor, opacity),
-    );
-    if (selection) {
+    changedRef.current = tileWorkspaceActive
+      ? applyTilePrecisionShape(
+          draftPixelsRef.current,
+          tool,
+          start,
+          end,
+          shapeMode,
+          brushSize,
+          document.width,
+          document.height,
+          hexWithOpacity(activeColor, opacity),
+          activeTileSettings,
+          selection ?? undefined,
+        )
+      : applyPrecisionShape(
+          draftPixelsRef.current,
+          tool,
+          start,
+          end,
+          shapeMode,
+          brushSize,
+          document.width,
+          document.height,
+          hexWithOpacity(activeColor, opacity),
+        );
+    if (selection && !tileWorkspaceActive) {
       draftPixelsRef.current = mergeSelectionChanges(
         basePixelsRef.current,
         draftPixelsRef.current,
@@ -453,14 +497,24 @@ export function CanvasStage({
     lastPixelRef.current = position;
 
     if (activeTool === "bucket") {
-      const didFill = floodFillPixelMap(
-        draftPixelsRef.current,
-        position,
-        document.width,
-        document.height,
-        hexWithOpacity(activeColor, opacity),
-        selection ?? undefined,
-      );
+      const didFill = tileWorkspaceActive
+        ? floodFillTilePixelMap(
+            draftPixelsRef.current,
+            position,
+            document.width,
+            document.height,
+            hexWithOpacity(activeColor, opacity),
+            activeTileSettings,
+            selection ?? undefined,
+          )
+        : floodFillPixelMap(
+            draftPixelsRef.current,
+            position,
+            document.width,
+            document.height,
+            hexWithOpacity(activeColor, opacity),
+            selection ?? undefined,
+          );
       drawingToolRef.current = null;
       if (!didFill) return;
       redrawDraft();
@@ -658,6 +712,8 @@ export function CanvasStage({
           <span className={activeLayerLocked ? "canvas-stage__locked" : undefined}>
             {activeLayerLocked
               ? "LAYER LOCKED"
+              : tileWorkspaceActive
+                ? `${tileSettings.mode === "seamless" ? "SEAMLESS" : "STANDARD"} · ${tileSettings.symmetry.toUpperCase()}`
               : selection
                 ? `SELECT ${selection.width} × ${selection.height}`
                 : pixelPerfect ? "PIXEL PERFECT" : "SMOOTH INPUT"}
@@ -671,6 +727,7 @@ export function CanvasStage({
           className="artboard"
           data-canvas-background={canvasView.background}
           data-grid-style={canvasView.gridStyle}
+          data-tile-mode={tileWorkspaceActive ? tileSettings.mode : "standard"}
           style={{
             "--frame-shift": `${(activeFrameIndex - 3) * 0.35}px`,
             "--grid-width": document.width,
@@ -727,6 +784,16 @@ export function CanvasStage({
             onLostPointerCapture={handleLostPointerCapture}
           />
           <div className="pixel-grid-overlay" aria-hidden="true" />
+          {tileWorkspaceActive && tileSettings.symmetry !== "off" && (
+            <div
+              className={`tile-guides tile-guides--${tileSettings.symmetry}`}
+              aria-hidden="true"
+              data-testid="tile-symmetry-guides"
+            >
+              <span className="tile-guide tile-guide--vertical" />
+              <span className="tile-guide tile-guide--horizontal" />
+            </div>
+          )}
           <div
             ref={selectionOverlayRef}
             className="selection-marquee"
@@ -736,6 +803,15 @@ export function CanvasStage({
           />
           <PixelLens ref={pixelLensRef} />
         </div>
+        {tileWorkspaceActive && tileSettings.repeatPreview === "3x3" && (
+          <TilePreview
+            ref={tilePreviewRef}
+            activeFrameId={activeFrameId}
+            activeLayerId={activeLayerId}
+            document={document}
+            onClose={() => onTileSettingsChange({ repeatPreview: "off" })}
+          />
+        )}
         <SelectionToolbar
           canTransform={canPaint}
           clipboard={selection || activeTool === "select" || activeTool === "move" ? clipboard : null}

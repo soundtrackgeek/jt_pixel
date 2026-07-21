@@ -46,6 +46,7 @@ const TRACKED_ACTIONS = new Set<ProjectAction["type"]>([
   "frame/set-hold",
   "animation/set-fps",
   "animation/toggle-loop",
+  "tiles/set-settings",
   "palette/set",
   "color/replace",
 ]);

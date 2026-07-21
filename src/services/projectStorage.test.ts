@@ -88,7 +88,7 @@ describe("project storage", () => {
     expect(writeOptions).toEqual({ baseDir: 17 });
     expect(parseRecoverySnapshot(serialized).document).toEqual({
       ...document,
-      workspace: { activeFrameId: "frame-4" },
+      workspace: { ...document.workspace, activeFrameId: "frame-4" },
     });
     expect(mocks.mkdir.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.writeTextFile.mock.invocationCallOrder[0],
@@ -99,7 +99,7 @@ describe("project storage", () => {
     await expect(readRecoverySnapshot()).resolves.toMatchObject({
       document: {
         ...document,
-        workspace: { activeFrameId: "frame-4" },
+        workspace: { ...document.workspace, activeFrameId: "frame-4" },
       },
     });
   });

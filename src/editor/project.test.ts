@@ -23,6 +23,26 @@ function paintedState(): EditorDocumentState {
 }
 
 describe("project document reducer", () => {
+  it("stores tile workspace changes as undoable document edits", () => {
+    const initial = createInitialEditorState();
+    const edited = projectReducer(initial, {
+      type: "tiles/set-settings",
+      settings: { mode: "seamless", symmetry: "quad", repeatPreview: "3x3" },
+    });
+
+    expect(edited.document.workspace.tiles).toEqual({
+      mode: "seamless",
+      repeatPreview: "3x3",
+      symmetry: "quad",
+    });
+    expect(edited.isDirty).toBe(true);
+    expect(edited.revision).toBe(initial.revision + 1);
+    expect(projectReducer(edited, {
+      type: "tiles/set-settings",
+      settings: { mode: "seamless" },
+    })).toBe(edited);
+  });
+
   it("persists palette edits as document changes without altering artwork", () => {
     const source = paintedState();
     const palette = ["#000000", "#ffffff", "#42c8e3"];
@@ -447,7 +467,7 @@ describe("project document reducer", () => {
       ...initial.document,
       name: "opened-project.jtp",
       frames: initial.document.frames.slice(0, 2),
-      workspace: { activeFrameId: "frame-2" },
+      workspace: { ...initial.document.workspace, activeFrameId: "frame-2" },
     };
     const recovered = projectReducer(initial, {
       type: "document/replace",

@@ -11,6 +11,7 @@ import { ProjectToast } from "./components/ProjectToast";
 import { ScreenPickerToast } from "./components/ScreenPickerToast";
 import { StatusBar } from "./components/StatusBar";
 import { Timeline } from "./components/Timeline";
+import { TilePanel } from "./components/TilePanel";
 import { ToolPanel } from "./components/ToolPanel";
 import { ToolRail } from "./components/ToolRail";
 import { TopBar } from "./components/TopBar";
@@ -25,6 +26,8 @@ import {
   type NewProjectOptions,
 } from "./editor/project";
 import { frameIdAfterDeletion } from "./editor/timeline";
+import { pixelMapsEqual } from "./editor/selection";
+import { offsetTilePixels } from "./editor/tiles";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { useCanvasViewPreferences } from "./hooks/useCanvasViewPreferences";
 import { useColorWorkspace } from "./hooks/useColorWorkspace";
@@ -71,6 +74,7 @@ function App() {
     document,
   });
   const [activeTool, setActiveTool] = useState<ToolId>("pencil");
+  const [workspaceSection, setWorkspaceSection] = useState<"canvas" | "tiles">("canvas");
   const colorWorkspace = useColorWorkspace(
     document.id,
     document.palette[3] ?? document.palette[0],
@@ -153,6 +157,7 @@ function App() {
 
     setNewProjectOpen(false);
     setActiveTool("pencil");
+    setWorkspaceSection("canvas");
     setBrushSize(1);
     setOpacity(100);
     setIsPlaying(false);
@@ -174,6 +179,22 @@ function App() {
   const redo = useCallback(() => {
     project.redo();
   }, [project.redo]);
+
+  const changeWorkspaceSection = useCallback((section: "canvas" | "tiles") => {
+    setWorkspaceSection(section);
+    if (section === "tiles") deselect();
+  }, [deselect]);
+
+  const offsetActiveTile = useCallback((offsetX: number, offsetY: number) => {
+    const shifted = offsetTilePixels(
+      project.activePixels,
+      document.width,
+      document.height,
+      offsetX,
+      offsetY,
+    );
+    if (!pixelMapsEqual(project.activePixels, shifted)) project.commitActiveCel(shifted);
+  }, [document.height, document.width, project.activePixels, project.commitActiveCel]);
 
   const shortcutMap = useMemo(
     () => new Map(tools.map((tool) => [tool.shortcut.toLowerCase(), tool.id])),
@@ -396,29 +417,47 @@ function App() {
         onSaveProject={() => void persistence.saveProject()}
         onToolChange={setActiveTool}
         onUndo={undo}
+        onWorkspaceChange={changeWorkspaceSection}
+        workspaceSection={workspaceSection}
       />
 
       <div className="workspace">
-        <ToolRail onOpenSettings={() => setSettingsOpen(true)} />
-        <ToolPanel
-          activeTool={activeTool}
-          brushSize={brushSize}
-          opacity={opacity}
-          pixelPerfect={pixelPerfect}
-          screenPickerAvailable={screenPicker.desktopAvailable}
-          screenPickerBusy={screenPicker.isPicking}
-          selection={selection}
-          shapeMode={shapeMode}
-          eyedropperSource={eyedropperSource}
-          clipboardAvailable={selectionClipboard !== null}
-          onToolChange={setActiveTool}
-          onBrushSizeChange={setBrushSize}
-          onOpacityChange={setOpacity}
-          onPixelPerfectChange={setPixelPerfect}
-          onPickScreenColor={() => void screenPicker.pick()}
-          onShapeModeChange={setShapeMode}
-          onEyedropperSourceChange={setEyedropperSource}
+        <ToolRail
+          activeSection={workspaceSection}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onSectionChange={changeWorkspaceSection}
         />
+        {workspaceSection === "tiles" ? (
+          <TilePanel
+            canOffset={activeLayerCanEdit && Object.keys(project.activePixels).length > 0}
+            height={document.height}
+            pixelCount={Object.keys(project.activePixels).length}
+            settings={document.workspace.tiles}
+            width={document.width}
+            onOffset={offsetActiveTile}
+            onSettingsChange={project.setTileSettings}
+          />
+        ) : (
+          <ToolPanel
+            activeTool={activeTool}
+            brushSize={brushSize}
+            opacity={opacity}
+            pixelPerfect={pixelPerfect}
+            screenPickerAvailable={screenPicker.desktopAvailable}
+            screenPickerBusy={screenPicker.isPicking}
+            selection={selection}
+            shapeMode={shapeMode}
+            eyedropperSource={eyedropperSource}
+            clipboardAvailable={selectionClipboard !== null}
+            onToolChange={setActiveTool}
+            onBrushSizeChange={setBrushSize}
+            onOpacityChange={setOpacity}
+            onPixelPerfectChange={setPixelPerfect}
+            onPickScreenColor={() => void screenPicker.pick()}
+            onShapeModeChange={setShapeMode}
+            onEyedropperSourceChange={setEyedropperSource}
+          />
+        )}
         <CanvasStage
           activeColor={activeColor}
           activeFrameId={project.state.activeFrameId}
@@ -434,6 +473,8 @@ function App() {
           clipboard={selectionClipboard}
           selection={selection}
           shapeMode={shapeMode}
+          tileSettings={document.workspace.tiles}
+          tileWorkspaceActive={workspaceSection === "tiles"}
           eyedropperSource={eyedropperSource}
           zoom={zoom}
           onClearActiveCel={project.clearActiveCel}
@@ -454,6 +495,7 @@ function App() {
           onResetCanvasView={canvasView.resetPreferences}
           onRotateSelection={rotateSelection}
           onSelectionChange={selectBounds}
+          onTileSettingsChange={project.setTileSettings}
           onZoomChange={setZoom}
         />
         <Inspector

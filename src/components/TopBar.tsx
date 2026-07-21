@@ -5,6 +5,7 @@ import {
   FilePlus2,
   FileOutput,
   FolderOpen,
+  Grid3X3,
   PaintBucket,
   Pencil,
   Redo2,
@@ -32,6 +33,8 @@ interface TopBarProps {
   onSaveProject: () => void;
   onToolChange: (tool: ToolId) => void;
   onUndo: () => void;
+  onWorkspaceChange: (section: "canvas" | "tiles") => void;
+  workspaceSection: "canvas" | "tiles";
   width: number;
 }
 
@@ -64,8 +67,11 @@ export function TopBar({
   onSaveProject,
   onToolChange,
   onUndo,
+  onWorkspaceChange,
+  workspaceSection,
   width,
 }: TopBarProps) {
+  const WorkspaceIcon = workspaceSection === "tiles" ? Grid3X3 : Pencil;
   return (
     <header className="topbar">
       <Brand />
@@ -73,11 +79,12 @@ export function TopBar({
       <div className="command-deck" role="toolbar" aria-label="Drawing commands">
         <button
           className="mode-button"
-          aria-label="Draw mode"
+          aria-label={workspaceSection === "tiles" ? "Return to canvas workspace" : "Draw mode"}
           data-testid="draw-mode"
+          onClick={() => onWorkspaceChange("canvas")}
         >
-          <Pencil size={17} />
-          <span>DRAW</span>
+          <WorkspaceIcon size={17} />
+          <span>{workspaceSection === "tiles" ? "TILES" : "DRAW"}</span>
         </button>
 
         <div className="topbar-tools">

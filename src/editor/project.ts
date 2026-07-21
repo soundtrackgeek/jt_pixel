@@ -5,6 +5,10 @@ import {
   type ColorReplacementScope,
 } from "./colorOperations";
 import type { SelectionBounds } from "../types";
+import {
+  DEFAULT_TILE_WORKSPACE_SETTINGS,
+  type TileWorkspaceSettings,
+} from "./tiles";
 
 export const PROJECT_SCHEMA_VERSION = 1 as const;
 export const MIN_CANVAS_DIMENSION = 1;
@@ -59,6 +63,7 @@ export interface ProjectDocument {
   };
   workspace: {
     activeFrameId: string;
+    tiles: TileWorkspaceSettings;
   };
   createdAt: string;
   updatedAt: string;
@@ -105,6 +110,7 @@ export type ProjectAction =
   | { type: "frame/set-hold"; frameIds: string[]; hold: number }
   | { type: "animation/set-fps"; fps: number }
   | { type: "animation/toggle-loop" }
+  | { type: "tiles/set-settings"; settings: Partial<TileWorkspaceSettings> }
   | { type: "palette/set"; palette: string[] }
   | {
       type: "color/replace";
@@ -239,7 +245,10 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
     frameLayerPresence: {},
     frameLayerLocks: {},
     animation: { fps: 8, loop: true },
-    workspace: { activeFrameId: "frame-3" },
+    workspace: {
+      activeFrameId: "frame-3",
+      tiles: { ...DEFAULT_TILE_WORKSPACE_SETTINGS },
+    },
     createdAt: now,
     updatedAt: now,
   };
@@ -293,7 +302,10 @@ export function createNewProjectDocument(options: NewProjectOptions): ProjectDoc
     frameLayerPresence: {},
     frameLayerLocks: {},
     animation: { fps: 8, loop: true },
-    workspace: { activeFrameId: "frame-1" },
+    workspace: {
+      activeFrameId: "frame-1",
+      tiles: { ...DEFAULT_TILE_WORKSPACE_SETTINGS },
+    },
     createdAt: now,
     updatedAt: now,
   };
@@ -824,6 +836,22 @@ export function projectReducer(
         ...document,
         animation: { ...document.animation, loop: !document.animation.loop },
       });
+
+    case "tiles/set-settings": {
+      const tiles = {
+        ...document.workspace.tiles,
+        ...action.settings,
+      };
+      if (
+        tiles.mode === document.workspace.tiles.mode
+        && tiles.repeatPreview === document.workspace.tiles.repeatPreview
+        && tiles.symmetry === document.workspace.tiles.symmetry
+      ) return state;
+      return changed(state, {
+        ...document,
+        workspace: { ...document.workspace, tiles },
+      });
+    }
 
     case "palette/set": {
       const palette = normalizePaletteColors(action.palette, MAX_PALETTE_COLORS);
