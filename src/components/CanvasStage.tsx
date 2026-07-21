@@ -8,6 +8,7 @@ import {
   hexWithOpacity,
   renderPixelMap,
 } from "../editor/pixels";
+import { applyPrecisionShape, getPrecisionShapeEnd } from "../editor/precisionShapes";
 import {
   getCelPixels,
   isLayerPresent,
@@ -15,7 +16,7 @@ import {
   type PixelMap,
   type ProjectDocument,
 } from "../editor/project";
-import type { CursorPosition, ToolId } from "../types";
+import type { CursorPosition, PrecisionToolId, ShapeMode, ToolId } from "../types";
 import type {
   CanvasBackground,
   CanvasViewPreferences,
@@ -23,6 +24,12 @@ import type {
 } from "../editor/canvasView";
 import { CanvasViewMenu } from "./CanvasViewMenu";
 import { PixelLayerCanvas } from "./PixelLayerCanvas";
+
+const PAINT_TOOLS: ToolId[] = ["pencil", "eraser", "bucket", "line", "rectangle", "ellipse"];
+
+function isPrecisionTool(tool: ToolId | null): tool is PrecisionToolId {
+  return tool === "line" || tool === "rectangle" || tool === "ellipse";
+}
 
 interface CanvasStageProps {
   activeColor: string;
@@ -36,6 +43,7 @@ interface CanvasStageProps {
   isDirty: boolean;
   opacity: number;
   pixelPerfect: boolean;
+  shapeMode: ShapeMode;
   zoom: number;
   onClearActiveCel: () => void;
   onCanvasBackgroundChange: (background: CanvasBackground) => void;
@@ -58,6 +66,7 @@ export function CanvasStage({
   isDirty,
   opacity,
   pixelPerfect,
+  shapeMode,
   zoom,
   onClearActiveCel,
   onCanvasBackgroundChange,
@@ -69,10 +78,13 @@ export function CanvasStage({
 }: CanvasStageProps) {
   const interactionCanvasRef = useRef<HTMLCanvasElement>(null);
   const layerCanvasesRef = useRef(new Map<string, HTMLCanvasElement>());
+  const basePixelsRef = useRef<PixelMap>({});
   const draftPixelsRef = useRef<PixelMap>({});
   const isDrawingRef = useRef(false);
   const changedRef = useRef(false);
+  const drawingToolRef = useRef<ToolId | null>(null);
   const lastPixelRef = useRef<CursorPosition | null>(null);
+  const shapeStartRef = useRef<CursorPosition | null>(null);
   const activeLayer = document.layers.find((layer) => layer.id === activeLayerId);
   const activeFrame = document.frames.find((frame) => frame.id === activeFrameId) ?? document.frames[0];
   const activeFrameIndex = document.frames.findIndex((frame) => frame.id === activeFrameId);
@@ -110,16 +122,15 @@ export function CanvasStage({
   }
 
   function paintPoint(position: CursorPosition) {
-    const color = activeTool === "eraser" ? null : hexWithOpacity(activeColor, opacity);
-    applySquareBrush(
+    const color = drawingToolRef.current === "eraser" ? null : hexWithOpacity(activeColor, opacity);
+    changedRef.current = applySquareBrush(
       draftPixelsRef.current,
       position,
       brushSize,
       document.width,
       document.height,
       color,
-    );
-    changedRef.current = true;
+    ) || changedRef.current;
   }
 
   function paintTo(position: CursorPosition) {
@@ -129,13 +140,49 @@ export function CanvasStage({
     redrawDraft();
   }
 
+  function previewPrecisionShape(
+    tool: PrecisionToolId,
+    position: CursorPosition,
+    constrained: boolean,
+  ) {
+    const start = shapeStartRef.current;
+    if (!start) return position;
+    const end = getPrecisionShapeEnd(
+      tool,
+      start,
+      position,
+      constrained,
+      document.width,
+      document.height,
+    );
+    draftPixelsRef.current = { ...basePixelsRef.current };
+    changedRef.current = applyPrecisionShape(
+      draftPixelsRef.current,
+      tool,
+      start,
+      end,
+      shapeMode,
+      brushSize,
+      document.width,
+      document.height,
+      hexWithOpacity(activeColor, opacity),
+    );
+    redrawDraft();
+    return end;
+  }
+
   function handlePointerDown(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
     onCursorChange(position);
-    if (!canPaint || !["pencil", "eraser", "bucket"].includes(activeTool)) return;
+    if (
+      !canPaint
+      || !PAINT_TOOLS.includes(activeTool)
+    ) return;
 
-    draftPixelsRef.current = { ...activePixels };
+    basePixelsRef.current = { ...activePixels };
+    draftPixelsRef.current = { ...basePixelsRef.current };
     changedRef.current = false;
+    drawingToolRef.current = activeTool;
     lastPixelRef.current = position;
 
     if (activeTool === "bucket") {
@@ -146,6 +193,7 @@ export function CanvasStage({
         document.height,
         hexWithOpacity(activeColor, opacity),
       );
+      drawingToolRef.current = null;
       if (!didFill) return;
       redrawDraft();
       onCommitActiveCel(draftPixelsRef.current);
@@ -154,20 +202,64 @@ export function CanvasStage({
 
     isDrawingRef.current = true;
     event.currentTarget.setPointerCapture(event.pointerId);
+    if (isPrecisionTool(activeTool)) {
+      shapeStartRef.current = position;
+      previewPrecisionShape(activeTool, position, event.shiftKey);
+      return;
+    }
     paintTo(position);
   }
 
   function handlePointerMove(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
     onCursorChange(position);
-    if (isDrawingRef.current) paintTo(position);
+    if (!isDrawingRef.current) return;
+    const drawingTool = drawingToolRef.current;
+    if (isPrecisionTool(drawingTool)) {
+      onCursorChange(previewPrecisionShape(
+        drawingTool,
+        position,
+        event.shiftKey,
+      ));
+      return;
+    }
+    paintTo(position);
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLCanvasElement>) {
+    if (!isDrawingRef.current) return;
+    const position = eventToPixel(event);
+    const drawingTool = drawingToolRef.current;
+    if (isPrecisionTool(drawingTool)) {
+      onCursorChange(previewPrecisionShape(drawingTool, position, event.shiftKey));
+    } else {
+      onCursorChange(position);
+      paintTo(position);
+    }
+    stopDrawing();
   }
 
   function stopDrawing() {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
+    drawingToolRef.current = null;
     lastPixelRef.current = null;
+    shapeStartRef.current = null;
     if (changedRef.current) onCommitActiveCel(draftPixelsRef.current);
+  }
+
+  function cancelDrawing() {
+    if (!isDrawingRef.current) return;
+    if (!shapeStartRef.current) {
+      stopDrawing();
+      return;
+    }
+    isDrawingRef.current = false;
+    drawingToolRef.current = null;
+    lastPixelRef.current = null;
+    shapeStartRef.current = null;
+    draftPixelsRef.current = { ...basePixelsRef.current };
+    redrawDraft();
   }
 
   function clearPaintLayer() {
@@ -235,8 +327,8 @@ export function CanvasStage({
             data-testid="paint-canvas"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
-            onPointerUp={stopDrawing}
-            onPointerCancel={stopDrawing}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={cancelDrawing}
             onLostPointerCapture={stopDrawing}
           />
           <div className="pixel-grid-overlay" aria-hidden="true" />

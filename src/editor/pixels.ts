@@ -49,15 +49,23 @@ export function applySquareBrush(
   height: number,
   color: string | null,
 ) {
+  let changed = false;
   const offset = Math.floor(size / 2);
   for (let y = position.y - offset; y < position.y - offset + size; y += 1) {
     for (let x = position.x - offset; x < position.x - offset + size; x += 1) {
       if (x < 0 || y < 0 || x >= width || y >= height) continue;
       const index = pixelIndex(x, y, width);
-      if (color === null) delete pixels[index];
-      else pixels[index] = color;
+      if (color === null) {
+        if (!(index in pixels)) continue;
+        delete pixels[index];
+      } else {
+        if (pixels[index] === color) continue;
+        pixels[index] = color;
+      }
+      changed = true;
     }
   }
+  return changed;
 }
 
 export function floodFillPixelMap(

@@ -22,7 +22,7 @@ import { useExportPreferences } from "./hooks/useExportPreferences";
 import { useProjectExport } from "./hooks/useProjectExport";
 import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
-import type { CursorPosition, ToolId } from "./types";
+import type { CursorPosition, ShapeMode, ToolId } from "./types";
 
 const TEXT_EDITING_INPUT_TYPES = new Set([
   "email",
@@ -63,6 +63,7 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [onionSkin, setOnionSkin] = useState(true);
   const [pixelPerfect, setPixelPerfect] = useState(true);
+  const [shapeMode, setShapeMode] = useState<ShapeMode>("outline");
   const [cursor, setCursor] = useState<CursorPosition>({ x: 12, y: 28 });
   const [zoom, setZoom] = useState(800);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -195,10 +196,12 @@ function App() {
           brushSize={brushSize}
           opacity={opacity}
           pixelPerfect={pixelPerfect}
+          shapeMode={shapeMode}
           onToolChange={setActiveTool}
           onBrushSizeChange={setBrushSize}
           onOpacityChange={setOpacity}
           onPixelPerfectChange={setPixelPerfect}
+          onShapeModeChange={setShapeMode}
         />
         <CanvasStage
           activeColor={activeColor}
@@ -212,6 +215,7 @@ function App() {
           isDirty={project.state.isDirty}
           opacity={opacity}
           pixelPerfect={pixelPerfect}
+          shapeMode={shapeMode}
           zoom={zoom}
           onClearActiveCel={project.clearActiveCel}
           onCanvasBackgroundChange={canvasView.setBackground}

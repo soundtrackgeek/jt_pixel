@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { floodFillPixelMap, pixelIndex } from "./pixels";
+import { applySquareBrush, floodFillPixelMap, pixelIndex } from "./pixels";
 import type { PixelMap } from "./project";
 
 function closedBox(): PixelMap {
@@ -39,5 +39,20 @@ describe("floodFillPixelMap", () => {
 
     expect(floodFillPixelMap(pixels, { x: 2, y: 2 }, 5, 5, "#c9f53d")).toBe(false);
     expect(pixels).toEqual({ [pixelIndex(2, 2, 5)]: "#c9f53d" });
+  });
+});
+
+describe("applySquareBrush", () => {
+  it("reports only real pixel changes", () => {
+    const index = pixelIndex(2, 2, 5);
+    const pixels: PixelMap = { [index]: "#42c8e3" };
+
+    expect(applySquareBrush(pixels, { x: 2, y: 2 }, 1, 5, 5, "#42c8e3"))
+      .toBe(false);
+    expect(applySquareBrush(pixels, { x: 0, y: 0 }, 1, 5, 5, null))
+      .toBe(false);
+    expect(applySquareBrush(pixels, { x: 2, y: 2 }, 1, 5, 5, null))
+      .toBe(true);
+    expect(pixels[index]).toBeUndefined();
   });
 });

@@ -14,6 +14,9 @@ export type ToolId =
   | "eyedropper"
   | "hand";
 
+export type PrecisionToolId = Extract<ToolId, "line" | "rectangle" | "ellipse">;
+export type ShapeMode = "outline" | "filled";
+
 export interface EditorTool {
   id: ToolId;
   label: string;

@@ -1,6 +1,6 @@
 import { Minus, Plus } from "lucide-react";
 import { tools } from "../data/editor";
-import type { ToolId } from "../types";
+import type { ShapeMode, ToolId } from "../types";
 import { PanelHeader } from "./PanelHeader";
 
 interface ToolPanelProps {
@@ -8,10 +8,12 @@ interface ToolPanelProps {
   brushSize: number;
   opacity: number;
   pixelPerfect: boolean;
+  shapeMode: ShapeMode;
   onToolChange: (tool: ToolId) => void;
   onBrushSizeChange: (size: number) => void;
   onOpacityChange: (opacity: number) => void;
   onPixelPerfectChange: (enabled: boolean) => void;
+  onShapeModeChange: (mode: ShapeMode) => void;
 }
 
 const brushPresets = [1, 2, 3, 4, 5, 7];
@@ -21,11 +23,16 @@ export function ToolPanel({
   brushSize,
   opacity,
   pixelPerfect,
+  shapeMode,
   onToolChange,
   onBrushSizeChange,
   onOpacityChange,
   onPixelPerfectChange,
+  onShapeModeChange,
 }: ToolPanelProps) {
+  const precisionTool = ["line", "rectangle", "ellipse"].includes(activeTool);
+  const closedShape = activeTool === "rectangle" || activeTool === "ellipse";
+
   return (
     <aside className="tool-panel panel-surface">
       <PanelHeader title="DRAW" />
@@ -107,20 +114,50 @@ export function ToolPanel({
         </label>
       </div>
 
-      <div className="preset-section">
-        <div className="mini-heading">PRESETS</div>
-        <div className="pattern-grid">
-          {["solid", "scatter", "dither", "slashes", "noise"].map((pattern) => (
-            <button
-              key={pattern}
-              className={`pattern-button pattern-button--${pattern} ${
-                pattern === "solid" ? "is-active" : ""
-              }`}
-              aria-label={`${pattern} brush pattern`}
-            />
-          ))}
+      {precisionTool ? (
+        <div className="precision-section" data-testid="precision-options">
+          <div className="mini-heading">PRECISION</div>
+          {closedShape ? (
+            <div className="shape-mode" role="group" aria-label="Shape rendering mode">
+              {(["outline", "filled"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  className={shapeMode === mode ? "is-active" : ""}
+                  aria-pressed={shapeMode === mode}
+                  onClick={() => onShapeModeChange(mode)}
+                >
+                  <span className={`shape-mode__sample shape-mode__sample--${mode}`} aria-hidden="true" />
+                  {mode === "outline" ? "Outline" : "Filled"}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="precision-hint">
+            <kbd>SHIFT</kbd>
+            <span>
+              {activeTool === "line"
+                ? "Snap to 45° angles"
+                : `Lock to a perfect ${activeTool === "ellipse" ? "circle" : "square"}`}
+            </span>
+          </div>
+          <p>Click and drag for a live pixel preview. Release to place.</p>
         </div>
-      </div>
+      ) : (
+        <div className="preset-section">
+          <div className="mini-heading">PRESETS</div>
+          <div className="pattern-grid">
+            {["solid", "scatter", "dither", "slashes", "noise"].map((pattern) => (
+              <button
+                key={pattern}
+                className={`pattern-button pattern-button--${pattern} ${
+                  pattern === "solid" ? "is-active" : ""
+                }`}
+                aria-label={`${pattern} brush pattern`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.7.3` adds independent animated GIF playback controls to the responsive Export Studio and retains lossless PNG artwork and sprite sheets, configurable canvas views, the complete New Project flow, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.8.0` adds precision Line, Rectangle, and Ellipse drawing with live pixel previews, constrained geometry, and outline or filled shapes while retaining animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -13,7 +13,8 @@ Version `0.7.3` adds independent animated GIF playback controls to the responsiv
 - Blank Canvas projects with one frame and one editable layer, plus the original 64 × 64, eight-frame Courier Practice template
 - Styled unsaved-work confirmation before replacing the current session with a new project
 - Fresh-project lifecycle that clears the previous file path, recovery snapshot, playback state, and Undo/Redo history
-- Interactive pencil and eraser behavior plus boundary-aware flood fill, persisted per layer and frame
+- Interactive pencil and eraser behavior, boundary-aware flood fill, and precision Line, Rectangle, and Ellipse tools, persisted per layer and frame
+- Live shape previews with brush-size and opacity support, outline or filled closed shapes, 45-degree Line snapping, square and circle constraints, and one Undo step per placement
 - Tool selection with visible state and keyboard shortcuts
 - Color palette, brush size, opacity, and pixel-perfect controls
 - Functional frame-local layer creation, deletion, selection, visibility, and instant selected-layer restoration, with locked-reference safeguards and live thumbnails
@@ -97,6 +98,18 @@ Recovered work intentionally does not reuse its previous file path. Its next sav
 Undo and Redo history is kept for the current editing session and is not serialized into `.jtp` files. Saving preserves the current history and establishes a clean checkpoint, so undoing back to that position returns the status to **SAVED**. Opening or restoring a different project starts a fresh history.
 
 History shortcuts remain active while non-text controls such as the FPS range have focus. Individual frame-rate `+` and `−` clicks remain separate Undo steps, while a complete mouse or touch drag on the FPS slider is grouped into one step.
+
+## Precision drawing
+
+Choose **Line** (`L`), **Rectangle** (`R`), or **Ellipse** (`O`), then click and drag on an editable, visible pixel layer. JT Pixel shows the exact rasterized pixels before placement and commits the shape only when the pointer is released. A complete placement is one Undo/Redo step and affects only the active layer and frame.
+
+- Line, Rectangle, and Ellipse outlines use the current brush size and opacity.
+- Rectangle and Ellipse offer **Outline** and **Filled** modes in the Draw panel; filled shapes use the exact selected bounds.
+- Hold `Shift` while dragging a Line to snap it to horizontal, vertical, or 45-degree angles.
+- Hold `Shift` while dragging a Rectangle or Ellipse to lock it to a square or circle.
+- A cancelled shape gesture restores the active cel without placing its preview.
+
+Precision settings are workspace controls rather than project data. Switching tools, frames, or projects does not create history entries or mark artwork unsaved; only a completed shape placement changes the document.
 
 ## Canvas view
 
@@ -187,6 +200,8 @@ The editor foundation supports single-key tool switching when a form control is 
 | `Ctrl+Z` | Undo the last document edit |
 | `Ctrl+Y` | Redo the next document edit |
 | `Ctrl+Shift+Z` | Redo the next document edit |
+
+While Line, Rectangle, or Ellipse is active, hold `Shift` during a drag to constrain its geometry.
 
 ## Project structure
 

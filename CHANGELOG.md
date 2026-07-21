@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-07-21
+
+### Added
+
+- Functional Line, Rectangle, and Ellipse tools with immediate pixel-accurate drag previews on the active frame and layer.
+- Outline and Filled modes for rectangles and ellipses, with current color, opacity, and brush-size support where applicable.
+- `Shift` constraints for horizontal, vertical, and 45-degree lines plus perfect squares and circles.
+- Deterministic rasterization and constraint coverage for endpoints, bounds, shape modes, stroke thickness, clipping, and no-op placements.
+
+### Changed
+
+- Treat each completed precision shape as one Undo/Redo entry while cancelled previews leave the document unchanged.
+- Replace the inactive brush-pattern area with contextual Arcade Bloom precision controls whenever Line, Rectangle, or Ellipse is selected.
+- Avoid creating drawing history when a brush or precision shape does not change any pixels.
+- Bumped the application version to `0.8.0`.
+
 ## [0.7.3] - 2026-07-21
 
 ### Added
