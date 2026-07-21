@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.10.1` adds dependable pointer-driven palette reordering to Palette Studio's complete smart-color workflow while retaining marquee-aware Undo and Redo, the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.10.2` adds a live Pixel Lens to the eyedropper workflow while retaining dependable Palette Studio color management, marquee-aware Undo and Redo, the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -21,7 +21,7 @@ Version `0.10.1` adds dependable pointer-driven palette reordering to Palette St
 - Tool selection with visible state and keyboard shortcuts
 - Functional HSV, RGB, and hex color editing with foreground/background colors, quick swap, recent colors, palette usage counts, and right-click background assignment
 - Palette Studio controls for adding, updating, removing, reordering, and extracting project colors without silently changing artwork
-- Current-layer or visible-pixel eyedropper sampling with `I`, click-and-drag sampling, and temporary `Alt` sampling from any drawing tool
+- Current-layer or visible-pixel eyedropper sampling with `I`, click-and-drag sampling, temporary `Alt` sampling from any drawing tool, and a live 9 × 9 Pixel Lens with color and coordinate readouts
 - Scoped color replacement across the active selection, current cel, matching layer across frames, or the complete project, with live impact counts and locked-artwork protection
 - Functional frame-local layer creation, deletion, selection, visibility, locking, and instant selected-layer restoration, with permanently locked-reference safeguards and live thumbnails
 - Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
@@ -113,7 +113,9 @@ Open **Palette Studio** from the Color panel menu to curate the project palette.
 
 Palette entries can be added, updated, removed, dragged or nudged into a new order, and regenerated from colors currently used by the project. Swatch maintenance never changes artwork by itself. Palette changes are saved in `.jtp` files and crash recovery, mark the project unsaved, and participate in Undo/Redo; recent and foreground/background color choices remain transient workspace state.
 
-Choose **Pick** (`I`) to sample continuously from the current layer or the composite of visible painted layers. Hold `Alt` while using another drawing tool for a temporary visible-pixel sample without switching tools. Visible sampling deliberately excludes the locked reference image, onion skin, grid, and workspace background.
+Choose **Pick** (`I`) to sample continuously from the current layer or the composite of visible painted layers. Hold `Alt` while using another drawing tool to open the same sampling experience temporarily without switching tools. The custom pipette cursor and Pixel Lens follow the pointer across the artboard, magnifying a 9 × 9 neighborhood and reporting the center pixel's hex value, RGB values, canvas coordinates, transparency, and active sample source. The lens flips around canvas edges so its target stays visible.
+
+Left-click or drag to assign sampled pixels to the foreground color; right-click or drag to assign them to the background color. Transparent cells are identified in the lens and leave both color roles unchanged. Visible sampling deliberately excludes the locked reference image, onion skin, grid, and workspace background.
 
 Choose **Replace pixels** in Palette Studio for a controlled recolor. The preview reports affected pixels and cels before applying the change, and the scope can be the active marquee, current cel, matching layer across all frames, or every editable pixel layer in the project. Locked layers and frames are always skipped. Updating the source palette swatch is optional, and the complete replacement—including that palette change—is one Undo/Redo step.
 
@@ -215,7 +217,7 @@ The editor foundation supports single-key tool switching when a form control is 
 | `W` | Magic |
 | `T` | Text |
 | `I` | Eyedropper |
-| `Alt` + canvas click or drag | Temporarily sample visible painted pixels without changing tools |
+| `Alt` + canvas click or drag | Temporarily open Pixel Lens and sample with the current source without changing tools |
 | `H` | Hand |
 | `G` | Toggle the pixel grid |
 | `Space` | Play or pause animation |

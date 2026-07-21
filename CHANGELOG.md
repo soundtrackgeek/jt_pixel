@@ -4,6 +4,19 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.10.2] - 2026-07-21
+
+### Added
+
+- A live 9 × 9 Pixel Lens for persistent Pick mode and temporary `Alt` sampling, with the center pixel's hex value, RGB values, canvas coordinates, transparency state, and active Layer or Visible source.
+- A custom pipette cursor plus edge-aware lens placement that keeps the sampled pixel and magnified neighborhood visible near every artboard boundary.
+- Deterministic coverage for active-layer, composited-visible, transparent, and out-of-bounds Pixel Lens sampling.
+
+### Changed
+
+- Left-click and drag now sample the foreground color while right-click and drag sample the background color; transparent pixels leave both roles unchanged.
+- Bumped the application version to `0.10.2`.
+
 ## [0.10.1] - 2026-07-21
 
 ### Fixed

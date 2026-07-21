@@ -342,6 +342,7 @@ function App() {
           onClearActiveCel={project.clearActiveCel}
           onCanvasBackgroundChange={canvasView.setBackground}
           onCommitActiveCel={project.commitActiveCel}
+          onBackgroundColorSample={colorWorkspace.setBackground}
           onCopySelection={copySelection}
           onCursorChange={setCursor}
           onCutSelection={cutSelection}

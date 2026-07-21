@@ -1,17 +1,24 @@
 import { Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, type CSSProperties, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent,
+} from "react";
 import courierScene from "../assets/courier-scene.png";
 import {
   applySquareBrush,
   floodFillPixelMap,
   forEachLinePoint,
   hexWithOpacity,
-  pixelIndex,
   renderPixelMap,
 } from "../editor/pixels";
 import {
-  pixelColorToOpaqueHex,
-  sampleVisiblePixelColor,
+  samplePixelLens,
+  sampleProjectPixelColor,
   type EyedropperSource,
 } from "../editor/colorOperations";
 import { applyPrecisionShape, getPrecisionShapeEnd } from "../editor/precisionShapes";
@@ -49,6 +56,7 @@ import type {
 } from "../editor/canvasView";
 import { CanvasViewMenu } from "./CanvasViewMenu";
 import { PixelLayerCanvas } from "./PixelLayerCanvas";
+import { PixelLens, type PixelLensHandle } from "./PixelLens";
 import { SelectionToolbar } from "./SelectionToolbar";
 
 const PAINT_TOOLS: ToolId[] = ["pencil", "eraser", "bucket", "line", "rectangle", "ellipse"];
@@ -77,6 +85,7 @@ interface CanvasStageProps {
   onClearActiveCel: () => void;
   onCanvasBackgroundChange: (background: CanvasBackground) => void;
   onCommitActiveCel: (pixels: PixelMap) => void;
+  onBackgroundColorSample: (color: string) => void;
   onColorSample: (color: string) => void;
   onCopySelection: () => void;
   onCursorChange: (position: CursorPosition) => void;
@@ -114,6 +123,7 @@ export function CanvasStage({
   onClearActiveCel,
   onCanvasBackgroundChange,
   onCommitActiveCel,
+  onBackgroundColorSample,
   onColorSample,
   onCopySelection,
   onCursorChange,
@@ -131,6 +141,7 @@ export function CanvasStage({
   onZoomChange,
 }: CanvasStageProps) {
   const interactionCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pixelLensRef = useRef<PixelLensHandle>(null);
   const selectionOverlayRef = useRef<HTMLDivElement>(null);
   const layerCanvasesRef = useRef(new Map<string, HTMLCanvasElement>());
   const basePixelsRef = useRef<PixelMap>({});
@@ -147,6 +158,7 @@ export function CanvasStage({
   const isSelectingRef = useRef(false);
   const isMovingSelectionRef = useRef(false);
   const isSamplingRef = useRef(false);
+  const samplingRoleRef = useRef<"background" | "foreground">("foreground");
   const activeLayer = document.layers.find((layer) => layer.id === activeLayerId);
   const activeFrame = document.frames.find((frame) => frame.id === activeFrameId) ?? document.frames[0];
   const activeFrameIndex = document.frames.findIndex((frame) => frame.id === activeFrameId);
@@ -189,6 +201,76 @@ export function CanvasStage({
       y: Math.max(0, Math.min(document.height - 1, Math.floor(((event.clientY - rect.top) / rect.height) * document.height))),
     };
   }
+
+  function eventIsInsideCanvas(event: PointerEvent<HTMLCanvasElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return event.clientX >= rect.left
+      && event.clientX <= rect.right
+      && event.clientY >= rect.top
+      && event.clientY <= rect.bottom;
+  }
+
+  function displayPixelLens(
+    event: PointerEvent<HTMLCanvasElement>,
+    position: CursorPosition,
+  ) {
+    const temporarySampling = activeTool !== "eyedropper" && event.altKey;
+    event.currentTarget.dataset.altSampling = String(temporarySampling);
+    if (
+      (activeTool !== "eyedropper" && !event.altKey && !isSamplingRef.current)
+      || !eventIsInsideCanvas(event)
+    ) {
+      pixelLensRef.current?.hide();
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    pixelLensRef.current?.show(
+      samplePixelLens(
+        document,
+        activeFrameId,
+        activeLayerId,
+        eyedropperSource,
+        position,
+      ),
+      {
+        anchorX: event.clientX - rect.left,
+        anchorY: event.clientY - rect.top,
+        containerHeight: rect.height,
+        containerWidth: rect.width,
+      },
+      eyedropperSource,
+    );
+  }
+
+  function hidePixelLens() {
+    const canvas = interactionCanvasRef.current;
+    if (canvas) canvas.dataset.altSampling = "false";
+    pixelLensRef.current?.hide();
+  }
+
+  useEffect(() => {
+    hidePixelLens();
+  }, [activeFrameId, activeLayerId, activeTool, document.updatedAt, eyedropperSource]);
+
+  useEffect(() => {
+    function stopTemporarySampling(event: KeyboardEvent) {
+      if (event.key !== "Alt") return;
+      const canvas = interactionCanvasRef.current;
+      if (canvas) canvas.dataset.altSampling = "false";
+      if (activeTool !== "eyedropper") pixelLensRef.current?.hide();
+    }
+    function handleWindowBlur() {
+      const canvas = interactionCanvasRef.current;
+      if (canvas) canvas.dataset.altSampling = "false";
+      pixelLensRef.current?.hide();
+    }
+    window.addEventListener("keyup", stopTemporarySampling);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      window.removeEventListener("keyup", stopTemporarySampling);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [activeTool]);
 
   function displaySelection(bounds: SelectionBounds | null) {
     const overlay = selectionOverlayRef.current;
@@ -304,20 +386,32 @@ export function CanvasStage({
     redrawDraft();
   }
 
-  function samplePixel(position: CursorPosition) {
-    const index = pixelIndex(position.x, position.y, document.width);
-    const color = eyedropperSource === "active-layer"
-      ? pixelColorToOpaqueHex(activePixels[index])
-      : sampleVisiblePixelColor(document, activeFrameId, index);
-    if (color) onColorSample(color);
+  function samplePixel(
+    position: CursorPosition,
+    role = samplingRoleRef.current,
+  ) {
+    const color = sampleProjectPixelColor(
+      document,
+      activeFrameId,
+      activeLayerId,
+      eyedropperSource,
+      String((position.y * document.width) + position.x),
+    );
+    if (!color) return;
+    if (role === "background") onBackgroundColorSample(color);
+    else onColorSample(color);
   }
 
   function handlePointerDown(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
     onCursorChange(position);
+    displayPixelLens(event, position);
     if (activeTool === "eyedropper" || event.altKey) {
+      if (event.button !== 0 && event.button !== 2) return;
       isSamplingRef.current = true;
-      samplePixel(position);
+      samplingRoleRef.current = event.button === 2 ? "background" : "foreground";
+      samplePixel(position, samplingRoleRef.current);
+      event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       return;
     }
@@ -387,6 +481,7 @@ export function CanvasStage({
   function handlePointerMove(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
     onCursorChange(position);
+    displayPixelLens(event, position);
     if (isSamplingRef.current) {
       samplePixel(position);
       return;
@@ -422,9 +517,12 @@ export function CanvasStage({
 
   function handlePointerUp(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
+    displayPixelLens(event, position);
     if (isSamplingRef.current) {
       samplePixel(position);
       isSamplingRef.current = false;
+      samplingRoleRef.current = "foreground";
+      if (activeTool !== "eyedropper" && !event.altKey) hidePixelLens();
       return;
     }
     if (isSelectingRef.current) {
@@ -490,6 +588,7 @@ export function CanvasStage({
   function cancelPointerInteraction() {
     if (isSamplingRef.current) {
       isSamplingRef.current = false;
+      samplingRoleRef.current = "foreground";
       return;
     }
     if (isSelectingRef.current) {
@@ -521,6 +620,19 @@ export function CanvasStage({
       return;
     }
     stopDrawing();
+  }
+
+  function handleContextMenu(event: ReactMouseEvent<HTMLCanvasElement>) {
+    if (activeTool === "eyedropper" || event.altKey) event.preventDefault();
+  }
+
+  function handlePointerLeave() {
+    hidePixelLens();
+  }
+
+  function handlePointerCancel() {
+    hidePixelLens();
+    cancelPointerInteraction();
   }
 
   function clearPaintLayer() {
@@ -599,11 +711,19 @@ export function CanvasStage({
               : `Interactive ${document.width} by ${document.height} pixel canvas`}
             data-layer-locked={activeLayerLocked}
             data-selection-active={selection !== null}
+            data-alt-sampling="false"
             data-testid="paint-canvas"
+            onContextMenu={handleContextMenu}
             onPointerDown={handlePointerDown}
+            onPointerEnter={(event) => {
+              const position = eventToPixel(event);
+              onCursorChange(position);
+              displayPixelLens(event, position);
+            }}
+            onPointerLeave={handlePointerLeave}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
-            onPointerCancel={cancelPointerInteraction}
+            onPointerCancel={handlePointerCancel}
             onLostPointerCapture={handleLostPointerCapture}
           />
           <div className="pixel-grid-overlay" aria-hidden="true" />
@@ -614,6 +734,7 @@ export function CanvasStage({
             hidden
             aria-hidden="true"
           />
+          <PixelLens ref={pixelLensRef} />
         </div>
         <SelectionToolbar
           canTransform={canPaint}

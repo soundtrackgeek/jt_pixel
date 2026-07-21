@@ -1,4 +1,4 @@
-import type { SelectionBounds } from "../types";
+import type { CursorPosition, SelectionBounds } from "../types";
 import type { PixelMap, ProjectDocument } from "./project";
 
 export type EyedropperSource = "active-layer" | "visible-pixels";
@@ -14,6 +14,18 @@ export interface ColorReplacementAnalysis {
   affectedCels: number;
   affectedPixels: number;
   lockedPixels: number;
+}
+
+export interface PixelLensCell {
+  color: string | null;
+  inBounds: boolean;
+}
+
+export interface PixelLensSample {
+  cells: PixelLensCell[];
+  center: CursorPosition;
+  centerColor: string | null;
+  size: number;
 }
 
 export interface RgbColor {
@@ -355,4 +367,58 @@ export function sampleVisiblePixelColor(
   }
   if (sample.alpha <= 0) return null;
   return `#${channelToHex(sample.red)}${channelToHex(sample.green)}${channelToHex(sample.blue)}`;
+}
+
+export function sampleProjectPixelColor(
+  document: ProjectDocument,
+  frameId: string,
+  layerId: string,
+  source: EyedropperSource,
+  index: string,
+) {
+  if (source === "visible-pixels") return sampleVisiblePixelColor(document, frameId, index);
+  const layer = document.layers.find((candidate) => candidate.id === layerId);
+  if (
+    layer?.kind !== "pixel"
+    || !layerIsPresent(document, layerId, frameId)
+  ) return null;
+  return pixelColorToOpaqueHex(document.cels[layerFrameKey(layerId, frameId)]?.pixels[index]);
+}
+
+export function samplePixelLens(
+  document: ProjectDocument,
+  frameId: string,
+  layerId: string,
+  source: EyedropperSource,
+  center: CursorPosition,
+  radius = 4,
+): PixelLensSample {
+  const normalizedRadius = Math.max(1, Math.min(8, Math.round(radius)));
+  const size = (normalizedRadius * 2) + 1;
+  const cells: PixelLensCell[] = [];
+  for (let offsetY = -normalizedRadius; offsetY <= normalizedRadius; offsetY += 1) {
+    for (let offsetX = -normalizedRadius; offsetX <= normalizedRadius; offsetX += 1) {
+      const x = center.x + offsetX;
+      const y = center.y + offsetY;
+      const inBounds = x >= 0 && y >= 0 && x < document.width && y < document.height;
+      cells.push({
+        inBounds,
+        color: inBounds
+          ? sampleProjectPixelColor(
+            document,
+            frameId,
+            layerId,
+            source,
+            String((y * document.width) + x),
+          )
+          : null,
+      });
+    }
+  }
+  return {
+    cells,
+    center: { ...center },
+    centerColor: cells[(normalizedRadius * size) + normalizedRadius]?.color ?? null,
+    size,
+  };
 }

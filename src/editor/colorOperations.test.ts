@@ -6,6 +6,8 @@ import {
   hsvToHex,
   normalizeHexColor,
   replaceDocumentColor,
+  samplePixelLens,
+  sampleProjectPixelColor,
   sampleVisiblePixelColor,
 } from "./colorOperations";
 import {
@@ -102,5 +104,39 @@ describe("color operations", () => {
   it("samples the visible painted-layer composite", () => {
     expect(sampleVisiblePixelColor(colorDocument(), "frame-3", "0")).toMatch(/^#[0-9a-f]{6}$/);
     expect(sampleVisiblePixelColor(colorDocument(), "frame-3", "99")).toBeNull();
+  });
+
+  it("samples active-layer and visible colors through one eyedropper path", () => {
+    const document = colorDocument();
+    expect(sampleProjectPixelColor(
+      document,
+      "frame-3",
+      "layer-details",
+      "active-layer",
+      "0",
+    )).toBe("#42c8e3");
+    expect(sampleProjectPixelColor(
+      document,
+      "frame-3",
+      "layer-details",
+      "visible-pixels",
+      "0",
+    )).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it("builds an edge-aware magnified neighborhood with a stable center sample", () => {
+    const sample = samplePixelLens(
+      colorDocument(),
+      "frame-3",
+      "layer-details",
+      "active-layer",
+      { x: 0, y: 0 },
+      1,
+    );
+    expect(sample.size).toBe(3);
+    expect(sample.cells).toHaveLength(9);
+    expect(sample.cells.filter((cell) => !cell.inBounds)).toHaveLength(5);
+    expect(sample.centerColor).toBe("#42c8e3");
+    expect(sample.cells[8]).toMatchObject({ color: null, inBounds: true });
   });
 });

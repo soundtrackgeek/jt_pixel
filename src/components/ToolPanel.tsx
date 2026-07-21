@@ -118,7 +118,7 @@ export function ToolPanel({
             <kbd>ALT</kbd>
             <span>Hold while using any drawing tool for a temporary color sample.</span>
           </div>
-          <p>Click or drag across painted pixels. Transparent cells leave the current color unchanged.</p>
+          <p>Left click sets foreground · Right click sets background. Transparent cells leave colors unchanged.</p>
         </div>
       ) : (
         <div className="control-section">
