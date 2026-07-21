@@ -4,6 +4,16 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] - 2026-07-21
+
+### Fixed
+
+- Replace unreliable native swatch drag-and-drop with pointer-driven palette reordering that works consistently in the Tauri WebView, including clear source and destination feedback and one Undo step per completed move.
+
+### Changed
+
+- Bumped the application version to `0.10.1`.
+
 ## [0.10.0] - 2026-07-21
 
 ### Added

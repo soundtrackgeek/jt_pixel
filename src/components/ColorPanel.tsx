@@ -46,6 +46,14 @@ interface ColorPanelProps {
   onSwapColors: () => void;
 }
 
+interface PaletteDragGesture {
+  dragging: boolean;
+  fromIndex: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
+}
+
 function clampChannel(value: number, maximum: number) {
   return Math.max(0, Math.min(maximum, Number.isFinite(value) ? value : 0));
 }
@@ -68,7 +76,10 @@ export function ColorPanel({
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const [studioOpen, setStudioOpen] = useState(false);
   const [hexDraft, setHexDraft] = useState(activeColor.slice(1).toUpperCase());
-  const draggedIndexRef = useRef<number | null>(null);
+  const [paletteDrag, setPaletteDrag] = useState<{ fromIndex: number; targetIndex: number } | null>(null);
+  const paletteDragRef = useRef<PaletteDragGesture | null>(null);
+  const suppressSwatchClickRef = useRef(false);
+  const swatchRowRef = useRef<HTMLDivElement>(null);
   const saturationDraggingRef = useRef(false);
   const hueDraggingRef = useRef(false);
   const rgb = hexToRgb(activeColor);
@@ -124,6 +135,79 @@ export function ColorPanel({
     setSelectedIndex(to);
   }
 
+  function paletteIndexAtPoint(clientX: number, clientY: number) {
+    const row = swatchRowRef.current;
+    if (!row) return null;
+    const directTarget = globalThis.document.elementFromPoint(clientX, clientY)
+      ?.closest<HTMLButtonElement>("[data-palette-index]");
+    if (directTarget && row.contains(directTarget)) {
+      const index = Number(directTarget.dataset.paletteIndex);
+      if (Number.isInteger(index)) return index;
+    }
+
+    const rowBounds = row.getBoundingClientRect();
+    if (clientY < rowBounds.top - 12 || clientY > rowBounds.bottom + 12) return null;
+    let nearestIndex: number | null = null;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    for (const swatch of row.querySelectorAll<HTMLButtonElement>("[data-palette-index]")) {
+      const bounds = swatch.getBoundingClientRect();
+      const distance = Math.hypot(
+        clientX - (bounds.left + (bounds.width / 2)),
+        clientY - (bounds.top + (bounds.height / 2)),
+      );
+      if (distance >= nearestDistance) continue;
+      nearestDistance = distance;
+      nearestIndex = Number(swatch.dataset.paletteIndex);
+    }
+    return nearestIndex;
+  }
+
+  function beginPaletteDrag(event: PointerEvent<HTMLButtonElement>, fromIndex: number) {
+    if (event.button !== 0) return;
+    paletteDragRef.current = {
+      dragging: false,
+      fromIndex,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function movePaletteDrag(event: PointerEvent<HTMLButtonElement>) {
+    const gesture = paletteDragRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    if (
+      !gesture.dragging
+      && Math.hypot(event.clientX - gesture.startX, event.clientY - gesture.startY) < 5
+    ) return;
+    gesture.dragging = true;
+    const targetIndex = paletteIndexAtPoint(event.clientX, event.clientY);
+    if (targetIndex === null) return;
+    setPaletteDrag((current) => (
+      current?.fromIndex === gesture.fromIndex && current.targetIndex === targetIndex
+        ? current
+        : { fromIndex: gesture.fromIndex, targetIndex }
+    ));
+    event.preventDefault();
+  }
+
+  function finishPaletteDrag(event: PointerEvent<HTMLButtonElement>, cancelled = false) {
+    const gesture = paletteDragRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const targetIndex = cancelled ? null : paletteIndexAtPoint(event.clientX, event.clientY);
+    paletteDragRef.current = null;
+    setPaletteDrag(null);
+    if (!gesture.dragging) return;
+
+    suppressSwatchClickRef.current = true;
+    window.setTimeout(() => {
+      suppressSwatchClickRef.current = false;
+    }, 0);
+    if (targetIndex !== null) reorderPalette(gesture.fromIndex, targetIndex);
+    event.preventDefault();
+  }
+
   function selectSwatch(index: number) {
     setSelectedIndex(index);
     onColorCommit(palette[index]);
@@ -163,33 +247,33 @@ export function ColorPanel({
         onAction={() => setStudioOpen((current) => !current)}
       />
 
-      <div className="swatch-row" aria-label="Project color palette">
+      <div ref={swatchRowRef} className="swatch-row" aria-label="Project color palette">
         {palette.map((color, index) => {
           const usage = colorCounts.get(color) ?? 0;
           return (
             <button
               key={`${color}-${index}`}
-              className={`color-swatch ${activeColor === color ? "is-active" : ""} ${backgroundColor === color ? "is-background" : ""} ${selectedIndex === index ? "is-selected" : ""}`}
+              className={`color-swatch ${activeColor === color ? "is-active" : ""} ${backgroundColor === color ? "is-background" : ""} ${selectedIndex === index ? "is-selected" : ""} ${paletteDrag?.fromIndex === index ? "is-dragging" : ""} ${paletteDrag?.targetIndex === index ? "is-drop-target" : ""}`}
               style={{ backgroundColor: color }}
-              aria-label={`Use color ${color}; ${usage} project pixels`}
+              aria-label={`Use color ${color}; ${usage} project pixels; drag to reorder`}
               aria-pressed={activeColor === color}
-              onClick={() => selectSwatch(index)}
+              onClick={(event) => {
+                if (suppressSwatchClickRef.current) {
+                  event.preventDefault();
+                  return;
+                }
+                selectSwatch(index);
+              }}
               onContextMenu={(event) => {
                 event.preventDefault();
                 setSelectedIndex(index);
                 onBackgroundChange(color);
               }}
-              draggable
-              onDragStart={(event) => {
-                draggedIndexRef.current = index;
-                event.dataTransfer.effectAllowed = "move";
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                if (draggedIndexRef.current !== null) reorderPalette(draggedIndexRef.current, index);
-                draggedIndexRef.current = null;
-              }}
+              onPointerDown={(event) => beginPaletteDrag(event, index)}
+              onPointerMove={movePaletteDrag}
+              onPointerUp={finishPaletteDrag}
+              onPointerCancel={(event) => finishPaletteDrag(event, true)}
+              data-palette-index={index}
               data-testid={`swatch-${color.slice(1)}`}
             >
               {studioOpen && usage > 0 ? <span>{usage > 999 ? "999+" : usage}</span> : null}
