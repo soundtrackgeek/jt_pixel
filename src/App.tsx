@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CanvasStage } from "./components/CanvasStage";
+import { ColorReplaceDialog } from "./components/ColorReplaceDialog";
 import { ExportStudioDialog } from "./components/ExportStudioDialog";
 import { ExportToast } from "./components/ExportToast";
 import { Inspector } from "./components/Inspector";
@@ -24,11 +25,13 @@ import {
 } from "./editor/project";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { useCanvasViewPreferences } from "./hooks/useCanvasViewPreferences";
+import { useColorWorkspace } from "./hooks/useColorWorkspace";
 import { useExportPreferences } from "./hooks/useExportPreferences";
 import { useProjectExport } from "./hooks/useProjectExport";
 import { useProjectDocument } from "./hooks/useProjectDocument";
 import { useProjectPersistence } from "./hooks/useProjectPersistence";
 import { usePixelSelection } from "./hooks/usePixelSelection";
+import type { EyedropperSource } from "./editor/colorOperations";
 import type { CursorPosition, ShapeMode, ToolId } from "./types";
 
 const TEXT_EDITING_INPUT_TYPES = new Set([
@@ -64,7 +67,14 @@ function App() {
     document,
   });
   const [activeTool, setActiveTool] = useState<ToolId>("pencil");
-  const [activeColor, setActiveColor] = useState(document.palette[3]);
+  const colorWorkspace = useColorWorkspace(
+    document.id,
+    document.palette[3] ?? document.palette[0],
+    document.palette[0],
+  );
+  const { activeColor } = colorWorkspace;
+  const [eyedropperSource, setEyedropperSource] = useState<EyedropperSource>("visible-pixels");
+  const [replaceColorSource, setReplaceColorSource] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(1);
   const [opacity, setOpacity] = useState(100);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -112,6 +122,7 @@ function App() {
   );
   const modalOpen = settingsOpen
     || newProjectOpen
+    || replaceColorSource !== null
     || projectExport.isOpen
     || persistence.openConfirmationRequested
     || persistence.recovery !== null;
@@ -127,7 +138,6 @@ function App() {
 
     setNewProjectOpen(false);
     setActiveTool("pencil");
-    setActiveColor(nextDocument.palette[3]);
     setBrushSize(1);
     setOpacity(100);
     setIsPlaying(false);
@@ -135,6 +145,12 @@ function App() {
     deselect();
     return true;
   }, [deselect, persistence.startNewProject]);
+
+  const applyColorReplacement = useCallback((options: Parameters<typeof project.replaceColor>[0]) => {
+    project.replaceColor(options);
+    colorWorkspace.commitForeground(options.targetColor);
+    setReplaceColorSource(null);
+  }, [colorWorkspace.commitForeground, project.replaceColor]);
 
   const undo = useCallback(() => {
     project.undo();
@@ -297,12 +313,14 @@ function App() {
           pixelPerfect={pixelPerfect}
           selection={selection}
           shapeMode={shapeMode}
+          eyedropperSource={eyedropperSource}
           clipboardAvailable={selectionClipboard !== null}
           onToolChange={setActiveTool}
           onBrushSizeChange={setBrushSize}
           onOpacityChange={setOpacity}
           onPixelPerfectChange={setPixelPerfect}
           onShapeModeChange={setShapeMode}
+          onEyedropperSourceChange={setEyedropperSource}
         />
         <CanvasStage
           activeColor={activeColor}
@@ -319,6 +337,7 @@ function App() {
           clipboard={selectionClipboard}
           selection={selection}
           shapeMode={shapeMode}
+          eyedropperSource={eyedropperSource}
           zoom={zoom}
           onClearActiveCel={project.clearActiveCel}
           onCanvasBackgroundChange={canvasView.setBackground}
@@ -331,6 +350,7 @@ function App() {
           onDuplicateSelection={duplicateSelection}
           onFlipSelection={flipSelection}
           onGridStyleChange={canvasView.setGridStyle}
+          onColorSample={colorWorkspace.commitForeground}
           onMoveSelection={moveSelection}
           onPasteSelection={pasteSelection}
           onResetCanvasView={canvasView.resetPreferences}
@@ -340,13 +360,21 @@ function App() {
         />
         <Inspector
           activeColor={activeColor}
+          backgroundColor={colorWorkspace.backgroundColor}
           activeFrameId={project.state.activeFrameId}
           activeLayerId={project.state.activeLayerId}
           document={document}
+          recentColors={colorWorkspace.recentColors}
           onAddLayer={project.addLayer}
-          onColorChange={setActiveColor}
+          onBackgroundColorChange={colorWorkspace.setBackground}
+          onColorChange={colorWorkspace.previewForeground}
+          onColorCommit={colorWorkspace.commitForeground}
           onDeleteLayer={project.deleteLayer}
           onLayerChange={project.selectLayer}
+          onOpenColorReplace={setReplaceColorSource}
+          onPaletteChange={project.setPalette}
+          onPickColor={() => setActiveTool("eyedropper")}
+          onSwapColors={colorWorkspace.swapColors}
           onToggleLayerLock={project.toggleLayerLock}
           onToggleLayerVisibility={project.toggleLayerVisibility}
         />
@@ -430,6 +458,18 @@ function App() {
           onExport={projectExport.exportArtwork}
           onPreferencesChange={exportPreferences.updatePreferences}
           onResetPreferences={exportPreferences.resetPreferences}
+        />
+      )}
+      {replaceColorSource && (
+        <ColorReplaceDialog
+          activeFrameId={project.state.activeFrameId}
+          activeLayerId={project.state.activeLayerId}
+          document={document}
+          initialTargetColor={colorWorkspace.backgroundColor}
+          selection={selection}
+          sourceColor={replaceColorSource}
+          onClose={() => setReplaceColorSource(null)}
+          onReplace={applyColorReplacement}
         />
       )}
       <ProjectRecoveryDialog

@@ -1,90 +1,359 @@
-import { Copy, Pipette, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Copy,
+  Droplets,
+  Minus,
+  Palette,
+  Pipette,
+  Plus,
+  RefreshCw,
+  Replace,
+} from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent,
+} from "react";
+import {
+  MAX_PALETTE_COLORS,
+  type ProjectDocument,
+} from "../editor/project";
+import {
+  extractPaletteFromDocument,
+  getProjectColorCounts,
+  hexToHsv,
+  hexToRgb,
+  hsvToHex,
+  normalizeHexColor,
+  rgbToHex,
+} from "../editor/colorOperations";
 import { PanelHeader } from "./PanelHeader";
 
 interface ColorPanelProps {
   activeColor: string;
+  backgroundColor: string;
+  document: ProjectDocument;
+  recentColors: string[];
+  onBackgroundChange: (color: string) => void;
   onColorChange: (color: string) => void;
-  palette: string[];
-}
-function hexToRgb(hex: string) {
-  const value = Number.parseInt(hex.slice(1), 16);
-  return {
-    r: (value >> 16) & 255,
-    g: (value >> 8) & 255,
-    b: value & 255,
-  };
+  onColorCommit: (color: string) => void;
+  onOpenReplace: (sourceColor: string) => void;
+  onPaletteChange: (palette: string[]) => void;
+  onPickColor: () => void;
+  onSwapColors: () => void;
 }
 
-export function ColorPanel({ activeColor, onColorChange, palette }: ColorPanelProps) {
-  const { r, g, b } = hexToRgb(activeColor);
+function clampChannel(value: number, maximum: number) {
+  return Math.max(0, Math.min(maximum, Number.isFinite(value) ? value : 0));
+}
+
+export function ColorPanel({
+  activeColor,
+  backgroundColor,
+  document,
+  recentColors,
+  onBackgroundChange,
+  onColorChange,
+  onColorCommit,
+  onOpenReplace,
+  onPaletteChange,
+  onPickColor,
+  onSwapColors,
+}: ColorPanelProps) {
+  const palette = document.palette;
+  const initialIndex = Math.max(0, palette.findIndex((color) => color === activeColor));
+  const [selectedIndex, setSelectedIndex] = useState(initialIndex);
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [hexDraft, setHexDraft] = useState(activeColor.slice(1).toUpperCase());
+  const draggedIndexRef = useRef<number | null>(null);
+  const saturationDraggingRef = useRef(false);
+  const hueDraggingRef = useRef(false);
+  const rgb = hexToRgb(activeColor);
+  const hsv = hexToHsv(activeColor);
+  const colorCounts = useMemo(() => getProjectColorCounts(document), [document]);
+  const extractedPalette = useMemo(() => extractPaletteFromDocument(document), [document]);
+  const selectedColor = palette[selectedIndex] ?? activeColor;
+  const selectedUsage = colorCounts.get(selectedColor) ?? 0;
+  const duplicateActiveIndex = palette.findIndex(
+    (color, index) => color === activeColor && index !== selectedIndex,
+  );
+  const canUpdateSelected = palette[selectedIndex] !== undefined
+    && selectedColor !== activeColor
+    && duplicateActiveIndex < 0;
+
+  useEffect(() => {
+    setHexDraft(activeColor.slice(1).toUpperCase());
+  }, [activeColor]);
+
+  useEffect(() => {
+    if (selectedIndex >= palette.length) setSelectedIndex(Math.max(0, palette.length - 1));
+  }, [palette.length, selectedIndex]);
+
+  function commitHexDraft() {
+    const normalized = normalizeHexColor(hexDraft);
+    if (normalized) onColorCommit(normalized);
+    else setHexDraft(activeColor.slice(1).toUpperCase());
+  }
+
+  function updateSaturationValue(event: PointerEvent<HTMLButtonElement>, commit: boolean) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const saturation = clampChannel(((event.clientX - rect.left) / rect.width) * 100, 100);
+    const value = clampChannel((1 - ((event.clientY - rect.top) / rect.height)) * 100, 100);
+    const next = hsvToHex({ hue: hsv.hue, saturation, value });
+    if (commit) onColorCommit(next);
+    else onColorChange(next);
+  }
+
+  function updateHue(event: PointerEvent<HTMLButtonElement>, commit: boolean) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const hue = clampChannel(((event.clientY - rect.top) / rect.height) * 359, 359);
+    const next = hsvToHex({ ...hsv, hue });
+    if (commit) onColorCommit(next);
+    else onColorChange(next);
+  }
+
+  function reorderPalette(from: number, to: number) {
+    if (from === to || from < 0 || to < 0 || from >= palette.length || to >= palette.length) return;
+    const next = [...palette];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onPaletteChange(next);
+    setSelectedIndex(to);
+  }
+
+  function selectSwatch(index: number) {
+    setSelectedIndex(index);
+    onColorCommit(palette[index]);
+  }
+
+  function addCurrentColor() {
+    if (palette.includes(activeColor) || palette.length >= MAX_PALETTE_COLORS) return;
+    onPaletteChange([...palette, activeColor]);
+    setSelectedIndex(palette.length);
+  }
+
+  function updateSelectedColor() {
+    if (!canUpdateSelected) return;
+    onPaletteChange(palette.map((color, index) => index === selectedIndex ? activeColor : color));
+  }
+
+  function removeSelectedColor() {
+    if (palette.length <= 1 || !palette[selectedIndex]) return;
+    onPaletteChange(palette.filter((_, index) => index !== selectedIndex));
+    setSelectedIndex(Math.min(selectedIndex, palette.length - 2));
+  }
+
+  function extractUsedColors() {
+    if (extractedPalette.length === 0) return;
+    onPaletteChange(extractedPalette);
+    setSelectedIndex(0);
+    onColorCommit(extractedPalette[0]);
+  }
 
   return (
     <section className="inspector-section color-panel">
-      <PanelHeader title="COLOR" tone="coral" />
+      <PanelHeader
+        title="COLOR"
+        tone="coral"
+        action="menu"
+        actionLabel={studioOpen ? "Close Palette Studio" : "Open Palette Studio"}
+        onAction={() => setStudioOpen((current) => !current)}
+      />
 
-      <div className="swatch-row" aria-label="Color palette">
-        {palette.map((color) => (
-          <button
-            key={color}
-            className={`color-swatch ${activeColor === color ? "is-active" : ""}`}
-            style={{ backgroundColor: color }}
-            aria-label={`Use color ${color}`}
-            aria-pressed={activeColor === color}
-            onClick={() => onColorChange(color)}
-            data-testid={`swatch-${color.slice(1)}`}
-          />
-        ))}
+      <div className="swatch-row" aria-label="Project color palette">
+        {palette.map((color, index) => {
+          const usage = colorCounts.get(color) ?? 0;
+          return (
+            <button
+              key={`${color}-${index}`}
+              className={`color-swatch ${activeColor === color ? "is-active" : ""} ${backgroundColor === color ? "is-background" : ""} ${selectedIndex === index ? "is-selected" : ""}`}
+              style={{ backgroundColor: color }}
+              aria-label={`Use color ${color}; ${usage} project pixels`}
+              aria-pressed={activeColor === color}
+              onClick={() => selectSwatch(index)}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                setSelectedIndex(index);
+                onBackgroundChange(color);
+              }}
+              draggable
+              onDragStart={(event) => {
+                draggedIndexRef.current = index;
+                event.dataTransfer.effectAllowed = "move";
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (draggedIndexRef.current !== null) reorderPalette(draggedIndexRef.current, index);
+                draggedIndexRef.current = null;
+              }}
+              data-testid={`swatch-${color.slice(1)}`}
+            >
+              {studioOpen && usage > 0 ? <span>{usage > 999 ? "999+" : usage}</span> : null}
+            </button>
+          );
+        })}
       </div>
 
+      {recentColors.length > 1 ? (
+        <div className="recent-colors">
+          <span>RECENT</span>
+          <div aria-label="Recent colors">
+            {recentColors.map((color) => (
+              <button
+                key={color}
+                style={{ backgroundColor: color }}
+                aria-label={`Use recent color ${color}`}
+                onClick={() => onColorCommit(color)}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {studioOpen ? (
+        <div className="palette-studio" data-testid="palette-studio">
+          <div className="palette-studio__heading">
+            <span><Palette size={13} /> PALETTE STUDIO</span>
+            <output>{palette.length}/{MAX_PALETTE_COLORS}</output>
+          </div>
+          <div className="palette-studio__selection">
+            <i style={{ backgroundColor: selectedColor }} />
+            <span>
+              <strong>{selectedColor.toUpperCase()}</strong>
+              <small>{selectedUsage.toLocaleString()} project {selectedUsage === 1 ? "pixel" : "pixels"}</small>
+            </span>
+            <button
+              aria-label="Move selected swatch left"
+              disabled={selectedIndex <= 0}
+              onClick={() => reorderPalette(selectedIndex, selectedIndex - 1)}
+            ><ArrowLeft size={13} /></button>
+            <button
+              aria-label="Move selected swatch right"
+              disabled={selectedIndex >= palette.length - 1}
+              onClick={() => reorderPalette(selectedIndex, selectedIndex + 1)}
+            ><ArrowRight size={13} /></button>
+          </div>
+          <div className="palette-studio__actions">
+            <button onClick={addCurrentColor} disabled={palette.includes(activeColor) || palette.length >= MAX_PALETTE_COLORS}>
+              <Plus size={13} /> ADD
+            </button>
+            <button onClick={updateSelectedColor} disabled={!canUpdateSelected}>
+              <Droplets size={13} /> UPDATE
+            </button>
+            <button onClick={removeSelectedColor} disabled={palette.length <= 1}>
+              <Minus size={13} /> REMOVE
+            </button>
+          </div>
+          <p>Swatch edits leave artwork untouched. Drag colors to reorder them.</p>
+          <div className="palette-studio__commands">
+            <button onClick={extractUsedColors} disabled={extractedPalette.length === 0}>
+              <Palette size={13} /> EXTRACT USED
+            </button>
+            <button onClick={() => onOpenReplace(selectedColor)}>
+              <Replace size={13} /> REPLACE PIXELS
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="color-editor">
-        <div className="color-field" aria-label="Saturation and brightness">
-          <span className="color-field__cursor" />
-        </div>
-        <div className="hue-strip" aria-label="Hue">
-          <span className="hue-strip__cursor" />
-        </div>
+        <button
+          className="color-field"
+          aria-label="Saturation and brightness"
+          style={{ backgroundColor: hsvToHex({ hue: hsv.hue, saturation: 100, value: 100 }) }}
+          onPointerDown={(event) => {
+            saturationDraggingRef.current = true;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            updateSaturationValue(event, false);
+          }}
+          onPointerMove={(event) => {
+            if (saturationDraggingRef.current) updateSaturationValue(event, false);
+          }}
+          onPointerUp={(event) => {
+            if (!saturationDraggingRef.current) return;
+            saturationDraggingRef.current = false;
+            updateSaturationValue(event, true);
+          }}
+        >
+          <span
+            className="color-field__cursor"
+            style={{ left: `${hsv.saturation}%`, top: `${100 - hsv.value}%` }}
+          />
+        </button>
+        <button
+          className="hue-strip"
+          aria-label="Hue strip"
+          onPointerDown={(event) => {
+            hueDraggingRef.current = true;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            updateHue(event, false);
+          }}
+          onPointerMove={(event) => {
+            if (hueDraggingRef.current) updateHue(event, false);
+          }}
+          onPointerUp={(event) => {
+            if (!hueDraggingRef.current) return;
+            hueDraggingRef.current = false;
+            updateHue(event, true);
+          }}
+        >
+          <span className="hue-strip__cursor" style={{ top: `${(hsv.hue / 359) * 100}%` }} />
+        </button>
 
         <div className="color-values">
-          <label>
-            <span>H</span>
-            <input readOnly value="186" aria-label="Hue" />
-          </label>
-          <label>
-            <span>S</span>
-            <input readOnly value="72" aria-label="Saturation" />
-          </label>
-          <label>
-            <span>B</span>
-            <input readOnly value="89" aria-label="Brightness" />
-          </label>
-          <label>
-            <span>R</span>
-            <input readOnly value={r} aria-label="Red" />
-          </label>
-          <label>
-            <span>G</span>
-            <input readOnly value={g} aria-label="Green" />
-          </label>
-          <label>
-            <span>B</span>
-            <input readOnly value={b} aria-label="Blue" />
-          </label>
+          <label><span>H</span><input type="number" min="0" max="359" value={hsv.hue} aria-label="Hue" onChange={(event) => onColorCommit(hsvToHex({ ...hsv, hue: clampChannel(Number(event.target.value), 359) }))} /></label>
+          <label><span>S</span><input type="number" min="0" max="100" value={hsv.saturation} aria-label="Saturation" onChange={(event) => onColorCommit(hsvToHex({ ...hsv, saturation: clampChannel(Number(event.target.value), 100) }))} /></label>
+          <label><span>V</span><input type="number" min="0" max="100" value={hsv.value} aria-label="Value" onChange={(event) => onColorCommit(hsvToHex({ ...hsv, value: clampChannel(Number(event.target.value), 100) }))} /></label>
+          <label><span>R</span><input type="number" min="0" max="255" value={rgb.red} aria-label="Red" onChange={(event) => onColorCommit(rgbToHex({ ...rgb, red: clampChannel(Number(event.target.value), 255) }))} /></label>
+          <label><span>G</span><input type="number" min="0" max="255" value={rgb.green} aria-label="Green" onChange={(event) => onColorCommit(rgbToHex({ ...rgb, green: clampChannel(Number(event.target.value), 255) }))} /></label>
+          <label><span>B</span><input type="number" min="0" max="255" value={rgb.blue} aria-label="Blue" onChange={(event) => onColorCommit(rgbToHex({ ...rgb, blue: clampChannel(Number(event.target.value), 255) }))} /></label>
         </div>
       </div>
 
       <div className="color-footer">
-        <div className="active-color-chip" style={{ backgroundColor: activeColor }} />
-        <button className="icon-button" aria-label="Swap foreground and background colors">
+        <div className="color-pair" aria-label="Foreground and background colors">
+          <label className="color-pair__background" style={{ backgroundColor }}>
+            <span className="sr-only">Choose background color</span>
+            <input type="color" value={backgroundColor} onChange={(event) => onBackgroundChange(event.target.value)} />
+          </label>
+          <label className="color-pair__foreground" style={{ backgroundColor: activeColor }}>
+            <span className="sr-only">Choose foreground color</span>
+            <input type="color" value={activeColor} onChange={(event) => onColorCommit(event.target.value)} />
+          </label>
+        </div>
+        <button className="icon-button" aria-label="Swap foreground and background colors" onClick={onSwapColors}>
           <RefreshCw size={14} />
         </button>
         <div className="hex-field">
           <span>#</span>
-          <input readOnly value={activeColor.slice(1).toUpperCase()} aria-label="Hex color" />
+          <input
+            value={hexDraft}
+            maxLength={6}
+            aria-label="Hex color"
+            spellCheck={false}
+            onChange={(event) => {
+              const value = event.target.value.toUpperCase();
+              setHexDraft(value);
+              const normalized = normalizeHexColor(value);
+              if (normalized) onColorChange(normalized);
+            }}
+            onBlur={commitHexDraft}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                commitHexDraft();
+                event.currentTarget.blur();
+              }
+            }}
+          />
           <button aria-label="Copy color value" onClick={() => navigator.clipboard?.writeText(activeColor)}>
             <Copy size={14} />
           </button>
         </div>
-        <button className="icon-button" aria-label="Pick color from canvas">
+        <button className="icon-button" aria-label="Pick color from canvas" onClick={onPickColor}>
           <Pipette size={15} />
         </button>
       </div>

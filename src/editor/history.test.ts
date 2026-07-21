@@ -28,6 +28,37 @@ function paint(history: EditorHistoryState, index: number, color = "#42c8e3") {
 }
 
 describe("editor history", () => {
+  it("undoes and redoes palette edits and scoped color replacement", () => {
+    const painted = paint(createInitialHistoryState(), 12);
+    const paletteEdited = reduce(painted, {
+      type: "history/apply",
+      action: { type: "palette/set", palette: ["#42c8e3", "#ff615d"] },
+    });
+    const recolored = reduce(paletteEdited, {
+      type: "history/apply",
+      action: {
+        type: "color/replace",
+        sourceColor: "#42c8e3",
+        targetColor: "#ff615d",
+        scope: "cel",
+        updatePaletteIndex: 0,
+      },
+    });
+    const replacementUndone = reduce(recolored, { type: "history/undo" });
+    const paletteUndone = reduce(replacementUndone, { type: "history/undo" });
+    const paletteRedone = reduce(paletteUndone, { type: "history/redo" });
+    const replacementRedone = reduce(paletteRedone, { type: "history/redo" });
+
+    expect(getCelPixels(recolored.present.state.document, "layer-details", "frame-3"))
+      .toEqual({ 12: "#ff615d" });
+    expect(replacementUndone.present.state.document.palette)
+      .toEqual(["#42c8e3", "#ff615d"]);
+    expect(paletteUndone.present.state.document.palette)
+      .toContain("#152034");
+    expect(replacementRedone.present.state.document.palette)
+      .toEqual(["#ff615d"]);
+  });
+
   it("undoes and redoes frame-local layer locks", () => {
     const initial = createInitialHistoryState();
     const locked = reduce(initial, {

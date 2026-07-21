@@ -1,5 +1,6 @@
-import { Minus, Plus } from "lucide-react";
+import { Layers3, Minus, Pipette, Plus } from "lucide-react";
 import { tools } from "../data/editor";
+import type { EyedropperSource } from "../editor/colorOperations";
 import type { PixelSelection, ShapeMode, ToolId } from "../types";
 import { PanelHeader } from "./PanelHeader";
 
@@ -7,12 +8,14 @@ interface ToolPanelProps {
   activeTool: ToolId;
   brushSize: number;
   clipboardAvailable: boolean;
+  eyedropperSource: EyedropperSource;
   opacity: number;
   pixelPerfect: boolean;
   selection: PixelSelection | null;
   shapeMode: ShapeMode;
   onToolChange: (tool: ToolId) => void;
   onBrushSizeChange: (size: number) => void;
+  onEyedropperSourceChange: (source: EyedropperSource) => void;
   onOpacityChange: (opacity: number) => void;
   onPixelPerfectChange: (enabled: boolean) => void;
   onShapeModeChange: (mode: ShapeMode) => void;
@@ -24,12 +27,14 @@ export function ToolPanel({
   activeTool,
   brushSize,
   clipboardAvailable,
+  eyedropperSource,
   opacity,
   pixelPerfect,
   selection,
   shapeMode,
   onToolChange,
   onBrushSizeChange,
+  onEyedropperSourceChange,
   onOpacityChange,
   onPixelPerfectChange,
   onShapeModeChange,
@@ -37,6 +42,7 @@ export function ToolPanel({
   const precisionTool = ["line", "rectangle", "ellipse"].includes(activeTool);
   const closedShape = activeTool === "rectangle" || activeTool === "ellipse";
   const selectionTool = activeTool === "select" || activeTool === "move";
+  const eyedropperTool = activeTool === "eyedropper";
 
   return (
     <aside className="tool-panel panel-surface">
@@ -86,6 +92,33 @@ export function ToolPanel({
             <span><kbd>ESC</kbd> Deselect</span>
           </div>
           <p>{clipboardAvailable ? "Clipboard ready for Paste." : "Copy and Paste stay inside JT Pixel."}</p>
+        </div>
+      ) : eyedropperTool ? (
+        <div className="eyedropper-guide" data-testid="eyedropper-guide">
+          <div className="mini-heading">SAMPLE SOURCE</div>
+          <div className="eyedropper-source" role="group" aria-label="Eyedropper sample source">
+            <button
+              className={eyedropperSource === "active-layer" ? "is-active" : ""}
+              aria-pressed={eyedropperSource === "active-layer"}
+              onClick={() => onEyedropperSourceChange("active-layer")}
+            >
+              <Layers3 size={15} />
+              <span><strong>Layer</strong><small>Current cel only</small></span>
+            </button>
+            <button
+              className={eyedropperSource === "visible-pixels" ? "is-active" : ""}
+              aria-pressed={eyedropperSource === "visible-pixels"}
+              onClick={() => onEyedropperSourceChange("visible-pixels")}
+            >
+              <Pipette size={15} />
+              <span><strong>Visible</strong><small>Composited paint</small></span>
+            </button>
+          </div>
+          <div className="eyedropper-guide__tip">
+            <kbd>ALT</kbd>
+            <span>Hold while using any drawing tool for a temporary color sample.</span>
+          </div>
+          <p>Click or drag across painted pixels. Transparent cells leave the current color unchanged.</p>
         </div>
       ) : (
         <div className="control-section">
@@ -149,7 +182,7 @@ export function ToolPanel({
         </div>
       )}
 
-      {selectionTool ? null : precisionTool ? (
+      {selectionTool || eyedropperTool ? null : precisionTool ? (
         <div className="precision-section" data-testid="precision-options">
           <div className="mini-heading">PRECISION</div>
           {closedShape ? (

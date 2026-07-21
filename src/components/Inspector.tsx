@@ -4,32 +4,61 @@ import { LayersPanel } from "./LayersPanel";
 
 interface InspectorProps {
   activeColor: string;
+  backgroundColor: string;
   activeFrameId: string;
   activeLayerId: string;
   document: ProjectDocument;
+  recentColors: string[];
   onAddLayer: () => void;
   onColorChange: (color: string) => void;
+  onColorCommit: (color: string) => void;
+  onBackgroundColorChange: (color: string) => void;
   onDeleteLayer: (layerId: string) => void;
   onLayerChange: (layerId: string) => void;
+  onOpenColorReplace: (sourceColor: string) => void;
+  onPaletteChange: (palette: string[]) => void;
+  onPickColor: () => void;
+  onSwapColors: () => void;
   onToggleLayerLock: (layerId: string) => void;
   onToggleLayerVisibility: (layerId: string) => void;
 }
 
 export function Inspector({
   activeColor,
+  backgroundColor,
   activeFrameId,
   activeLayerId,
   document,
+  recentColors,
   onAddLayer,
   onColorChange,
+  onColorCommit,
+  onBackgroundColorChange,
   onDeleteLayer,
   onLayerChange,
+  onOpenColorReplace,
+  onPaletteChange,
+  onPickColor,
+  onSwapColors,
   onToggleLayerLock,
   onToggleLayerVisibility,
 }: InspectorProps) {
   return (
     <aside className="inspector panel-surface" aria-label="Editor inspector">
-      <ColorPanel activeColor={activeColor} onColorChange={onColorChange} palette={document.palette} />
+      <ColorPanel
+        key={document.id}
+        activeColor={activeColor}
+        backgroundColor={backgroundColor}
+        document={document}
+        recentColors={recentColors}
+        onBackgroundChange={onBackgroundColorChange}
+        onColorChange={onColorChange}
+        onColorCommit={onColorCommit}
+        onOpenReplace={onOpenColorReplace}
+        onPaletteChange={onPaletteChange}
+        onPickColor={onPickColor}
+        onSwapColors={onSwapColors}
+      />
       <LayersPanel
         activeFrameId={activeFrameId}
         activeLayerId={activeLayerId}

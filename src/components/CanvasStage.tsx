@@ -6,8 +6,14 @@ import {
   floodFillPixelMap,
   forEachLinePoint,
   hexWithOpacity,
+  pixelIndex,
   renderPixelMap,
 } from "../editor/pixels";
+import {
+  pixelColorToOpaqueHex,
+  sampleVisiblePixelColor,
+  type EyedropperSource,
+} from "../editor/colorOperations";
 import { applyPrecisionShape, getPrecisionShapeEnd } from "../editor/precisionShapes";
 import {
   clampSelectionDelta,
@@ -61,6 +67,7 @@ interface CanvasStageProps {
   canvasView: CanvasViewPreferences;
   clipboard: SelectionClipboard | null;
   document: ProjectDocument;
+  eyedropperSource: EyedropperSource;
   isDirty: boolean;
   opacity: number;
   pixelPerfect: boolean;
@@ -70,6 +77,7 @@ interface CanvasStageProps {
   onClearActiveCel: () => void;
   onCanvasBackgroundChange: (background: CanvasBackground) => void;
   onCommitActiveCel: (pixels: PixelMap) => void;
+  onColorSample: (color: string) => void;
   onCopySelection: () => void;
   onCursorChange: (position: CursorPosition) => void;
   onCutSelection: () => void;
@@ -96,6 +104,7 @@ export function CanvasStage({
   canvasView,
   clipboard,
   document,
+  eyedropperSource,
   isDirty,
   opacity,
   pixelPerfect,
@@ -105,6 +114,7 @@ export function CanvasStage({
   onClearActiveCel,
   onCanvasBackgroundChange,
   onCommitActiveCel,
+  onColorSample,
   onCopySelection,
   onCursorChange,
   onCutSelection,
@@ -136,6 +146,7 @@ export function CanvasStage({
   const moveDeltaRef = useRef({ x: 0, y: 0 });
   const isSelectingRef = useRef(false);
   const isMovingSelectionRef = useRef(false);
+  const isSamplingRef = useRef(false);
   const activeLayer = document.layers.find((layer) => layer.id === activeLayerId);
   const activeFrame = document.frames.find((frame) => frame.id === activeFrameId) ?? document.frames[0];
   const activeFrameIndex = document.frames.findIndex((frame) => frame.id === activeFrameId);
@@ -159,7 +170,9 @@ export function CanvasStage({
   const canSelect = activeLayer?.kind === "pixel"
     && isLayerPresent(document, activeLayer.id, activeFrameId)
     && isLayerVisible(document, activeLayer.id, activeFrameId);
-  const interactionLocked = activeLayerLocked && activeTool !== "select";
+  const interactionLocked = activeLayerLocked
+    && activeTool !== "select"
+    && activeTool !== "eyedropper";
   const selectedPixelCount = selection
     ? countSelectedPixels(activePixels, selection, document.width)
     : 0;
@@ -291,9 +304,23 @@ export function CanvasStage({
     redrawDraft();
   }
 
+  function samplePixel(position: CursorPosition) {
+    const index = pixelIndex(position.x, position.y, document.width);
+    const color = eyedropperSource === "active-layer"
+      ? pixelColorToOpaqueHex(activePixels[index])
+      : sampleVisiblePixelColor(document, activeFrameId, index);
+    if (color) onColorSample(color);
+  }
+
   function handlePointerDown(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
     onCursorChange(position);
+    if (activeTool === "eyedropper" || event.altKey) {
+      isSamplingRef.current = true;
+      samplePixel(position);
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
     if (activeTool === "select") {
       if (!canSelect) return;
       selectionStartRef.current = position;
@@ -360,6 +387,10 @@ export function CanvasStage({
   function handlePointerMove(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
     onCursorChange(position);
+    if (isSamplingRef.current) {
+      samplePixel(position);
+      return;
+    }
     if (isSelectingRef.current) {
       const start = selectionStartRef.current;
       if (!start) return;
@@ -391,6 +422,11 @@ export function CanvasStage({
 
   function handlePointerUp(event: PointerEvent<HTMLCanvasElement>) {
     const position = eventToPixel(event);
+    if (isSamplingRef.current) {
+      samplePixel(position);
+      isSamplingRef.current = false;
+      return;
+    }
     if (isSelectingRef.current) {
       const start = selectionStartRef.current;
       if (start) {
@@ -452,6 +488,10 @@ export function CanvasStage({
   }
 
   function cancelPointerInteraction() {
+    if (isSamplingRef.current) {
+      isSamplingRef.current = false;
+      return;
+    }
     if (isSelectingRef.current) {
       isSelectingRef.current = false;
       selectionStartRef.current = null;
@@ -472,6 +512,10 @@ export function CanvasStage({
   }
 
   function handleLostPointerCapture() {
+    if (isSamplingRef.current) {
+      isSamplingRef.current = false;
+      return;
+    }
     if (isSelectingRef.current || isMovingSelectionRef.current) {
       cancelPointerInteraction();
       return;

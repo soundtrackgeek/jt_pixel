@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] - 2026-07-21
+
+### Added
+
+- Palette Studio with project color usage counts, Add, Update, Remove, drag and arrow reordering, and deterministic extraction of colors used by artwork.
+- Precise HSV, RGB, and hex color editing, foreground/background color roles, quick swap, and an eight-color recent history.
+- Eyedropper sampling from the active layer or composited visible painted layers, including click-and-drag sampling and temporary `Alt` sampling without leaving the current tool.
+- Scoped color replacement for the active selection, current cel, matching layer across frames, or entire project, with live affected pixel/cel counts and locked-artwork reporting.
+- Automated coverage for color conversion, palette extraction, visible compositing, scoped replacement, alpha preservation, lock protection, persistence actions, and Undo/Redo.
+
+### Changed
+
+- Save project palette edits in `.jtp` files and recovery snapshots, track them in dirty state, and include each palette operation in Undo/Redo history.
+- Apply a pixel replacement and its optional source-swatch update as one atomic document edit and one Undo step.
+- Bumped the application version to `0.10.0`.
+
 ## [0.9.1] - 2026-07-21
 
 ### Fixed

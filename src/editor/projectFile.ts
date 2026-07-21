@@ -1,5 +1,6 @@
 import {
   MAX_CANVAS_DIMENSION,
+  MAX_PALETTE_COLORS,
   MIN_CANVAS_DIMENSION,
   PROJECT_SCHEMA_VERSION,
   celKey,
@@ -16,7 +17,6 @@ export const RECOVERY_SCHEMA_VERSION = 1 as const;
 const MAX_PROJECT_FILE_CHARACTERS = 25_000_000;
 const MAX_FRAMES = 1_024;
 const MAX_LAYERS = 256;
-const MAX_PALETTE_COLORS = 256;
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i;
 const PIXEL_INDEX_PATTERN = /^\d+$/;
 

@@ -41,6 +41,8 @@ const TRACKED_ACTIONS = new Set<ProjectAction["type"]>([
   "frame/duplicate",
   "frame/delete",
   "animation/set-fps",
+  "palette/set",
+  "color/replace",
 ]);
 
 export function createInitialHistoryState(): EditorHistoryState {

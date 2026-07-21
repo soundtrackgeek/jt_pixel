@@ -1,6 +1,15 @@
+import {
+  normalizeHexColor,
+  normalizePaletteColors,
+  replaceDocumentColor,
+  type ColorReplacementScope,
+} from "./colorOperations";
+import type { SelectionBounds } from "../types";
+
 export const PROJECT_SCHEMA_VERSION = 1 as const;
 export const MIN_CANVAS_DIMENSION = 1;
 export const MAX_CANVAS_DIMENSION = 512;
+export const MAX_PALETTE_COLORS = 256;
 export const CANVAS_PRESETS = [16, 32, 64, 128] as const;
 
 export type PixelMap = Record<string, string>;
@@ -88,6 +97,15 @@ export type ProjectAction =
   | { type: "frame/duplicate"; frameId: string; duplicateId: string }
   | { type: "frame/delete"; frameId: string }
   | { type: "animation/set-fps"; fps: number }
+  | { type: "palette/set"; palette: string[] }
+  | {
+      type: "color/replace";
+      sourceColor: string;
+      targetColor: string;
+      scope: ColorReplacementScope;
+      bounds?: SelectionBounds;
+      updatePaletteIndex?: number;
+    }
   | { type: "document/replace"; document: ProjectDocument; dirty?: boolean }
   | { type: "document/mark-saved"; document?: ProjectDocument };
 
@@ -702,6 +720,46 @@ export function projectReducer(
         ...document,
         animation: { ...document.animation, fps },
       });
+    }
+
+    case "palette/set": {
+      const palette = normalizePaletteColors(action.palette, MAX_PALETTE_COLORS);
+      if (
+        palette.length === 0
+        || (palette.length === document.palette.length
+          && palette.every((color, index) => color === document.palette[index]))
+      ) return state;
+      return changed(state, { ...document, palette });
+    }
+
+    case "color/replace": {
+      const targetColor = normalizeHexColor(action.targetColor);
+      if (!targetColor) return state;
+      let nextDocument = replaceDocumentColor(
+        document,
+        action.sourceColor,
+        targetColor,
+        action.scope,
+        {
+          activeFrameId: state.activeFrameId,
+          activeLayerId: state.activeLayerId,
+          bounds: action.bounds,
+        },
+      );
+      if (
+        action.updatePaletteIndex !== undefined
+        && action.updatePaletteIndex >= 0
+        && action.updatePaletteIndex < document.palette.length
+      ) {
+        const palette = [...document.palette];
+        palette[action.updatePaletteIndex] = targetColor;
+        const normalized = normalizePaletteColors(palette, MAX_PALETTE_COLORS);
+        if (
+          normalized.length !== document.palette.length
+          || normalized.some((color, index) => color !== document.palette[index])
+        ) nextDocument = { ...nextDocument, palette: normalized };
+      }
+      return nextDocument === document ? state : changed(state, nextDocument);
     }
 
     case "document/replace":

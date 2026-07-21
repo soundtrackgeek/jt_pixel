@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.9.1` keeps marquee selections aligned with Undo and Redo while retaining the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.10.0` adds Palette Studio and a complete smart-color workflow while retaining marquee-aware Undo and Redo, the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -19,11 +19,14 @@ Version `0.9.1` keeps marquee selections aligned with Undo and Redo while retain
 - Drag or keyboard movement, Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect commands through a contextual Arcade Bloom toolbar
 - App-internal selection clipboard that can carry pixel regions across layers, frames, and projects without depending on the operating-system clipboard
 - Tool selection with visible state and keyboard shortcuts
-- Color palette, brush size, opacity, and pixel-perfect controls
+- Functional HSV, RGB, and hex color editing with foreground/background colors, quick swap, recent colors, palette usage counts, and right-click background assignment
+- Palette Studio controls for adding, updating, removing, reordering, and extracting project colors without silently changing artwork
+- Current-layer or visible-pixel eyedropper sampling with `I`, click-and-drag sampling, and temporary `Alt` sampling from any drawing tool
+- Scoped color replacement across the active selection, current cel, matching layer across frames, or the complete project, with live impact counts and locked-artwork protection
 - Functional frame-local layer creation, deletion, selection, visibility, locking, and instant selected-layer restoration, with permanently locked-reference safeguards and live thumbnails
 - Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
 - Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
-- Bounded 100-step Undo and Redo for complete drawing strokes, fills, selection transforms, cel clears, frame-local layer visibility and locks, structural layer operations, frame operations, and frame-rate changes, with one history step per completed transform or FPS slider drag
+- Bounded 100-step Undo and Redo for complete drawing strokes, fills, selection transforms, cel clears, palette edits, scoped color replacements, frame-local layer visibility and locks, structural layer operations, frame operations, and frame-rate changes, with one history step per completed transform or FPS slider drag
 - Toolbar history controls plus `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z` shortcuts, with Redo cleared after a branched edit
 - Native Open and Save dialogs for validated, human-readable `.jtp` project files
 - Saved workspace position so projects and recovered work reopen on the frame where you left them
@@ -103,6 +106,16 @@ Layer-row lock controls protect pixel artwork on the current frame. A locked lay
 Undo and Redo history is kept for the current editing session and is not serialized into `.jtp` files. Saving preserves the current history and establishes a clean checkpoint, so undoing back to that position returns the status to **SAVED**. Opening or restoring a different project starts a fresh history.
 
 History shortcuts remain active while non-text controls such as the FPS range have focus. Individual frame-rate `+` and `−` clicks remain separate Undo steps, while a complete mouse or touch drag on the FPS slider is grouped into one step.
+
+## Palette Studio and smart color
+
+Open **Palette Studio** from the Color panel menu to curate the project palette. Choose a swatch to use it as the foreground color, right-click it to assign the background color, or use the swap control beside the foreground/background pair. Colors can be entered precisely as HSV, RGB, or hex values, and the recent strip keeps the last eight foreground colors close at hand for the current session.
+
+Palette entries can be added, updated, removed, dragged or nudged into a new order, and regenerated from colors currently used by the project. Swatch maintenance never changes artwork by itself. Palette changes are saved in `.jtp` files and crash recovery, mark the project unsaved, and participate in Undo/Redo; recent and foreground/background color choices remain transient workspace state.
+
+Choose **Pick** (`I`) to sample continuously from the current layer or the composite of visible painted layers. Hold `Alt` while using another drawing tool for a temporary visible-pixel sample without switching tools. Visible sampling deliberately excludes the locked reference image, onion skin, grid, and workspace background.
+
+Choose **Replace pixels** in Palette Studio for a controlled recolor. The preview reports affected pixels and cels before applying the change, and the scope can be the active marquee, current cel, matching layer across all frames, or every editable pixel layer in the project. Locked layers and frames are always skipped. Updating the source palette swatch is optional, and the complete replacement—including that palette change—is one Undo/Redo step.
 
 ## Selections and transforms
 
@@ -202,6 +215,7 @@ The editor foundation supports single-key tool switching when a form control is 
 | `W` | Magic |
 | `T` | Text |
 | `I` | Eyedropper |
+| `Alt` + canvas click or drag | Temporarily sample visible painted pixels without changing tools |
 | `H` | Hand |
 | `G` | Toggle the pixel grid |
 | `Space` | Play or pause animation |

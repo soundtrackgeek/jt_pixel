@@ -11,6 +11,8 @@ import {
   type ProjectDocument,
   type ProjectLayer,
 } from "../editor/project";
+import type { ColorReplacementScope } from "../editor/colorOperations";
+import type { SelectionBounds } from "../types";
 
 export function useProjectDocument() {
   const [history, dispatch] = useReducer(
@@ -85,6 +87,17 @@ export function useProjectDocument() {
   );
   const deleteFrame = useCallback((frameId: string) => apply({ type: "frame/delete", frameId }), [apply]);
   const setFps = useCallback((fps: number) => apply({ type: "animation/set-fps", fps }), [apply]);
+  const setPalette = useCallback(
+    (palette: string[]) => apply({ type: "palette/set", palette }),
+    [apply],
+  );
+  const replaceColor = useCallback((options: {
+    bounds?: SelectionBounds;
+    scope: ColorReplacementScope;
+    sourceColor: string;
+    targetColor: string;
+    updatePaletteIndex?: number;
+  }) => apply({ type: "color/replace", ...options }), [apply]);
   const beginFpsChange = useCallback(
     () => dispatch({ type: "history/group-start", groupId: "animation-fps" }),
     [],
@@ -139,6 +152,8 @@ export function useProjectDocument() {
     duplicateFrame,
     deleteFrame,
     setFps,
+    setPalette,
+    replaceColor,
     beginFpsChange,
     endFpsChange,
     replaceDocument,

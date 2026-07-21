@@ -23,6 +23,34 @@ function paintedState(): EditorDocumentState {
 }
 
 describe("project document reducer", () => {
+  it("persists palette edits as document changes without altering artwork", () => {
+    const source = paintedState();
+    const palette = ["#000000", "#ffffff", "#42c8e3"];
+    const edited = projectReducer(source, { type: "palette/set", palette });
+
+    expect(edited.document.palette).toEqual(palette);
+    expect(getCelPixels(edited.document, "layer-details", "frame-3"))
+      .toEqual(getCelPixels(source.document, "layer-details", "frame-3"));
+    expect(edited.isDirty).toBe(true);
+  });
+
+  it("replaces color and its palette swatch in one document edit", () => {
+    const source = paintedState();
+    const paletteIndex = source.document.palette.indexOf("#42c8e3");
+    const replaced = projectReducer(source, {
+      type: "color/replace",
+      sourceColor: "#42c8e3",
+      targetColor: "#c9f53d",
+      scope: "cel",
+      updatePaletteIndex: paletteIndex,
+    });
+
+    expect(getCelPixels(replaced.document, "layer-details", "frame-3"))
+      .toEqual({ 12: "#c9f53d", 13: "#c9f53d" });
+    expect(replaced.document.palette[paletteIndex]).toBe("#c9f53d");
+    expect(replaced.revision).toBe(source.revision + 1);
+  });
+
   it("creates a clean custom blank project with one editable frame", () => {
     const document = createNewProjectDocument({
       template: "blank",
