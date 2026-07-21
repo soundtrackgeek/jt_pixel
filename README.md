@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.12.0` adds an advanced animation timeline with multi-frame editing, drag ordering, frame holds, selected-range playback, and duration-aware export while retaining the native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, marquee-aware Undo and Redo, the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.12.1` refines the advanced animation timeline with balanced control-rail spacing while retaining multi-frame editing, drag ordering, frame holds, selected-range playback, duration-aware export, the native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, marquee-aware Undo and Redo, the complete selection and transform workflow, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar

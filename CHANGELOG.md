@@ -4,6 +4,16 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.12.1] - 2026-07-21
+
+### Fixed
+
+- Constrain the timeline control rail's rows to their available width so the hold, transport, frame-rate, and batch-action controls retain an even right inset instead of overflowing into the panel border.
+
+### Changed
+
+- Bumped the application version to `0.12.1`.
+
 ## [0.12.0] - 2026-07-21
 
 ### Added

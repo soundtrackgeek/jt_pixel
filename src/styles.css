@@ -2547,6 +2547,10 @@ button.layer-lock:hover {
   background: rgb(7 18 29 / 58%);
 }
 
+.playback-panel > * {
+  min-width: 0;
+}
+
 .timeline-meta-row,
 .timeline-control-row {
   display: flex;
