@@ -50,6 +50,14 @@ export function useProjectDocument() {
     }),
     [apply, state.activeFrameId],
   );
+  const toggleLayerLock = useCallback(
+    (layerId: string) => apply({
+      type: "layer/toggle-lock",
+      layerId,
+      frameId: state.activeFrameId,
+    }),
+    [apply, state.activeFrameId],
+  );
   const addLayer = useCallback(() => {
     const layer: ProjectLayer = {
       id: createProjectId("layer"),
@@ -122,6 +130,7 @@ export function useProjectDocument() {
     canRedo: history.future.length > 0,
     selectLayer,
     toggleLayerVisibility,
+    toggleLayerLock,
     addLayer,
     deleteLayer,
     selectFrame,

@@ -263,6 +263,14 @@ export function validateProjectDocument(value: unknown): ProjectDocument {
     layerIds,
     frameIds,
   );
+  const frameLayerLocks = source.frameLayerLocks === undefined
+    ? {}
+    : parseBooleanRecord(
+        source.frameLayerLocks,
+        "frameLayerLocks",
+        pixelLayerIds,
+        frameIds,
+      );
 
   const animation = expectRecord(source.animation, "animation");
   if (!Array.isArray(source.palette) || source.palette.length === 0 || source.palette.length > MAX_PALETTE_COLORS) {
@@ -290,6 +298,7 @@ export function validateProjectDocument(value: unknown): ProjectDocument {
     ),
     frameLayerVisibility,
     frameLayerPresence,
+    frameLayerLocks,
     animation: {
       fps: expectInteger(animation.fps, "animation.fps", 1, 30),
       loop: expectBoolean(animation.loop, "animation.loop"),

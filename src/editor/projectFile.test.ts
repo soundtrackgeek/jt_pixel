@@ -25,6 +25,7 @@ function projectWithPixels() {
     pixels: { "12": "#42c8e3", "13": "#42c8e380" },
   };
   document.frameLayerVisibility[celKey("layer-color", "frame-4")] = false;
+  document.frameLayerLocks[celKey("layer-details", "frame-3")] = true;
   return document;
 }
 
@@ -57,6 +58,7 @@ describe("project files", () => {
       "12": "#42c8e3",
       "13": "#42c8e380",
     });
+    expect(parsed.frameLayerLocks[celKey("layer-details", "frame-3")]).toBe(true);
   });
 
   it("rejects incompatible schemas and unsafe pixel references", () => {
@@ -83,6 +85,10 @@ describe("project files", () => {
     expect(parseProjectDocument(JSON.stringify(legacy)).workspace.activeFrameId).toBe(
       "frame-1",
     );
+
+    const legacyLocks = projectWithPixels() as Partial<ReturnType<typeof projectWithPixels>>;
+    delete legacyLocks.frameLayerLocks;
+    expect(parseProjectDocument(JSON.stringify(legacyLocks)).frameLayerLocks).toEqual({});
 
     const invalidWorkspace = {
       ...projectWithPixels(),

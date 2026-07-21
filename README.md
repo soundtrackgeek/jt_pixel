@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.8.0` adds precision Line, Rectangle, and Ellipse drawing with live pixel previews, constrained geometry, and outline or filled shapes while retaining animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
+Version `0.8.1` adds frame-local pixel-layer locking while retaining precision Line, Rectangle, and Ellipse drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, dependable session history, persistent project files, crash recovery, saved workspace position, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -17,10 +17,10 @@ Version `0.8.0` adds precision Line, Rectangle, and Ellipse drawing with live pi
 - Live shape previews with brush-size and opacity support, outline or filled closed shapes, 45-degree Line snapping, square and circle constraints, and one Undo step per placement
 - Tool selection with visible state and keyboard shortcuts
 - Color palette, brush size, opacity, and pixel-perfect controls
-- Functional frame-local layer creation, deletion, selection, visibility, and instant selected-layer restoration, with locked-reference safeguards and live thumbnails
+- Functional frame-local layer creation, deletion, selection, visibility, locking, and instant selected-layer restoration, with permanently locked-reference safeguards and live thumbnails
 - Functional frame duplication and deletion with copied cel data, layer selection context, and live timeline previews
 - Animation playback, frame stepping, onion-skin control, adjustable frame rate, dynamic counts, and document dirty state
-- Bounded 100-step Undo and Redo for complete drawing strokes, fills, cel clears, frame-local layer operations, frame operations, and frame-rate changes, with one history step per FPS slider drag
+- Bounded 100-step Undo and Redo for complete drawing strokes, fills, cel clears, frame-local layer visibility and locks, structural layer operations, frame operations, and frame-rate changes, with one history step per FPS slider drag
 - Toolbar history controls plus `Ctrl+Z`, `Ctrl+Y`, and `Ctrl+Shift+Z` shortcuts, with Redo cleared after a branched edit
 - Native Open and Save dialogs for validated, human-readable `.jtp` project files
 - Saved workspace position so projects and recovered work reopen on the frame where you left them
@@ -94,6 +94,8 @@ JT Pixel desktop projects use the `.jtp` extension. Project files are readable J
 - If recovery data is found on launch, choose **Restore work** to open it as an unsaved copy or **Discard recovery** to remove it.
 
 Recovered work intentionally does not reuse its previous file path. Its next save opens the native Save dialog, preventing an automatic overwrite after a crash.
+
+Layer-row lock controls protect pixel artwork on the current frame. A locked layer remains visible and selectable, but Pencil, Eraser, Fill, precision shapes, and Clear cannot modify its cel until it is unlocked. Lock state is saved in `.jtp` files, crash recovery, and frame duplication; older project files open with pixel layers unlocked. The Courier Reference remains permanently locked. Lock and unlock changes participate in Undo/Redo and do not affect the same layer on other frames.
 
 Undo and Redo history is kept for the current editing session and is not serialized into `.jtp` files. Saving preserves the current history and establishes a clean checkpoint, so undoing back to that position returns the status to **SAVED**. Opening or restoring a different project starts a fresh history.
 

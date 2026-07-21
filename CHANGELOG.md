@@ -4,6 +4,20 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.8.1] - 2026-07-21
+
+### Added
+
+- Frame-local lock and unlock controls for pixel layers, with clear Arcade Bloom locked states in the layer list and canvas header.
+- Persisted layer locks in project files and crash recovery, including backward-compatible defaults for existing schema-v1 `.jtp` files.
+- Automated coverage for lock enforcement, frame isolation, frame duplication, layer cleanup, file round trips, and Undo/Redo.
+
+### Changed
+
+- Block Pencil, Eraser, Fill, precision shapes, and cel clearing while the active pixel layer is locked, with reducer-level protection against non-UI edits.
+- Keep the Courier Reference permanently locked while allowing ordinary pixel layers to be locked independently on each frame.
+- Bumped the application version to `0.8.1`.
+
 ## [0.8.0] - 2026-07-21
 
 ### Added

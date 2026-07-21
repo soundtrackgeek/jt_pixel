@@ -35,6 +35,7 @@ const TRACKED_ACTIONS = new Set<ProjectAction["type"]>([
   "cel/commit",
   "cel/clear",
   "layer/toggle-visibility",
+  "layer/toggle-lock",
   "layer/add",
   "layer/delete",
   "frame/duplicate",

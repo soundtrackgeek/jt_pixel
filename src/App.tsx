@@ -234,6 +234,7 @@ function App() {
           onColorChange={setActiveColor}
           onDeleteLayer={project.deleteLayer}
           onLayerChange={project.selectLayer}
+          onToggleLayerLock={project.toggleLayerLock}
           onToggleLayerVisibility={project.toggleLayerVisibility}
         />
         <Timeline

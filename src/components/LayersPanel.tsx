@@ -1,9 +1,10 @@
-import { Eye, EyeOff, GripVertical, Lock, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Plus, Trash2, Unlock } from "lucide-react";
 import { memo, useEffect, useRef } from "react";
 import courierScene from "../assets/courier-scene.png";
 import { renderPixelMap } from "../editor/pixels";
 import {
   getCelPixels,
+  isLayerLocked,
   isLayerPresent,
   isLayerVisible,
   type PixelMap,
@@ -63,6 +64,7 @@ interface LayersPanelProps {
   onAddLayer: () => void;
   onDeleteLayer: (layerId: string) => void;
   onLayerChange: (layerId: string) => void;
+  onToggleLock: (layerId: string) => void;
   onToggleVisibility: (layerId: string) => void;
 }
 
@@ -73,6 +75,7 @@ export function LayersPanel({
   onAddLayer,
   onDeleteLayer,
   onLayerChange,
+  onToggleLock,
   onToggleVisibility,
 }: LayersPanelProps) {
   const frameLayers = document.layers.filter(
@@ -88,10 +91,12 @@ export function LayersPanel({
       <div className="layer-list">
         {frameLayers.map((layer) => {
           const visible = isLayerVisible(document, layer.id, activeFrameId);
+          const locked = isLayerLocked(document, layer.id, activeFrameId);
           return (
             <div
               key={layer.id}
-              className={`layer-row ${activeLayerId === layer.id ? "is-active" : ""}`}
+              className={`layer-row ${activeLayerId === layer.id ? "is-active" : ""} ${locked ? "is-locked" : ""}`}
+              data-locked={locked}
               data-testid={`layer-${layer.id}`}
             >
               <button
@@ -124,7 +129,30 @@ export function LayersPanel({
                 </span>
               </button>
               <span className="layer-opacity">{layer.opacity}%</span>
-              {layer.locked ? <Lock className="layer-lock" size={14} /> : <GripVertical size={15} />}
+              {layer.kind === "pixel" ? (
+                <button
+                  className={`layer-lock ${locked ? "is-active" : ""}`}
+                  aria-label={`${locked ? "Unlock" : "Lock"} ${layer.name} on this frame`}
+                  aria-pressed={locked}
+                  title={`${locked ? "Unlock" : "Lock"} on this frame`}
+                  data-testid={`layer-lock-${layer.id}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleLock(layer.id);
+                  }}
+                >
+                  {locked ? <Lock size={14} /> : <Unlock size={14} />}
+                </button>
+              ) : (
+                <span
+                  className="layer-lock layer-lock--permanent is-active"
+                  aria-label={`${layer.name} is permanently locked`}
+                  role="img"
+                  title="Permanently locked reference"
+                >
+                  <Lock size={14} />
+                </span>
+              )}
             </div>
           );
         })}

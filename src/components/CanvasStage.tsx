@@ -11,6 +11,7 @@ import {
 import { applyPrecisionShape, getPrecisionShapeEnd } from "../editor/precisionShapes";
 import {
   getCelPixels,
+  isLayerLocked,
   isLayerPresent,
   isLayerVisible,
   type PixelMap,
@@ -88,6 +89,9 @@ export function CanvasStage({
   const activeLayer = document.layers.find((layer) => layer.id === activeLayerId);
   const activeFrame = document.frames.find((frame) => frame.id === activeFrameId) ?? document.frames[0];
   const activeFrameIndex = document.frames.findIndex((frame) => frame.id === activeFrameId);
+  const activeLayerLocked = activeLayer
+    ? isLayerLocked(document, activeLayer.id, activeFrameId)
+    : false;
   const referenceLayer = document.layers.find(
     (layer) => layer.kind === "reference" && isLayerPresent(document, layer.id, activeFrameId),
   );
@@ -99,7 +103,7 @@ export function CanvasStage({
   );
   const canPaint =
     activeLayer?.kind === "pixel" &&
-    !activeLayer.locked &&
+    !activeLayerLocked &&
     isLayerPresent(document, activeLayer.id, activeFrameId) &&
     isLayerVisible(document, activeLayer.id, activeFrameId);
 
@@ -278,7 +282,9 @@ export function CanvasStage({
         </div>
         <div className="canvas-stage__meta">
           <span>FRAME {Math.max(0, activeFrameIndex) + 1}</span>
-          <span>{pixelPerfect ? "PIXEL PERFECT" : "SMOOTH INPUT"}</span>
+          <span className={activeLayerLocked ? "canvas-stage__locked" : undefined}>
+            {activeLayerLocked ? "LAYER LOCKED" : pixelPerfect ? "PIXEL PERFECT" : "SMOOTH INPUT"}
+          </span>
         </div>
       </div>
 
@@ -320,10 +326,13 @@ export function CanvasStage({
           ))}
           <canvas
             ref={interactionCanvasRef}
-            className={`paint-layer paint-layer--${activeTool}`}
+            className={`paint-layer paint-layer--${activeTool} ${activeLayerLocked ? "paint-layer--locked" : ""}`}
             width={document.width}
             height={document.height}
-            aria-label={`Interactive ${document.width} by ${document.height} pixel canvas`}
+            aria-label={activeLayerLocked
+              ? `${activeLayer?.name ?? "Active layer"} is locked on this frame`
+              : `Interactive ${document.width} by ${document.height} pixel canvas`}
+            data-layer-locked={activeLayerLocked}
             data-testid="paint-canvas"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}

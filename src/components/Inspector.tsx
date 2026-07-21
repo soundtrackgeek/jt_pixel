@@ -11,6 +11,7 @@ interface InspectorProps {
   onColorChange: (color: string) => void;
   onDeleteLayer: (layerId: string) => void;
   onLayerChange: (layerId: string) => void;
+  onToggleLayerLock: (layerId: string) => void;
   onToggleLayerVisibility: (layerId: string) => void;
 }
 
@@ -23,6 +24,7 @@ export function Inspector({
   onColorChange,
   onDeleteLayer,
   onLayerChange,
+  onToggleLayerLock,
   onToggleLayerVisibility,
 }: InspectorProps) {
   return (
@@ -35,6 +37,7 @@ export function Inspector({
         onAddLayer={onAddLayer}
         onDeleteLayer={onDeleteLayer}
         onLayerChange={onLayerChange}
+        onToggleLock={onToggleLayerLock}
         onToggleVisibility={onToggleLayerVisibility}
       />
     </aside>

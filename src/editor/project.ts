@@ -40,6 +40,7 @@ export interface ProjectDocument {
   cels: Record<string, PixelCel>;
   frameLayerVisibility: Record<string, boolean>;
   frameLayerPresence: Record<string, boolean>;
+  frameLayerLocks: Record<string, boolean>;
   animation: {
     fps: number;
     loop: boolean;
@@ -79,6 +80,7 @@ export type ProjectAction =
   | { type: "cel/clear"; layerId: string; frameId: string }
   | { type: "layer/select"; layerId: string }
   | { type: "layer/toggle-visibility"; layerId: string; frameId: string }
+  | { type: "layer/toggle-lock"; layerId: string; frameId: string }
   | { type: "layer/add"; layer: ProjectLayer; frameId: string }
   | { type: "layer/delete"; layerId: string; frameId: string }
   | { type: "frame/select"; frameId: string }
@@ -168,6 +170,16 @@ export function isLayerPresent(
   return document.frameLayerPresence[celKey(layerId, frameId)] ?? true;
 }
 
+export function isLayerLocked(
+  document: ProjectDocument,
+  layerId: string,
+  frameId: string,
+) {
+  const layer = document.layers.find((candidate) => candidate.id === layerId);
+  return layer?.locked === true
+    || (layer?.kind === "pixel" && (document.frameLayerLocks[celKey(layerId, frameId)] ?? false));
+}
+
 export function getCelPixels(
   document: ProjectDocument,
   layerId: string,
@@ -198,6 +210,7 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
     cels: {},
     frameLayerVisibility: {},
     frameLayerPresence: {},
+    frameLayerLocks: {},
     animation: { fps: 8, loop: true },
     workspace: { activeFrameId: "frame-3" },
     createdAt: now,
@@ -250,6 +263,7 @@ export function createNewProjectDocument(options: NewProjectOptions): ProjectDoc
     cels: {},
     frameLayerVisibility: {},
     frameLayerPresence: {},
+    frameLayerLocks: {},
     animation: { fps: 8, loop: true },
     workspace: { activeFrameId: "frame-1" },
     createdAt: now,
@@ -297,9 +311,13 @@ function changed(state: EditorDocumentState, document: ProjectDocument): EditorD
   };
 }
 
-function isEditablePixelLayer(document: ProjectDocument, layerId: string) {
+function isEditablePixelLayer(
+  document: ProjectDocument,
+  layerId: string,
+  frameId: string,
+) {
   const layer = document.layers.find((candidate) => candidate.id === layerId);
-  return layer?.kind === "pixel" && !layer.locked;
+  return layer?.kind === "pixel" && !isLayerLocked(document, layerId, frameId);
 }
 
 function layerForFrame(
@@ -326,7 +344,7 @@ export function projectReducer(
   switch (action.type) {
     case "cel/commit": {
       if (
-        !isEditablePixelLayer(document, action.layerId) ||
+        !isEditablePixelLayer(document, action.layerId, action.frameId) ||
         !document.frames.some((frame) => frame.id === action.frameId) ||
         !isLayerPresent(document, action.layerId, action.frameId)
       ) return state;
@@ -347,7 +365,7 @@ export function projectReducer(
 
     case "cel/clear": {
       if (
-        !isEditablePixelLayer(document, action.layerId) ||
+        !isEditablePixelLayer(document, action.layerId, action.frameId) ||
         !isLayerPresent(document, action.layerId, action.frameId)
       ) return state;
       const key = celKey(action.layerId, action.frameId);
@@ -383,6 +401,25 @@ export function projectReducer(
         frameLayerVisibility: {
           ...document.frameLayerVisibility,
           [key]: !isLayerVisible(document, action.layerId, action.frameId),
+        },
+      });
+    }
+
+    case "layer/toggle-lock": {
+      const layer = document.layers.find((candidate) => candidate.id === action.layerId);
+      if (
+        !layer
+        || layer.kind !== "pixel"
+        || layer.locked
+        || !document.frames.some((frame) => frame.id === action.frameId)
+        || !isLayerPresent(document, action.layerId, action.frameId)
+      ) return state;
+      const key = celKey(action.layerId, action.frameId);
+      return changed(state, {
+        ...document,
+        frameLayerLocks: {
+          ...document.frameLayerLocks,
+          [key]: !isLayerLocked(document, action.layerId, action.frameId),
         },
       });
     }
@@ -427,8 +464,10 @@ export function projectReducer(
       const cels = { ...document.cels };
       const frameLayerVisibility = { ...document.frameLayerVisibility };
       const frameLayerPresence = { ...document.frameLayerPresence, [key]: false };
+      const frameLayerLocks = { ...document.frameLayerLocks };
       delete cels[key];
       delete frameLayerVisibility[key];
+      delete frameLayerLocks[key];
 
       const presentOnAnotherFrame = document.frames.some(
         (frame) =>
@@ -447,9 +486,19 @@ export function projectReducer(
         for (const storedKey of Object.keys(frameLayerPresence)) {
           if (storedKey.startsWith(`${action.layerId}::`)) delete frameLayerPresence[storedKey];
         }
+        for (const storedKey of Object.keys(frameLayerLocks)) {
+          if (storedKey.startsWith(`${action.layerId}::`)) delete frameLayerLocks[storedKey];
+        }
       }
 
-      const nextDocument = { ...document, layers, cels, frameLayerVisibility, frameLayerPresence };
+      const nextDocument = {
+        ...document,
+        layers,
+        cels,
+        frameLayerVisibility,
+        frameLayerPresence,
+        frameLayerLocks,
+      };
       const next = changed(state, nextDocument);
       const rememberedLayerId = state.frameLayerSelection[action.frameId]
         ?? (state.activeFrameId === action.frameId ? state.activeLayerId : "");
@@ -520,6 +569,7 @@ export function projectReducer(
       const cels = { ...document.cels };
       const frameLayerVisibility = { ...document.frameLayerVisibility };
       const frameLayerPresence = { ...document.frameLayerPresence };
+      const frameLayerLocks = { ...document.frameLayerLocks };
       for (const layer of document.layers) {
         frameLayerPresence[celKey(layer.id, duplicate.id)] =
           isLayerPresent(document, layer.id, source.id);
@@ -536,6 +586,10 @@ export function projectReducer(
           frameLayerVisibility[celKey(layer.id, duplicate.id)] =
             document.frameLayerVisibility[visibilityKey];
         }
+        if (Object.hasOwn(document.frameLayerLocks, visibilityKey)) {
+          frameLayerLocks[celKey(layer.id, duplicate.id)] =
+            document.frameLayerLocks[visibilityKey];
+        }
       }
       const nextDocument = {
         ...document,
@@ -543,6 +597,7 @@ export function projectReducer(
         cels,
         frameLayerVisibility,
         frameLayerPresence,
+        frameLayerLocks,
       };
       const sourceLayerId = source.id === state.activeFrameId
         ? state.activeLayerId
@@ -577,6 +632,11 @@ export function projectReducer(
           ([key]) => !key.endsWith(`::${action.frameId}`),
         ),
       );
+      const frameLayerLocks = Object.fromEntries(
+        Object.entries(document.frameLayerLocks).filter(
+          ([key]) => !key.endsWith(`::${action.frameId}`),
+        ),
+      );
       const layers = document.layers.filter(
         (layer) =>
           layer.locked ||
@@ -598,6 +658,11 @@ export function projectReducer(
           retainedLayerIds.has(key.slice(0, key.indexOf("::"))),
         ),
       );
+      const retainedLocks = Object.fromEntries(
+        Object.entries(frameLayerLocks).filter(([key]) =>
+          retainedLayerIds.has(key.slice(0, key.indexOf("::"))),
+        ),
+      );
       const nextDocument = {
         ...document,
         layers,
@@ -605,6 +670,7 @@ export function projectReducer(
         cels: retainedCels,
         frameLayerVisibility: retainedVisibility,
         frameLayerPresence: retainedPresence,
+        frameLayerLocks: retainedLocks,
       };
       const next = changed(state, nextDocument);
       const activeFrameId = state.activeFrameId === action.frameId

@@ -6,7 +6,7 @@ import {
   type EditorHistoryAction,
   type EditorHistoryState,
 } from "./history";
-import { celKey, getCelPixels } from "./project";
+import { celKey, getCelPixels, isLayerLocked } from "./project";
 
 function reduce(
   history: EditorHistoryState,
@@ -28,6 +28,25 @@ function paint(history: EditorHistoryState, index: number, color = "#42c8e3") {
 }
 
 describe("editor history", () => {
+  it("undoes and redoes frame-local layer locks", () => {
+    const initial = createInitialHistoryState();
+    const locked = reduce(initial, {
+      type: "history/apply",
+      action: {
+        type: "layer/toggle-lock",
+        layerId: "layer-details",
+        frameId: "frame-3",
+      },
+    });
+    const undone = reduce(locked, { type: "history/undo" });
+    const redone = reduce(undone, { type: "history/redo" });
+
+    expect(isLayerLocked(locked.present.state.document, "layer-details", "frame-3")).toBe(true);
+    expect(isLayerLocked(locked.present.state.document, "layer-details", "frame-4")).toBe(false);
+    expect(isLayerLocked(undone.present.state.document, "layer-details", "frame-3")).toBe(false);
+    expect(isLayerLocked(redone.present.state.document, "layer-details", "frame-3")).toBe(true);
+  });
+
   it("undoes and redoes one completed cel commit", () => {
     const initial = createInitialHistoryState();
     const painted = paint(initial, 12);

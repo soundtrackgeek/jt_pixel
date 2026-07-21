@@ -5,6 +5,7 @@ import {
   createInitialEditorState,
   createNewProjectDocument,
   getCelPixels,
+  isLayerLocked,
   isLayerPresent,
   isLayerVisible,
   projectReducer,
@@ -147,8 +148,13 @@ describe("project document reducer", () => {
   });
 
   it("duplicates a frame and deep-copies its cels", () => {
-    const source = projectReducer(paintedState(), {
+    const hidden = projectReducer(paintedState(), {
       type: "layer/toggle-visibility",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
+    const source = projectReducer(hidden, {
+      type: "layer/toggle-lock",
       layerId: "layer-details",
       frameId: "frame-3",
     });
@@ -167,6 +173,40 @@ describe("project document reducer", () => {
       getCelPixels(source.document, "layer-details", "frame-3"),
     );
     expect(isLayerVisible(duplicated.document, "layer-details", "frame-copy")).toBe(false);
+    expect(isLayerLocked(duplicated.document, "layer-details", "frame-copy")).toBe(true);
+  });
+
+  it("locks painting only on the requested frame and unlocks without changing pixels", () => {
+    const source = paintedState();
+    const locked = projectReducer(source, {
+      type: "layer/toggle-lock",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
+
+    expect(isLayerLocked(locked.document, "layer-details", "frame-3")).toBe(true);
+    expect(isLayerLocked(locked.document, "layer-details", "frame-4")).toBe(false);
+    expect(isLayerLocked(locked.document, "layer-reference", "frame-4")).toBe(true);
+    expect(projectReducer(locked, {
+      type: "cel/commit",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      pixels: { "24": "#ff615d" },
+    })).toBe(locked);
+    expect(projectReducer(locked, {
+      type: "cel/clear",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    })).toBe(locked);
+
+    const unlocked = projectReducer(locked, {
+      type: "layer/toggle-lock",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
+    expect(isLayerLocked(unlocked.document, "layer-details", "frame-3")).toBe(false);
+    expect(getCelPixels(unlocked.document, "layer-details", "frame-3"))
+      .toEqual(getCelPixels(source.document, "layer-details", "frame-3"));
   });
 
   it("deletes a layer only from the requested frame and protects the reference", () => {
@@ -176,8 +216,13 @@ describe("project document reducer", () => {
       frameId: "frame-4",
       pixels: { "24": "#ff615d" },
     });
-    const source = projectReducer(secondFramePainted, {
+    const hidden = projectReducer(secondFramePainted, {
       type: "layer/toggle-visibility",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
+    const source = projectReducer(hidden, {
+      type: "layer/toggle-lock",
       layerId: "layer-details",
       frameId: "frame-3",
     });
@@ -201,6 +246,7 @@ describe("project document reducer", () => {
       "24": "#ff615d",
     });
     expect(deleted.document.frameLayerVisibility[celKey("layer-details", "frame-3")]).toBeUndefined();
+    expect(deleted.document.frameLayerLocks[celKey("layer-details", "frame-3")]).toBeUndefined();
     expect(deleted.activeLayerId).not.toBe("layer-details");
     expect(deleted.frameLayerSelection["frame-3"]).toBe(deleted.activeLayerId);
     expect(deleted.frameLayerSelection["frame-4"]).toBe("layer-details");
