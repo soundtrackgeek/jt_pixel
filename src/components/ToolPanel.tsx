@@ -1,6 +1,9 @@
-import { Layers3, Minus, MonitorUp, Pipette, Plus } from "lucide-react";
+import { Hand, Layers3, Minus, MonitorUp, MousePointer2, Pipette, Plus, ScanSearch } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { tools } from "../data/editor";
 import type { EyedropperSource } from "../editor/colorOperations";
+import type { MagicSelectionSettings } from "../editor/magicSelection";
+import { countSelectionCells } from "../editor/selectionRegion";
 import type { PixelSelection, ShapeMode, ToolId } from "../types";
 import { PanelHeader } from "./PanelHeader";
 
@@ -9,6 +12,7 @@ interface ToolPanelProps {
   brushSize: number;
   clipboardAvailable: boolean;
   eyedropperSource: EyedropperSource;
+  magicSettings: MagicSelectionSettings;
   opacity: number;
   pixelPerfect: boolean;
   screenPickerAvailable: boolean;
@@ -18,6 +22,7 @@ interface ToolPanelProps {
   onToolChange: (tool: ToolId) => void;
   onBrushSizeChange: (size: number) => void;
   onEyedropperSourceChange: (source: EyedropperSource) => void;
+  onMagicSettingsChange: (settings: Partial<MagicSelectionSettings>) => void;
   onOpacityChange: (opacity: number) => void;
   onPixelPerfectChange: (enabled: boolean) => void;
   onPickScreenColor: () => void;
@@ -31,6 +36,7 @@ export function ToolPanel({
   brushSize,
   clipboardAvailable,
   eyedropperSource,
+  magicSettings,
   opacity,
   pixelPerfect,
   screenPickerAvailable,
@@ -40,6 +46,7 @@ export function ToolPanel({
   onToolChange,
   onBrushSizeChange,
   onEyedropperSourceChange,
+  onMagicSettingsChange,
   onOpacityChange,
   onPixelPerfectChange,
   onPickScreenColor,
@@ -49,6 +56,14 @@ export function ToolPanel({
   const closedShape = activeTool === "rectangle" || activeTool === "ellipse";
   const selectionTool = activeTool === "select" || activeTool === "move";
   const eyedropperTool = activeTool === "eyedropper";
+  const magicTool = activeTool === "magic";
+  const handTool = activeTool === "hand";
+  const guidedTool = selectionTool || eyedropperTool || magicTool || handTool;
+  const activeGuideRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (magicTool || handTool) activeGuideRef.current?.scrollIntoView({ block: "nearest" });
+  }, [handTool, magicTool]);
 
   return (
     <aside className="tool-panel panel-surface">
@@ -98,6 +113,70 @@ export function ToolPanel({
             <span><kbd>ESC</kbd> Deselect</span>
           </div>
           <p>{clipboardAvailable ? "Clipboard ready for Paste." : "Copy and Paste stay inside JT Pixel."}</p>
+        </div>
+      ) : magicTool ? (
+        <div ref={activeGuideRef} className="magic-selection-guide" data-testid="magic-selection-guide">
+          <div className="mini-heading">MAGIC SELECT</div>
+          <div className="magic-selection-summary">
+            <span className="magic-selection-summary__icon"><ScanSearch size={16} /></span>
+            <span>
+              <strong>{selection ? `${countSelectionCells(selection).toLocaleString()} PIXELS` : "HOVER TO PREVIEW"}</strong>
+              <small>{selection ? `${selection.width} × ${selection.height} bounds` : "Click a color region to select it"}</small>
+            </span>
+          </div>
+
+          <div className="magic-setting">
+            <span className="magic-setting__label">SAMPLE</span>
+            <div className="magic-segment" role="group" aria-label="Magic selection sample source">
+              <button className={magicSettings.source === "active-layer" ? "is-active" : ""} aria-pressed={magicSettings.source === "active-layer"} onClick={() => onMagicSettingsChange({ source: "active-layer" })}><Layers3 size={13} /> LAYER</button>
+              <button className={magicSettings.source === "visible-pixels" ? "is-active" : ""} aria-pressed={magicSettings.source === "visible-pixels"} onClick={() => onMagicSettingsChange({ source: "visible-pixels" })}><Pipette size={13} /> VISIBLE</button>
+            </div>
+          </div>
+
+          <div className="magic-setting">
+            <span className="magic-setting__label">MATCH</span>
+            <div className="magic-segment" role="group" aria-label="Magic selection match mode">
+              <button className={magicSettings.match === "contiguous" ? "is-active" : ""} aria-pressed={magicSettings.match === "contiguous"} onClick={() => onMagicSettingsChange({ match: "contiguous" })}>ISLAND</button>
+              <button className={magicSettings.match === "global" ? "is-active" : ""} aria-pressed={magicSettings.match === "global"} onClick={() => onMagicSettingsChange({ match: "global" })}>ALL MATCHES</button>
+            </div>
+          </div>
+
+          <div className="magic-setting">
+            <span className="magic-setting__label">COMBINE</span>
+            <div className="magic-combine" role="group" aria-label="Magic selection combine mode">
+              {(["replace", "add", "subtract"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  className={magicSettings.combineMode === mode ? "is-active" : ""}
+                  aria-pressed={magicSettings.combineMode === mode}
+                  onClick={() => onMagicSettingsChange({ combineMode: mode })}
+                >
+                  {mode === "replace" ? "NEW" : mode === "add" ? "+ ADD" : "− CUT"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="magic-tolerance">
+            <div><label htmlFor="magic-tolerance">TOLERANCE</label><output>{magicSettings.tolerance}</output></div>
+            <input id="magic-tolerance" className="range-control" type="range" min="0" max="255" value={magicSettings.tolerance} onInput={(event) => onMagicSettingsChange({ tolerance: Number(event.currentTarget.value) })} />
+          </div>
+          <p>Transparent pixels can be selected. Locked artwork stays protected.</p>
+        </div>
+      ) : handTool ? (
+        <div ref={activeGuideRef} className="hand-guide" data-testid="hand-guide">
+          <div className="mini-heading">NAVIGATE</div>
+          <div className="hand-guide__hero">
+            <span><Hand size={21} /></span>
+            <div><strong>MOVE THE VIEW</strong><small>Artwork stays pixel-perfect</small></div>
+          </div>
+          <div className="hand-guide__shortcuts">
+            <span><kbd>DRAG</kbd><small>Pan with the Hand tool</small></span>
+            <span><kbd>SPACE</kbd><small>Temporary Hand from any tool</small></span>
+            <span><MousePointer2 size={14} /><small>Middle-drag to pan</small></span>
+            <span><kbd>WHEEL</kbd><small>Zoom toward the pointer</small></span>
+          </div>
+          <p>Viewport position is temporary and never changes the project.</p>
         </div>
       ) : eyedropperTool ? (
         <div className="eyedropper-guide" data-testid="eyedropper-guide">
@@ -203,7 +282,7 @@ export function ToolPanel({
         </div>
       )}
 
-      {selectionTool || eyedropperTool ? null : precisionTool ? (
+      {guidedTool ? null : precisionTool ? (
         <div className="precision-section" data-testid="precision-options">
           <div className="mini-heading">PRECISION</div>
           {closedShape ? (

@@ -56,6 +56,27 @@ describe("tile editing", () => {
     expect(selectedPixels).toEqual(standardPixels);
   });
 
+  it("clips tile brushes to exact irregular selection cells", () => {
+    const pixels: PixelMap = {};
+    applyTileBrush(
+      pixels,
+      { x: 1, y: 1 },
+      3,
+      3,
+      3,
+      "#ad62ff",
+      seamless,
+      {
+        x: 0,
+        y: 0,
+        width: 3,
+        height: 3,
+        mask: { 0: true, 4: true, 8: true },
+      },
+    );
+    expect(pixels).toEqual({ 0: "#ad62ff", 4: "#ad62ff", 8: "#ad62ff" });
+  });
+
   it("deduplicates horizontal, vertical, and quad symmetry on odd dimensions", () => {
     expect(tileSymmetryPositions({ x: 1, y: 1 }, 5, 5, "quad"))
       .toEqual([

@@ -96,6 +96,28 @@ describe("color operations", () => {
     expect(replaced.cels[celKey("layer-details", "frame-3")].pixels[1]).toBe("#42c8e3");
   });
 
+  it("limits replacement to exact cells in an irregular selection", () => {
+    const replaced = replaceDocumentColor(
+      colorDocument(),
+      "#42c8e3",
+      "#c9f53d",
+      "selection",
+      {
+        activeFrameId: "frame-3",
+        activeLayerId: "layer-details",
+        bounds: {
+          x: 0,
+          y: 0,
+          width: 2,
+          height: 1,
+          mask: { 1: true },
+        },
+      },
+    );
+    expect(replaced.cels[celKey("layer-details", "frame-3")].pixels[0]).toBe("#42c8e380");
+    expect(replaced.cels[celKey("layer-details", "frame-3")].pixels[1]).toBe("#c9f53d");
+  });
+
   it("extracts project colors by usage frequency", () => {
     expect(extractPaletteFromDocument(colorDocument()).slice(0, 2))
       .toEqual(["#42c8e3", "#ff615d"]);

@@ -33,6 +33,8 @@ export interface SelectionBounds {
   y: number;
   width: number;
   height: number;
+  /** Relative cell indices for an irregular selection. Omitted for a full rectangle. */
+  mask?: Record<string, true>;
 }
 
 export interface PixelSelection extends SelectionBounds {

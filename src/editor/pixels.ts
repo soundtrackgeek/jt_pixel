@@ -1,5 +1,6 @@
 import type { CursorPosition, SelectionBounds } from "../types";
 import type { PixelMap } from "./project";
+import { isPositionInSelection } from "./selectionRegion";
 
 export function pixelIndex(x: number, y: number, width: number) {
   return String(y * width + x);
@@ -48,12 +49,14 @@ export function applySquareBrush(
   width: number,
   height: number,
   color: string | null,
+  bounds?: SelectionBounds,
 ) {
   let changed = false;
   const offset = Math.floor(size / 2);
   for (let y = position.y - offset; y < position.y - offset + size; y += 1) {
     for (let x = position.x - offset; x < position.x - offset + size; x += 1) {
       if (x < 0 || y < 0 || x >= width || y >= height) continue;
+      if (bounds && !isPositionInSelection({ x, y }, bounds)) continue;
       const index = pixelIndex(x, y, width);
       if (color === null) {
         if (!(index in pixels)) continue;
@@ -76,25 +79,21 @@ export function floodFillPixelMap(
   color: string,
   bounds?: SelectionBounds,
 ) {
-  if (
-    bounds
-    && (
-      start.x < bounds.x
-      || start.x >= bounds.x + bounds.width
-      || start.y < bounds.y
-      || start.y >= bounds.y + bounds.height
-    )
-  ) return false;
+  if (bounds && !isPositionInSelection(start, bounds)) return false;
   const startIndex = pixelIndex(start.x, start.y, width);
   const targetColor = pixels[startIndex] ?? null;
   if (targetColor === color) return false;
 
   const pending: CursorPosition[] = [start];
+  const visited = new Set<string>();
   while (pending.length > 0) {
     const position = pending.pop();
     if (!position) break;
 
     const index = pixelIndex(position.x, position.y, width);
+    if (visited.has(index)) continue;
+    visited.add(index);
+    if (bounds && !isPositionInSelection(position, bounds)) continue;
     if ((pixels[index] ?? null) !== targetColor) continue;
     pixels[index] = color;
 

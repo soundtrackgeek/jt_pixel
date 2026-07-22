@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.15.1` makes Advanced Layer Studio ordering dependable in the desktop WebView with pointer-based grip dragging and clear insertion feedback, while retaining frame-local naming, opacity, six blend modes, duplication, Merge Down, Flatten Visible, large-image PNG fitting, sprite-sheet slicing, palette policies, anchored canvas resizing, atomic Undo/Redo, seamless tile and symmetry editing, the advanced animation timeline, native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, crash recovery, and the signed desktop update channel:
+Version `0.16.0` adds mask-accurate Magic selection and fluid, pixel-perfect canvas navigation, while retaining Advanced Layer Studio, large-image PNG fitting, sprite-sheet slicing, palette policies, anchored canvas resizing, atomic Undo/Redo, seamless tile and symmetry editing, the advanced animation timeline, native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, crash recovery, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -20,6 +20,8 @@ Version `0.15.1` makes Advanced Layer Studio ordering dependable in the desktop 
 - Project-wide Canvas Operations with nine-point anchored resizing, transparent or background-color expansion, nearest-neighbor scaling, aspect locking, before/after previews, clipping warnings, and one-step Undo/Redo
 - Live shape previews with brush-size and opacity support, outline or filled closed shapes, 45-degree Line snapping, square and circle constraints, and one Undo step per placement
 - Pixel-snapped rectangular selections with drag creation, Select All, live size/origin feedback, and selection-masked Pencil, Eraser, Fill, precision shapes, and Clear behavior
+- Hover-previewed Magic selection with current-layer or visible-pixel sampling, contiguous or global matching, adjustable RGBA tolerance, and New, Add, or Cut combination modes
+- Exact irregular selection masks across drawing, Fill, Clear, color replacement, movement, clipboard commands, flips, rotation, and Undo/Redo
 - Drag or keyboard movement, Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect commands through a contextual Arcade Bloom toolbar
 - App-internal selection clipboard that can carry pixel regions across layers, frames, and projects without depending on the operating-system clipboard
 - Tool selection with visible state and keyboard shortcuts
@@ -49,6 +51,7 @@ Version `0.15.1` makes Advanced Layer Studio ordering dependable in the desktop 
 - Deterministic export compositing from visible pixel layers only; reference layers, onion skin, workspace backgrounds, and pixel grids are always excluded
 - Responsive worker-based GIF encoding with exact palettes where possible, automatic 256-color quantization when needed, and memory-safe animation limits
 - Artboards that preserve portrait, landscape, and square canvas proportions
+- A dedicated Hand tool, hold-Space temporary panning, middle-mouse panning, pointer-centered wheel zoom, true 100% pixel scale, and responsive Fit behavior from 25% through 6400%
 - Generated Arcade Bloom courier artwork and cross-platform application icons
 - Compact layout for smaller windows
 - Automatic update checks after launch and every five minutes by default
@@ -148,7 +151,9 @@ Choose **Replace pixels** in Palette Studio for a controlled recolor. The previe
 
 ## Selections and transforms
 
-Choose **Select** (`S`) and drag across an editable, visible pixel layer to create an inclusive rectangular marquee. The Draw panel and status bar report its exact size and origin. Choose **Move** (`M`) and drag inside the marquee, use the arrow keys for one-pixel nudges, or hold `Shift` with an arrow key for eight-pixel nudges. Selections always remain fully inside the canvas.
+Choose **Select** (`S`) and drag across an editable, visible pixel layer to create an inclusive rectangular marquee. Choose **Magic** (`W`) and hover over the artboard to preview a color-based selection before committing it. Magic can sample the active layer or the composited visible pixel layers, match one connected island or every matching pixel, and use an RGBA tolerance from 0–255. **New**, **Add**, and **Cut** replace, extend, or subtract from the current selection. Transparent pixels can be selected; reference artwork remains excluded from visible sampling.
+
+The Draw panel, stage header, contextual toolbar, and status bar report the exact selected-cell count plus the mask's outer size and origin. Irregular masks remain exact when drawing, filling, clearing, replacing colors, copying, moving, flipping, rotating, deleting, and undoing or redoing a transform. Choose **Move** (`M`) and drag inside the selection, use the arrow keys for one-pixel nudges, or hold `Shift` with an arrow key for eight-pixel nudges. Selections always remain fully inside the canvas.
 
 The contextual selection toolbar provides Cut, Copy, Paste, Duplicate, horizontal and vertical Flip, 90-degree clockwise Rotate, Delete, and Deselect. `Ctrl+A` selects the full canvas, `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, and `Ctrl+D` operate on the selection, `Delete` or `Backspace` clears selected pixels, and `Escape` removes the marquee. Clipboard pixels stay available inside JT Pixel when changing frames, layers, or projects; they are not written to project files or the system clipboard.
 
@@ -191,6 +196,8 @@ Use **Hold** to keep selected frames on screen for 1× through 12× the base fra
 Choose **Canvas view settings** beside the zoom controls to tailor the workspace around the artwork. **Checker** keeps the transparency pattern, while **Dark**, **Mid**, and **Light** provide neutral solid backgrounds for inspecting edges and contrast. The pixel grid can be **Off**, **Subtle**, **Crisp**, or **Contrast**; Crisp is the default for clear cell boundaries on small canvases.
 
 Press `G` to hide the grid or restore the last visible grid style. Canvas-view choices are remembered on the device, but they are editor preferences rather than project data: they are not written into `.jtp` files, do not mark a project unsaved, and do not add Undo/Redo entries. Use **Reset** in the Canvas View panel to return to Checker and Crisp.
+
+Choose **Hand** (`H`) and drag to pan without changing artwork. Hold `Space` while using any other tool for a temporary Hand, or middle-drag anywhere on the artboard. The mouse wheel zooms toward the pointer so the pixel under inspection stays anchored. The zoom readout returns to a true 100% scale, while **Fit** centers the complete artboard at the largest supported step that fits the current workspace. Zoom ranges from 25% to 6400%, clamps panning around the artboard, and automatically refits new projects and responsive window changes until the view is moved or zoomed manually. Navigation is temporary editor state and never dirties the project.
 
 ## Exporting artwork
 
@@ -261,14 +268,17 @@ The editor foundation supports single-key tool switching when a form control is 
 | `O` | Ellipse |
 | `S` | Select |
 | `M` | Move |
-| `W` | Magic |
+| `W` | Magic selection |
 | `T` | Text |
 | `I` | Eyedropper |
 | `Shift+I` | Pick a color anywhere on the Windows desktop |
 | `Alt` + canvas click or drag | Temporarily open Pixel Lens and sample with the current source without changing tools |
 | `H` | Hand |
+| Hold `Space` + drag | Temporarily pan with the Hand tool |
+| Middle-mouse drag | Pan from any tool |
+| Mouse wheel | Zoom toward the pointer |
 | `G` | Toggle the pixel grid |
-| `Space` | Play or pause animation |
+| `Shift+Space` | Play or pause animation |
 | `Ctrl+N` | Create a new project |
 | `Ctrl+O` | Open a project |
 | `Ctrl+S` | Save the current project |

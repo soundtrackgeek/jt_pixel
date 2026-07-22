@@ -12,6 +12,7 @@ import {
 import type { ReactNode } from "react";
 import type { SelectionClipboard } from "../editor/selection";
 import type { PixelSelection } from "../types";
+import { countSelectionCells } from "../editor/selectionRegion";
 
 interface SelectionToolbarProps {
   canTransform: boolean;
@@ -84,7 +85,7 @@ export function SelectionToolbar({
     >
       <div className="selection-toolbar__readout">
         <span>{hasSelection ? "SELECTION" : "CLIPBOARD"}</span>
-        <output>{width} × {height}</output>
+        <output>{selection?.mask ? `${countSelectionCells(selection).toLocaleString()} px · ` : ""}{width} × {height}</output>
       </div>
       <span className="selection-toolbar__divider" />
       <ToolbarButton

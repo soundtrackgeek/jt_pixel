@@ -7,6 +7,7 @@ import type {
 import { forEachPrecisionShapePoint } from "./precisionShapes";
 import { pixelIndex } from "./pixels";
 import type { PixelMap } from "./project";
+import { isPositionInSelection } from "./selectionRegion";
 
 export type TileMode = "standard" | "seamless";
 export type TileRepeatPreview = "off" | "3x3";
@@ -25,12 +26,7 @@ export const DEFAULT_TILE_WORKSPACE_SETTINGS: TileWorkspaceSettings = {
 };
 
 function insideBounds(position: CursorPosition, bounds?: SelectionBounds) {
-  return !bounds || (
-    position.x >= bounds.x
-    && position.x < bounds.x + bounds.width
-    && position.y >= bounds.y
-    && position.y < bounds.y + bounds.height
-  );
+  return !bounds || isPositionInSelection(position, bounds);
 }
 
 export function wrapTileCoordinate(value: number, size: number) {

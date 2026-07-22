@@ -12,6 +12,11 @@ import {
   pixelMapsEqual,
   rotateSelectionPixels,
 } from "./selection";
+import {
+  combineSelectionRegions,
+  countSelectionCells,
+  isPositionInSelection,
+} from "./selectionRegion";
 import type { PixelMap } from "./project";
 
 describe("selection bounds", () => {
@@ -25,6 +30,32 @@ describe("selection bounds", () => {
   it("clamps movement so the full marquee stays on canvas", () => {
     const bounds = { x: 1, y: 2, width: 3, height: 2 };
     expect(clampSelectionDelta(bounds, -20, 20, 6, 6)).toEqual({ x: -1, y: 2 });
+  });
+
+  it("tracks sparse masks and combines them without expanding into a rectangle", () => {
+    const diagonal = {
+      x: 1,
+      y: 1,
+      width: 2,
+      height: 2,
+      mask: { 0: true, 3: true } as Record<string, true>,
+    };
+    expect(isPositionInSelection({ x: 1, y: 1 }, diagonal)).toBe(true);
+    expect(isPositionInSelection({ x: 2, y: 1 }, diagonal)).toBe(false);
+    expect(countSelectionCells(diagonal)).toBe(2);
+    expect(combineSelectionRegions(
+      diagonal,
+      { x: 2, y: 1, width: 1, height: 1 },
+      "add",
+      5,
+      5,
+    )).toEqual({
+      x: 1,
+      y: 1,
+      width: 2,
+      height: 2,
+      mask: { 0: true, 1: true, 3: true },
+    });
   });
 });
 
@@ -97,8 +128,8 @@ describe("selection transforms", () => {
       5,
       5,
     );
-    expect(horizontal[pixelIndex(1, 1, 5)]).toBe("#right");
-    expect(horizontal[pixelIndex(3, 1, 5)]).toBe("#left");
+    expect(horizontal.pixels[pixelIndex(1, 1, 5)]).toBe("#right");
+    expect(horizontal.pixels[pixelIndex(3, 1, 5)]).toBe("#left");
 
     const vertical = flipSelectionPixels(
       { [pixelIndex(2, 0, 5)]: "#top", [pixelIndex(2, 2, 5)]: "#bottom" },
@@ -107,8 +138,38 @@ describe("selection transforms", () => {
       5,
       5,
     );
-    expect(vertical[pixelIndex(2, 0, 5)]).toBe("#bottom");
-    expect(vertical[pixelIndex(2, 2, 5)]).toBe("#top");
+    expect(vertical.pixels[pixelIndex(2, 0, 5)]).toBe("#bottom");
+    expect(vertical.pixels[pixelIndex(2, 2, 5)]).toBe("#top");
+  });
+
+  it("keeps copy, delete, move, and flip constrained to an irregular mask", () => {
+    const selection = {
+      x: 1,
+      y: 1,
+      width: 2,
+      height: 2,
+      mask: { 0: true, 3: true } as Record<string, true>,
+    };
+    const pixels = {
+      [pixelIndex(1, 1, 6)]: "#a",
+      [pixelIndex(2, 1, 6)]: "#hole",
+      [pixelIndex(2, 2, 6)]: "#b",
+    };
+    expect(copySelectionPixels(pixels, selection, 6)).toMatchObject({
+      mask: { 0: true, 3: true },
+      pixels: { 0: "#a", 3: "#b" },
+    });
+    expect(deleteSelectionPixels(pixels, selection, 6)).toEqual({
+      [pixelIndex(2, 1, 6)]: "#hole",
+    });
+    const moved = moveSelectionPixels(pixels, selection, 1, 0, 6, 6);
+    expect(moved.bounds).toMatchObject({ x: 2, y: 1, mask: { 0: true, 3: true } });
+    expect(moved.pixels[pixelIndex(2, 1, 6)]).toBe("#a");
+    expect(moved.pixels[pixelIndex(3, 2, 6)]).toBe("#b");
+    const flipped = flipSelectionPixels(pixels, selection, "horizontal", 6, 6);
+    expect(flipped.bounds.mask).toEqual({ 1: true, 2: true });
+    expect(flipped.pixels[pixelIndex(2, 1, 6)]).toBe("#a");
+    expect(flipped.pixels[pixelIndex(1, 2, 6)]).toBe("#b");
   });
 
   it("rotates clockwise and swaps non-square selection dimensions", () => {

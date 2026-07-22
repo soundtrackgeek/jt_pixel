@@ -1,4 +1,5 @@
 import type { CursorPosition, PixelSelection, ToolId } from "../types";
+import { countSelectionCells } from "../editor/selectionRegion";
 
 interface StatusBarProps {
   activeColor: string;
@@ -35,7 +36,7 @@ export function StatusBar({
         <span className="statusbar__tool">{activeTool}</span>
         {selection ? (
           <span className="statusbar__selection">
-            SEL {selection.width}×{selection.height} @ {selection.x},{selection.y}
+            SEL {countSelectionCells(selection).toLocaleString()} PX · {selection.width}×{selection.height} @ {selection.x},{selection.y}
           </span>
         ) : null}
         <span className="statusbar__document-state">{documentStatus}</span>

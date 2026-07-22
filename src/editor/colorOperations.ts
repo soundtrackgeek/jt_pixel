@@ -6,6 +6,7 @@ import {
   type ProjectDocument,
 } from "./project";
 import { compositeRgba, parsePixelColor } from "./compositing";
+import { isPositionInSelection } from "./selectionRegion";
 
 export type EyedropperSource = "active-layer" | "visible-pixels";
 export type ColorReplacementScope = "selection" | "cel" | "layer" | "project";
@@ -206,10 +207,7 @@ function indexIsInBounds(
   const index = Number(rawIndex);
   const x = index % width;
   const y = Math.floor(index / width);
-  return x >= bounds.x
-    && x < bounds.x + bounds.width
-    && y >= bounds.y
-    && y < bounds.y + bounds.height;
+  return isPositionInSelection({ x, y }, bounds);
 }
 
 function countMatchingPixels(

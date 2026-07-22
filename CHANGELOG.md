@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.16.0] - 2026-07-22
+
+### Added
+
+- Magic selection with active-layer or visible-pixel sampling, connected-island or global matching, adjustable RGBA tolerance, hover previews, and New/Add/Cut combination modes.
+- Exact irregular selection masks across Pencil, Eraser, Fill, precision shapes, Clear, scoped color replacement, clipboard commands, movement, flip, rotation, deletion, and selection-aware Undo/Redo.
+- Dedicated Hand navigation with drag panning, temporary hold-Space panning from any tool, middle-mouse panning, and pointer-centered wheel zoom.
+- Deterministic coverage for selection-region combination, transparent and tolerance-aware Magic matching, zoom stepping, point-anchored zoom, Fit calculations, and pan bounds.
+
+### Changed
+
+- Make the zoom readout a true 100% reset, extend stepped zoom from 25% through 6400%, and make Fit respond to artboard dimensions and the available workspace.
+- Report exact selected-cell counts and mask bounds throughout the Arcade Bloom tool panel, stage, contextual toolbar, and status bar.
+- Move animation playback to `Shift+Space` so holding `Space` can provide temporary canvas navigation without changing tools.
+- Bumped the application version to `0.16.0`.
+
 ## [0.15.1] - 2026-07-22
 
 ### Fixed

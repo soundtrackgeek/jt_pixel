@@ -172,10 +172,8 @@ export function usePixelSelection({
 
   const flip = useCallback((axis: SelectionFlipAxis) => {
     if (!selection || !canEdit) return false;
-    commitTransform(
-      flipSelectionPixels(activePixels, selection, axis, width, height),
-      selection,
-    );
+    const result = flipSelectionPixels(activePixels, selection, axis, width, height);
+    commitTransform(result.pixels, { ...selection, ...result.bounds });
     return true;
   }, [activePixels, canEdit, commitTransform, height, selection, width]);
 

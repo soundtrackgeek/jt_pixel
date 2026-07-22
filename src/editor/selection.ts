@@ -4,11 +4,17 @@ import type {
 } from "../types";
 import type { PixelMap } from "./project";
 import { pixelIndex } from "./pixels";
+import {
+  isPositionInSelection,
+} from "./selectionRegion";
+
+export { countSelectionCells, isPositionInSelection } from "./selectionRegion";
 
 export type SelectionFlipAxis = "horizontal" | "vertical";
 
 export interface SelectionClipboard {
   height: number;
+  mask?: Record<string, true>;
   pixels: PixelMap;
   sourceX: number;
   sourceY: number;
@@ -42,16 +48,6 @@ export function normalizeSelectionBounds(
     width: Math.abs(endX - startX) + 1,
     height: Math.abs(endY - startY) + 1,
   };
-}
-
-export function isPositionInSelection(
-  position: CursorPosition,
-  bounds: SelectionBounds,
-) {
-  return position.x >= bounds.x
-    && position.x < bounds.x + bounds.width
-    && position.y >= bounds.y
-    && position.y < bounds.y + bounds.height;
 }
 
 export function clampSelectionDelta(
@@ -91,6 +87,7 @@ export function copySelectionPixels(
   return {
     width: bounds.width,
     height: bounds.height,
+    ...(bounds.mask ? { mask: { ...bounds.mask } } : {}),
     pixels: copied,
     sourceX: bounds.x,
     sourceY: bounds.y,
@@ -136,7 +133,27 @@ export function pasteSelectionPixels(
     next[pixelIndex(x + relativeX, y + relativeY, canvasWidth)] = color;
   }
 
-  return { pixels: next, bounds: { x, y, width, height } };
+  let mask: Record<string, true> | undefined;
+  if (clipboard.mask) {
+    mask = {};
+    for (const rawIndex of Object.keys(clipboard.mask)) {
+      const index = Number(rawIndex);
+      const relativeX = index % clipboard.width;
+      const relativeY = Math.floor(index / clipboard.width);
+      if (relativeX >= width || relativeY >= height) continue;
+      mask[String((relativeY * width) + relativeX)] = true;
+    }
+  }
+  return {
+    pixels: next,
+    bounds: {
+      x,
+      y,
+      width,
+      height,
+      ...(mask && Object.keys(mask).length < width * height ? { mask } : {}),
+    },
+  };
 }
 
 export function moveSelectionPixels(
@@ -172,10 +189,11 @@ export function flipSelectionPixels(
   axis: SelectionFlipAxis,
   canvasWidth: number,
   canvasHeight: number,
-): PixelMap {
+): SelectionTransformResult {
   const clipboard = copySelectionPixels(pixels, bounds, canvasWidth);
   const flipped: SelectionClipboard = {
     ...clipboard,
+    ...(clipboard.mask ? { mask: {} } : {}),
     pixels: {},
   };
   for (const [rawIndex, color] of Object.entries(clipboard.pixels)) {
@@ -186,6 +204,16 @@ export function flipSelectionPixels(
     const nextY = axis === "vertical" ? clipboard.height - y - 1 : y;
     flipped.pixels[pixelIndex(nextX, nextY, clipboard.width)] = color;
   }
+  if (clipboard.mask && flipped.mask) {
+    for (const rawIndex of Object.keys(clipboard.mask)) {
+      const index = Number(rawIndex);
+      const x = index % clipboard.width;
+      const y = Math.floor(index / clipboard.width);
+      const nextX = axis === "horizontal" ? clipboard.width - x - 1 : x;
+      const nextY = axis === "vertical" ? clipboard.height - y - 1 : y;
+      flipped.mask[String((nextY * clipboard.width) + nextX)] = true;
+    }
+  }
   return pasteSelectionPixels(
     deleteSelectionPixels(pixels, bounds, canvasWidth),
     flipped,
@@ -193,7 +221,7 @@ export function flipSelectionPixels(
     bounds.y,
     canvasWidth,
     canvasHeight,
-  ).pixels;
+  );
 }
 
 export function rotateSelectionPixels(
@@ -207,6 +235,7 @@ export function rotateSelectionPixels(
     width: clipboard.height,
     height: clipboard.width,
     pixels: {},
+    ...(clipboard.mask ? { mask: {} } : {}),
     sourceX: bounds.x,
     sourceY: bounds.y,
   };
@@ -215,6 +244,14 @@ export function rotateSelectionPixels(
     const x = index % clipboard.width;
     const y = Math.floor(index / clipboard.width);
     rotated.pixels[pixelIndex(clipboard.height - y - 1, x, rotated.width)] = color;
+  }
+  if (clipboard.mask && rotated.mask) {
+    for (const rawIndex of Object.keys(clipboard.mask)) {
+      const index = Number(rawIndex);
+      const x = index % clipboard.width;
+      const y = Math.floor(index / clipboard.width);
+      rotated.mask[String((x * rotated.width) + clipboard.height - y - 1)] = true;
+    }
   }
   const targetX = bounds.x + Math.round((bounds.width - rotated.width) / 2);
   const targetY = bounds.y + Math.round((bounds.height - rotated.height) / 2);

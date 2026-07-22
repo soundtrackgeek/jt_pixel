@@ -49,6 +49,10 @@ import { useScreenPicker } from "./hooks/useScreenPicker";
 import { usePixelSelection } from "./hooks/usePixelSelection";
 import { useTimelineSelection } from "./hooks/useTimelineSelection";
 import type { EyedropperSource } from "./editor/colorOperations";
+import {
+  DEFAULT_MAGIC_SELECTION_SETTINGS,
+  type MagicSelectionSettings,
+} from "./editor/magicSelection";
 import type { CursorPosition, ShapeMode, ToolId } from "./types";
 
 const TEXT_EDITING_INPUT_TYPES = new Set([
@@ -96,6 +100,9 @@ function App() {
     onForegroundColor: colorWorkspace.commitForeground,
   });
   const [eyedropperSource, setEyedropperSource] = useState<EyedropperSource>("visible-pixels");
+  const [magicSettings, setMagicSettings] = useState<MagicSelectionSettings>(
+    DEFAULT_MAGIC_SELECTION_SETTINGS,
+  );
   const [replaceColorSource, setReplaceColorSource] = useState<string | null>(null);
   const [brushSize, setBrushSize] = useState(1);
   const [opacity, setOpacity] = useState(100);
@@ -274,6 +281,10 @@ function App() {
     if (section === "tiles") deselect();
   }, [deselect]);
 
+  const updateMagicSettings = useCallback((settings: Partial<MagicSelectionSettings>) => {
+    setMagicSettings((current) => ({ ...current, ...settings }));
+  }, []);
+
   const offsetActiveTile = useCallback((offsetX: number, offsetY: number) => {
     const shifted = offsetTilePixels(
       project.activePixels,
@@ -377,7 +388,7 @@ function App() {
 
       if (event.code === "Space") {
         event.preventDefault();
-        setIsPlaying((current) => !current);
+        if (event.shiftKey && !event.repeat) setIsPlaying((current) => !current);
         return;
       }
 
@@ -545,6 +556,7 @@ function App() {
             activeTool={activeTool}
             brushSize={brushSize}
             opacity={opacity}
+            magicSettings={magicSettings}
             pixelPerfect={pixelPerfect}
             screenPickerAvailable={screenPicker.desktopAvailable}
             screenPickerBusy={screenPicker.isPicking}
@@ -555,6 +567,7 @@ function App() {
             onToolChange={setActiveTool}
             onBrushSizeChange={setBrushSize}
             onOpacityChange={setOpacity}
+            onMagicSettingsChange={updateMagicSettings}
             onPixelPerfectChange={setPixelPerfect}
             onPickScreenColor={() => void screenPicker.pick()}
             onShapeModeChange={setShapeMode}
@@ -571,7 +584,9 @@ function App() {
           canvasView={canvasView.preferences}
           document={document}
           isDirty={project.state.isDirty}
+          keyboardNavigationEnabled={!modalOpen}
           opacity={opacity}
+          magicSettings={magicSettings}
           pixelPerfect={pixelPerfect}
           clipboard={selectionClipboard}
           selection={selection}

@@ -56,6 +56,23 @@ describe("floodFillPixelMap", () => {
     expect(pixels[pixelIndex(2, 2, 4)]).toBe("#42c8e3");
     expect(pixels[pixelIndex(0, 0, 4)]).toBeUndefined();
   });
+
+  it("constrains fill and large brushes to an irregular selection mask", () => {
+    const selection = {
+      x: 0,
+      y: 0,
+      width: 3,
+      height: 3,
+      mask: { 0: true, 4: true, 8: true } as Record<string, true>,
+    };
+    const fillPixels: PixelMap = {};
+    floodFillPixelMap(fillPixels, { x: 0, y: 0 }, 3, 3, "#42c8e3", selection);
+    expect(fillPixels).toEqual({ 0: "#42c8e3" });
+
+    const brushPixels: PixelMap = {};
+    applySquareBrush(brushPixels, { x: 1, y: 1 }, 3, 3, 3, "#ad62ff", selection);
+    expect(brushPixels).toEqual({ 0: "#ad62ff", 4: "#ad62ff", 8: "#ad62ff" });
+  });
 });
 
 describe("applySquareBrush", () => {
