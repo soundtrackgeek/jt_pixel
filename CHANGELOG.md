@@ -4,6 +4,17 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.15.1] - 2026-07-22
+
+### Fixed
+
+- Replaced native HTML layer drag-and-drop with WebView-safe pointer reordering so dragging the dotted grip now works in the desktop app.
+
+### Changed
+
+- Added cyan before/after insertion feedback, dragged-row feedback, and gesture cleanup outside the Layers panel while preserving the adjacent visibility, lock, and property controls.
+- Bumped the application version to `0.15.1`.
+
 ## [0.15.0] - 2026-07-22
 
 ### Added
