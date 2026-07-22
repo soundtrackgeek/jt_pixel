@@ -4,6 +4,22 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] - 2026-07-22
+
+### Added
+
+- Advanced Layer Studio with inline frame-local renaming, drag-and-drop plus arrow reordering, current-frame duplication, and a compact selected-layer property shelf.
+- Frame-local opacity and Normal, Multiply, Screen, Overlay, Add, and Subtract blend modes with exact shared compositing across the live canvas, timeline thumbnails, visible-pixel eyedropper, tile preview, PNG, sprite-sheet, and animated GIF output.
+- Styled layer action menu with Merge Down, Flatten Visible, duplicate, rename, and protected delete commands.
+- Project-file and recovery persistence for frame-local layer settings and order, including backward-compatible defaults for older schema-v1 projects.
+- Reducer and blend-math coverage for frame isolation, duplication, merge, flatten, file migration, and all six blend modes.
+
+### Changed
+
+- Preserve hidden layers during Flatten Visible and prevent merge or flatten operations from changing locked artwork.
+- Group an opacity slider gesture into one Undo step and make all structural Layer Studio actions fully Undo/Redo-aware.
+- Bumped the application version to `0.15.0`.
+
 ## [0.14.2] - 2026-07-22
 
 ### Added

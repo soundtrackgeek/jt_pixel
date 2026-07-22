@@ -9,6 +9,7 @@ import {
   DEFAULT_TILE_WORKSPACE_SETTINGS,
   type TileWorkspaceSettings,
 } from "./tiles";
+import { compositePixelMaps } from "./compositing";
 
 export const PROJECT_SCHEMA_VERSION = 1 as const;
 export const MIN_CANVAS_DIMENSION = 1;
@@ -21,11 +22,19 @@ export const CANVAS_PRESETS = [16, 32, 64, 128] as const;
 export type PixelMap = Record<string, string>;
 const EMPTY_PIXEL_MAP: PixelMap = Object.freeze({});
 
+export type LayerBlendMode = "normal" | "multiply" | "screen" | "overlay" | "add" | "subtract";
+
+export interface FrameLayerSettings {
+  name: string;
+  blendMode: LayerBlendMode;
+  opacity: number;
+}
+
 export interface ProjectLayer {
   id: string;
   name: string;
   kind: "pixel" | "reference";
-  blendMode: "normal" | "add";
+  blendMode: LayerBlendMode;
   opacity: number;
   visible: boolean;
   locked?: boolean;
@@ -57,6 +66,8 @@ export interface ProjectDocument {
   frameLayerVisibility: Record<string, boolean>;
   frameLayerPresence: Record<string, boolean>;
   frameLayerLocks: Record<string, boolean>;
+  frameLayerSettings: Record<string, FrameLayerSettings>;
+  frameLayerOrder: Record<string, string[]>;
   animation: {
     fps: number;
     loop: boolean;
@@ -100,6 +111,13 @@ export type ProjectAction =
   | { type: "layer/toggle-lock"; layerId: string; frameId: string }
   | { type: "layer/add"; layer: ProjectLayer; frameId: string }
   | { type: "layer/delete"; layerId: string; frameId: string }
+  | { type: "layer/duplicate"; layerId: string; frameId: string; duplicateId: string }
+  | { type: "layer/rename"; layerId: string; frameId: string; name: string }
+  | { type: "layer/set-opacity"; layerId: string; frameId: string; opacity: number }
+  | { type: "layer/set-blend-mode"; layerId: string; frameId: string; blendMode: LayerBlendMode }
+  | { type: "layer/reorder"; layerId: string; frameId: string; targetIndex: number }
+  | { type: "layer/merge-down"; layerId: string; frameId: string }
+  | { type: "layer/flatten-visible"; frameId: string }
   | { type: "frame/select"; frameId: string }
   | { type: "frame/advance" }
   | { type: "frame/duplicate"; frameId: string; duplicateId: string }
@@ -218,6 +236,30 @@ export function isLayerLocked(
     || (layer?.kind === "pixel" && (document.frameLayerLocks[celKey(layerId, frameId)] ?? false));
 }
 
+export function getLayerForFrame(
+  document: ProjectDocument,
+  layerId: string,
+  frameId: string,
+) {
+  const layer = document.layers.find((candidate) => candidate.id === layerId);
+  if (!layer) return undefined;
+  const settings = document.frameLayerSettings[celKey(layerId, frameId)];
+  return settings ? { ...layer, ...settings } : layer;
+}
+
+export function getLayersForFrame(document: ProjectDocument, frameId: string) {
+  const presentLayers = document.layers.filter((layer) => isLayerPresent(document, layer.id, frameId));
+  const presentIds = new Set(presentLayers.map((layer) => layer.id));
+  const orderedIds = document.frameLayerOrder[frameId] ?? document.layers.map((layer) => layer.id);
+  const completeOrder = [
+    ...orderedIds.filter((layerId) => presentIds.has(layerId)),
+    ...presentLayers.map((layer) => layer.id).filter((layerId) => !orderedIds.includes(layerId)),
+  ];
+  return completeOrder
+    .map((layerId) => getLayerForFrame(document, layerId, frameId))
+    .filter((layer): layer is ProjectLayer => Boolean(layer));
+}
+
 export function getCelPixels(
   document: ProjectDocument,
   layerId: string,
@@ -250,6 +292,8 @@ export function createProjectDocument(now = new Date().toISOString()): ProjectDo
     frameLayerVisibility: {},
     frameLayerPresence: {},
     frameLayerLocks: {},
+    frameLayerSettings: {},
+    frameLayerOrder: {},
     animation: { fps: 8, loop: true },
     workspace: {
       activeFrameId: "frame-3",
@@ -307,6 +351,8 @@ export function createNewProjectDocument(options: NewProjectOptions): ProjectDoc
     frameLayerVisibility: {},
     frameLayerPresence: {},
     frameLayerLocks: {},
+    frameLayerSettings: {},
+    frameLayerOrder: {},
     animation: { fps: 8, loop: true },
     workspace: {
       activeFrameId: "frame-1",
@@ -371,14 +417,12 @@ function layerForFrame(
   frameId: string,
   preferredLayerId: string,
 ) {
-  const preferred = document.layers.find(
-    (layer) => layer.id === preferredLayerId && isLayerPresent(document, layer.id, frameId),
-  );
-  return preferred?.id ?? document.layers.find(
-    (layer) => layer.kind === "pixel" && isLayerPresent(document, layer.id, frameId),
-  )?.id ?? document.layers.find(
-    (layer) => isLayerPresent(document, layer.id, frameId),
-  )?.id ?? document.layers[0].id;
+  const frameLayers = getLayersForFrame(document, frameId);
+  const preferred = frameLayers.find((layer) => layer.id === preferredLayerId);
+  return preferred?.id
+    ?? frameLayers.find((layer) => layer.kind === "pixel")?.id
+    ?? frameLayers[0]?.id
+    ?? document.layers[0].id;
 }
 
 export function projectReducer(
@@ -481,6 +525,13 @@ export function projectReducer(
           ...document,
           layers: [action.layer, ...document.layers],
           frameLayerPresence,
+          frameLayerOrder: {
+            ...document.frameLayerOrder,
+            [action.frameId]: [
+              action.layer.id,
+              ...getLayersForFrame(document, action.frameId).map((layer) => layer.id),
+            ],
+          },
         }),
         activeLayerId:
           state.activeFrameId === action.frameId ? action.layer.id : state.activeLayerId,
@@ -488,6 +539,169 @@ export function projectReducer(
           ...state.frameLayerSelection,
           [action.frameId]: action.layer.id,
         },
+      };
+    }
+
+    case "layer/duplicate": {
+      const source = getLayerForFrame(document, action.layerId, action.frameId);
+      if (
+        !source
+        || source.kind !== "pixel"
+        || !isLayerPresent(document, source.id, action.frameId)
+        || document.layers.some((layer) => layer.id === action.duplicateId)
+      ) return state;
+      const order = getLayersForFrame(document, action.frameId).map((layer) => layer.id);
+      const sourceIndex = order.indexOf(source.id);
+      const duplicate: ProjectLayer = {
+        ...source,
+        id: action.duplicateId,
+        name: `${source.name} copy`,
+        visible: true,
+        locked: false,
+      };
+      const frameLayerPresence = { ...document.frameLayerPresence };
+      for (const frame of document.frames) {
+        frameLayerPresence[celKey(duplicate.id, frame.id)] = frame.id === action.frameId;
+      }
+      const duplicateKey = celKey(duplicate.id, action.frameId);
+      const sourcePixels = getCelPixels(document, source.id, action.frameId);
+      const nextOrder = [...order];
+      nextOrder.splice(Math.max(0, sourceIndex), 0, duplicate.id);
+      return {
+        ...changed(state, {
+          ...document,
+          layers: [duplicate, ...document.layers],
+          cels: Object.keys(sourcePixels).length === 0 ? document.cels : {
+            ...document.cels,
+            [duplicateKey]: {
+              layerId: duplicate.id,
+              frameId: action.frameId,
+              pixels: { ...sourcePixels },
+            },
+          },
+          frameLayerPresence,
+          frameLayerVisibility: {
+            ...document.frameLayerVisibility,
+            [duplicateKey]: isLayerVisible(document, source.id, action.frameId),
+          },
+          frameLayerLocks: {
+            ...document.frameLayerLocks,
+            [duplicateKey]: isLayerLocked(document, source.id, action.frameId),
+          },
+          frameLayerSettings: {
+            ...document.frameLayerSettings,
+            [duplicateKey]: {
+              name: duplicate.name,
+              blendMode: source.blendMode,
+              opacity: source.opacity,
+            },
+          },
+          frameLayerOrder: { ...document.frameLayerOrder, [action.frameId]: nextOrder },
+        }),
+        activeLayerId: state.activeFrameId === action.frameId ? duplicate.id : state.activeLayerId,
+        frameLayerSelection: { ...state.frameLayerSelection, [action.frameId]: duplicate.id },
+      };
+    }
+
+    case "layer/rename":
+    case "layer/set-opacity":
+    case "layer/set-blend-mode": {
+      const layer = getLayerForFrame(document, action.layerId, action.frameId);
+      if (!layer || layer.kind !== "pixel" || !isLayerPresent(document, layer.id, action.frameId)) return state;
+      const key = celKey(layer.id, action.frameId);
+      const current: FrameLayerSettings = {
+        name: layer.name,
+        blendMode: layer.blendMode,
+        opacity: layer.opacity,
+      };
+      if (action.type === "layer/rename") {
+        const name = action.name.trim().slice(0, 80);
+        if (!name || name === current.name) return state;
+        current.name = name;
+      } else if (action.type === "layer/set-opacity") {
+        const opacity = Math.max(0, Math.min(100, Math.round(action.opacity)));
+        if (opacity === current.opacity) return state;
+        current.opacity = opacity;
+      } else {
+        const supported: LayerBlendMode[] = ["normal", "multiply", "screen", "overlay", "add", "subtract"];
+        if (!supported.includes(action.blendMode) || action.blendMode === current.blendMode) return state;
+        current.blendMode = action.blendMode;
+      }
+      return changed(state, {
+        ...document,
+        frameLayerSettings: { ...document.frameLayerSettings, [key]: current },
+      });
+    }
+
+    case "layer/reorder": {
+      if (!Number.isFinite(action.targetIndex)) return state;
+      const order = getLayersForFrame(document, action.frameId).map((layer) => layer.id);
+      const sourceIndex = order.indexOf(action.layerId);
+      if (sourceIndex < 0) return state;
+      const targetIndex = Math.max(0, Math.min(order.length - 1, Math.round(action.targetIndex)));
+      if (sourceIndex === targetIndex) return state;
+      const nextOrder = [...order];
+      nextOrder.splice(sourceIndex, 1);
+      nextOrder.splice(targetIndex, 0, action.layerId);
+      return changed(state, {
+        ...document,
+        frameLayerOrder: { ...document.frameLayerOrder, [action.frameId]: nextOrder },
+      });
+    }
+
+    case "layer/merge-down": {
+      const frameLayers = getLayersForFrame(document, action.frameId);
+      const sourceIndex = frameLayers.findIndex((layer) => layer.id === action.layerId);
+      const source = frameLayers[sourceIndex];
+      const target = frameLayers.slice(sourceIndex + 1).find((layer) => layer.kind === "pixel");
+      if (
+        !source || source.kind !== "pixel" || !target
+        || !isLayerVisible(document, source.id, action.frameId)
+        || !isLayerVisible(document, target.id, action.frameId)
+        || isLayerLocked(document, source.id, action.frameId)
+        || isLayerLocked(document, target.id, action.frameId)
+      ) return state;
+      const pixels = compositePixelMaps(document.width, document.height, [
+        { pixels: getCelPixels(document, target.id, action.frameId), opacity: target.opacity, blendMode: target.blendMode },
+        { pixels: getCelPixels(document, source.id, action.frameId), opacity: source.opacity, blendMode: source.blendMode },
+      ]);
+      let next = projectReducer(state, { type: "cel/commit", layerId: target.id, frameId: action.frameId, pixels });
+      next = projectReducer(next, { type: "layer/set-opacity", layerId: target.id, frameId: action.frameId, opacity: 100 });
+      next = projectReducer(next, { type: "layer/set-blend-mode", layerId: target.id, frameId: action.frameId, blendMode: "normal" });
+      next = projectReducer(next, { type: "layer/delete", layerId: source.id, frameId: action.frameId });
+      return {
+        ...next,
+        activeLayerId: state.activeFrameId === action.frameId ? target.id : next.activeLayerId,
+        frameLayerSelection: { ...next.frameLayerSelection, [action.frameId]: target.id },
+      };
+    }
+
+    case "layer/flatten-visible": {
+      const visibleLayers = getLayersForFrame(document, action.frameId).filter(
+        (layer) => layer.kind === "pixel" && isLayerVisible(document, layer.id, action.frameId),
+      );
+      if (visibleLayers.length < 2 || visibleLayers.some((layer) => isLayerLocked(document, layer.id, action.frameId))) return state;
+      const target = visibleLayers[0];
+      const pixels = compositePixelMaps(
+        document.width,
+        document.height,
+        [...visibleLayers].reverse().map((layer) => ({
+          pixels: getCelPixels(document, layer.id, action.frameId),
+          opacity: layer.opacity,
+          blendMode: layer.blendMode,
+        })),
+      );
+      let next = projectReducer(state, { type: "cel/commit", layerId: target.id, frameId: action.frameId, pixels });
+      next = projectReducer(next, { type: "layer/rename", layerId: target.id, frameId: action.frameId, name: "Flattened" });
+      next = projectReducer(next, { type: "layer/set-opacity", layerId: target.id, frameId: action.frameId, opacity: 100 });
+      next = projectReducer(next, { type: "layer/set-blend-mode", layerId: target.id, frameId: action.frameId, blendMode: "normal" });
+      for (const layer of visibleLayers.slice(1)) {
+        next = projectReducer(next, { type: "layer/delete", layerId: layer.id, frameId: action.frameId });
+      }
+      return {
+        ...next,
+        activeLayerId: state.activeFrameId === action.frameId ? target.id : next.activeLayerId,
+        frameLayerSelection: { ...next.frameLayerSelection, [action.frameId]: target.id },
       };
     }
 
@@ -511,9 +725,17 @@ export function projectReducer(
       const frameLayerVisibility = { ...document.frameLayerVisibility };
       const frameLayerPresence = { ...document.frameLayerPresence, [key]: false };
       const frameLayerLocks = { ...document.frameLayerLocks };
+      const frameLayerSettings = { ...document.frameLayerSettings };
+      const frameLayerOrder = {
+        ...document.frameLayerOrder,
+        [action.frameId]: getLayersForFrame(document, action.frameId)
+          .map((candidate) => candidate.id)
+          .filter((layerId) => layerId !== action.layerId),
+      };
       delete cels[key];
       delete frameLayerVisibility[key];
       delete frameLayerLocks[key];
+      delete frameLayerSettings[key];
 
       const presentOnAnotherFrame = document.frames.some(
         (frame) =>
@@ -535,6 +757,12 @@ export function projectReducer(
         for (const storedKey of Object.keys(frameLayerLocks)) {
           if (storedKey.startsWith(`${action.layerId}::`)) delete frameLayerLocks[storedKey];
         }
+        for (const storedKey of Object.keys(frameLayerSettings)) {
+          if (storedKey.startsWith(`${action.layerId}::`)) delete frameLayerSettings[storedKey];
+        }
+        for (const frameId of Object.keys(frameLayerOrder)) {
+          frameLayerOrder[frameId] = frameLayerOrder[frameId].filter((layerId) => layerId !== action.layerId);
+        }
       }
 
       const nextDocument = {
@@ -544,6 +772,8 @@ export function projectReducer(
         frameLayerVisibility,
         frameLayerPresence,
         frameLayerLocks,
+        frameLayerSettings,
+        frameLayerOrder,
       };
       const next = changed(state, nextDocument);
       const rememberedLayerId = state.frameLayerSelection[action.frameId]
@@ -638,6 +868,8 @@ export function projectReducer(
       const frameLayerVisibility = { ...document.frameLayerVisibility };
       const frameLayerPresence = { ...document.frameLayerPresence };
       const frameLayerLocks = { ...document.frameLayerLocks };
+      const frameLayerSettings = { ...document.frameLayerSettings };
+      const frameLayerOrder = { ...document.frameLayerOrder };
       const frameLayerSelection = { ...state.frameLayerSelection };
       for (const [sourceIndex, source] of sources.entries()) {
         const duplicate = duplicates[sourceIndex];
@@ -661,7 +893,13 @@ export function projectReducer(
             frameLayerLocks[celKey(layer.id, duplicate.id)] =
               document.frameLayerLocks[sourceKey];
           }
+          if (Object.hasOwn(document.frameLayerSettings, sourceKey)) {
+            frameLayerSettings[celKey(layer.id, duplicate.id)] = {
+              ...document.frameLayerSettings[sourceKey],
+            };
+          }
         }
+        frameLayerOrder[duplicate.id] = getLayersForFrame(document, source.id).map((layer) => layer.id);
         frameLayerSelection[duplicate.id] = layerForFrame(
           { ...document, frames, frameLayerPresence },
           duplicate.id,
@@ -677,6 +915,8 @@ export function projectReducer(
         frameLayerVisibility,
         frameLayerPresence,
         frameLayerLocks,
+        frameLayerSettings,
+        frameLayerOrder,
       };
       const activeFrameId = duplicates[0].id;
       const activeLayerId = frameLayerSelection[activeFrameId];
@@ -722,6 +962,12 @@ export function projectReducer(
       const frameLayerLocks = Object.fromEntries(
         Object.entries(document.frameLayerLocks).filter(([key]) => belongsToRetainedFrame(key)),
       );
+      const frameLayerSettings = Object.fromEntries(
+        Object.entries(document.frameLayerSettings).filter(([key]) => belongsToRetainedFrame(key)),
+      );
+      const frameLayerOrder = Object.fromEntries(
+        Object.entries(document.frameLayerOrder).filter(([frameId]) => !deletedFrameIds.has(frameId)),
+      );
       const layers = document.layers.filter(
         (layer) =>
           layer.locked ||
@@ -748,6 +994,14 @@ export function projectReducer(
           retainedLayerIds.has(key.slice(0, key.indexOf("::"))),
         ),
       );
+      const retainedSettings = Object.fromEntries(
+        Object.entries(frameLayerSettings).filter(([key]) =>
+          retainedLayerIds.has(key.slice(0, key.indexOf("::"))),
+        ),
+      );
+      for (const frameId of Object.keys(frameLayerOrder)) {
+        frameLayerOrder[frameId] = frameLayerOrder[frameId].filter((layerId) => retainedLayerIds.has(layerId));
+      }
       const nextDocument = {
         ...document,
         layers,
@@ -756,6 +1010,8 @@ export function projectReducer(
         frameLayerVisibility: retainedVisibility,
         frameLayerPresence: retainedPresence,
         frameLayerLocks: retainedLocks,
+        frameLayerSettings: retainedSettings,
+        frameLayerOrder,
       };
       const next = changed(state, nextDocument);
       const activeFrameId = deletedFrameIds.has(state.activeFrameId)

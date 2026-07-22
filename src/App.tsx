@@ -609,11 +609,20 @@ function App() {
           document={document}
           recentColors={colorWorkspace.recentColors}
           onAddLayer={project.addLayer}
+          onBeginLayerOpacityChange={project.beginLayerOpacityChange}
           onBackgroundColorChange={colorWorkspace.setBackground}
           onColorChange={colorWorkspace.previewForeground}
           onColorCommit={colorWorkspace.commitForeground}
           onDeleteLayer={project.deleteLayer}
+          onDuplicateLayer={project.duplicateLayer}
+          onEndLayerOpacityChange={project.endLayerOpacityChange}
+          onFlattenVisibleLayers={project.flattenVisibleLayers}
           onLayerChange={project.selectLayer}
+          onMergeLayerDown={project.mergeLayerDown}
+          onRenameLayer={project.renameLayer}
+          onReorderLayer={project.reorderLayer}
+          onSetLayerBlendMode={project.setLayerBlendMode}
+          onSetLayerOpacity={project.setLayerOpacity}
           onOpenColorReplace={setReplaceColorSource}
           onPaletteChange={project.setPalette}
           onPickColor={() => setActiveTool("eyedropper")}

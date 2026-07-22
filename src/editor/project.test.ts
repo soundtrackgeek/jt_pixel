@@ -5,6 +5,8 @@ import {
   createInitialEditorState,
   createNewProjectDocument,
   getCelPixels,
+  getLayerForFrame,
+  getLayersForFrame,
   isLayerLocked,
   isLayerPresent,
   isLayerVisible,
@@ -489,5 +491,124 @@ describe("project document reducer", () => {
     expect(saved.document).toBe(savedDocument);
     expect(saved.activeFrameId).toBe("frame-2");
     expect(saved.isDirty).toBe(false);
+  });
+
+  it("keeps layer properties and ordering local to each frame", () => {
+    const initial = createInitialEditorState();
+    const renamed = projectReducer(initial, {
+      type: "layer/rename",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      name: "Ink pass",
+    });
+    const blended = projectReducer(renamed, {
+      type: "layer/set-blend-mode",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      blendMode: "multiply",
+    });
+    const faded = projectReducer(blended, {
+      type: "layer/set-opacity",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      opacity: 42,
+    });
+    const reordered = projectReducer(faded, {
+      type: "layer/reorder",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      targetIndex: 0,
+    });
+
+    expect(getLayerForFrame(reordered.document, "layer-details", "frame-3")).toMatchObject({
+      name: "Ink pass",
+      blendMode: "multiply",
+      opacity: 42,
+    });
+    expect(getLayerForFrame(reordered.document, "layer-details", "frame-4")).toMatchObject({
+      name: "Details",
+      blendMode: "normal",
+      opacity: 100,
+    });
+    expect(getLayersForFrame(reordered.document, "frame-3")[0].id).toBe("layer-details");
+    expect(getLayersForFrame(reordered.document, "frame-4")[0].id).toBe("layer-highlights");
+  });
+
+  it("duplicates pixels and effective settings only on the current frame", () => {
+    let state = paintedState();
+    state = projectReducer(state, {
+      type: "layer/set-blend-mode",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      blendMode: "overlay",
+    });
+    const duplicated = projectReducer(state, {
+      type: "layer/duplicate",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      duplicateId: "layer-details-copy",
+    });
+
+    expect(getCelPixels(duplicated.document, "layer-details-copy", "frame-3"))
+      .toEqual(getCelPixels(state.document, "layer-details", "frame-3"));
+    expect(getLayerForFrame(duplicated.document, "layer-details-copy", "frame-3")).toMatchObject({
+      name: "Details copy",
+      blendMode: "overlay",
+    });
+    expect(isLayerPresent(duplicated.document, "layer-details-copy", "frame-4")).toBe(false);
+    expect(duplicated.activeLayerId).toBe("layer-details-copy");
+  });
+
+  it("merges down into an unlocked visible pixel layer", () => {
+    let state = createInitialEditorState();
+    state = projectReducer(state, {
+      type: "cel/commit",
+      layerId: "layer-color",
+      frameId: "frame-3",
+      pixels: { "0": "#ff0000" },
+    });
+    state = projectReducer(state, {
+      type: "cel/commit",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      pixels: { "0": "#0000ff" },
+    });
+    const merged = projectReducer(state, {
+      type: "layer/merge-down",
+      layerId: "layer-details",
+      frameId: "frame-3",
+    });
+
+    expect(getCelPixels(merged.document, "layer-color", "frame-3")["0"]).toBe("#0000ffff");
+    expect(isLayerPresent(merged.document, "layer-details", "frame-3")).toBe(false);
+    expect(isLayerPresent(merged.document, "layer-details", "frame-4")).toBe(true);
+    expect(merged.activeLayerId).toBe("layer-color");
+  });
+
+  it("flattens visible layers while leaving hidden artwork intact", () => {
+    let state = createInitialEditorState();
+    state = projectReducer(state, {
+      type: "cel/commit",
+      layerId: "layer-color",
+      frameId: "frame-3",
+      pixels: { "0": "#ff0000" },
+    });
+    state = projectReducer(state, {
+      type: "cel/commit",
+      layerId: "layer-details",
+      frameId: "frame-3",
+      pixels: { "0": "#0000ff" },
+    });
+    state = projectReducer(state, {
+      type: "layer/toggle-visibility",
+      layerId: "layer-highlights",
+      frameId: "frame-3",
+    });
+    const flattened = projectReducer(state, { type: "layer/flatten-visible", frameId: "frame-3" });
+
+    expect(getLayerForFrame(flattened.document, "layer-details", "frame-3")?.name).toBe("Flattened");
+    expect(getCelPixels(flattened.document, "layer-details", "frame-3")["0"]).toBe("#0000ffff");
+    expect(isLayerPresent(flattened.document, "layer-color", "frame-3")).toBe(false);
+    expect(isLayerPresent(flattened.document, "layer-highlights", "frame-3")).toBe(true);
   });
 });

@@ -1,10 +1,11 @@
 import {
   getCelPixels,
-  isLayerPresent,
+  getLayersForFrame,
   isLayerVisible,
   type ProjectDocument,
   type ProjectFrame,
 } from "./project";
+import { compositePixelMaps, pixelMapToImageData } from "./compositing";
 
 export const EXPORT_PREFERENCES_STORAGE_KEY = "jt-pixel.export-preferences:v2";
 export const LEGACY_EXPORT_PREFERENCES_STORAGE_KEY = "jt-pixel.export-preferences:v1";
@@ -253,99 +254,30 @@ function parseHexColor(color: string) {
   return [red, green, blue, alpha] as const;
 }
 
-function compositePixel(
-  destination: Float32Array,
-  offset: number,
-  color: string,
-  layerOpacity: number,
-  additive: boolean,
-) {
-  const [sourceRed, sourceGreen, sourceBlue, colorAlpha] = parseHexColor(color);
-  const sourceAlpha = colorAlpha * layerOpacity;
-  const destinationRed = destination[offset];
-  const destinationGreen = destination[offset + 1];
-  const destinationBlue = destination[offset + 2];
-  const destinationAlpha = destination[offset + 3];
-
-  if (additive) {
-    const outputAlpha = Math.min(1, sourceAlpha + destinationAlpha);
-    if (outputAlpha <= 0) return;
-    destination[offset] = Math.min(
-      1,
-      ((sourceRed * sourceAlpha) + (destinationRed * destinationAlpha)) / outputAlpha,
-    );
-    destination[offset + 1] = Math.min(
-      1,
-      ((sourceGreen * sourceAlpha) + (destinationGreen * destinationAlpha)) / outputAlpha,
-    );
-    destination[offset + 2] = Math.min(
-      1,
-      ((sourceBlue * sourceAlpha) + (destinationBlue * destinationAlpha)) / outputAlpha,
-    );
-    destination[offset + 3] = outputAlpha;
-    return;
-  }
-
-  const outputAlpha = sourceAlpha + (destinationAlpha * (1 - sourceAlpha));
-  if (outputAlpha <= 0) return;
-  destination[offset] = (
-    (sourceRed * sourceAlpha)
-    + (destinationRed * destinationAlpha * (1 - sourceAlpha))
-  ) / outputAlpha;
-  destination[offset + 1] = (
-    (sourceGreen * sourceAlpha)
-    + (destinationGreen * destinationAlpha * (1 - sourceAlpha))
-  ) / outputAlpha;
-  destination[offset + 2] = (
-    (sourceBlue * sourceAlpha)
-    + (destinationBlue * destinationAlpha * (1 - sourceAlpha))
-  ) / outputAlpha;
-  destination[offset + 3] = outputAlpha;
-}
-
 export function composeFramePixels(
   document: ProjectDocument,
   frameId: string,
   backgroundMode: ExportBackgroundMode,
   backgroundColor: string,
 ) {
-  const pixels = new Float32Array(document.width * document.height * 4);
-  if (backgroundMode === "solid") {
-    const [red, green, blue] = parseHexColor(backgroundColor);
-    for (let offset = 0; offset < pixels.length; offset += 4) {
-      pixels[offset] = red;
-      pixels[offset + 1] = green;
-      pixels[offset + 2] = blue;
-      pixels[offset + 3] = 1;
-    }
-  }
-
-  const layers = [...document.layers].reverse();
-  for (const layer of layers) {
-    if (
-      layer.kind !== "pixel"
-      || !isLayerPresent(document, layer.id, frameId)
-      || !isLayerVisible(document, layer.id, frameId)
-    ) continue;
-
-    const layerOpacity = Math.max(0, Math.min(1, layer.opacity / 100));
-    const additive = layer.blendMode === "add";
-    for (const [rawIndex, color] of Object.entries(
-      getCelPixels(document, layer.id, frameId),
-    )) {
-      const index = Number(rawIndex);
-      if (!Number.isInteger(index) || index < 0 || index >= document.width * document.height) {
-        continue;
-      }
-      compositePixel(pixels, index * 4, color, layerOpacity, additive);
-    }
-  }
-
-  const output = new Uint8ClampedArray(pixels.length);
-  for (let index = 0; index < pixels.length; index += 1) {
-    output[index] = Math.round(pixels[index] * 255);
-  }
-  return output;
+  const layers = getLayersForFrame(document, frameId)
+    .filter((layer) => layer.kind === "pixel" && isLayerVisible(document, layer.id, frameId))
+    .reverse()
+    .map((layer) => ({
+      blendMode: layer.blendMode,
+      opacity: layer.opacity,
+      pixels: getCelPixels(document, layer.id, frameId),
+    }));
+  return pixelMapToImageData(
+    document.width,
+    document.height,
+    compositePixelMaps(
+      document.width,
+      document.height,
+      layers,
+      backgroundMode === "solid" ? backgroundColor : undefined,
+    ),
+  );
 }
 
 function fillExportBackground(

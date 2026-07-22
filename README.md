@@ -4,7 +4,7 @@ JT Pixel is a desktop pixel-art and sprite-animation studio built with Rust, Tau
 
 ## Current foundation
 
-Version `0.14.2` completes the large-image Import Studio workflow with full-source previews, automatic 512 × 512 fitting, editable target dimensions, aspect controls, and crisp direct nearest-neighbor resampling while retaining transparent PNG placement, sprite-sheet slicing, palette policies, anchored canvas resizing, live previews, atomic Undo/Redo, seamless tile and symmetry editing, the advanced animation timeline, native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, frame-local layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, crash recovery, and the signed desktop update channel:
+Version `0.15.0` adds the Advanced Layer Studio with frame-local naming, ordering, opacity, six blend modes, duplication, Merge Down, and Flatten Visible while retaining large-image PNG fitting, sprite-sheet slicing, palette policies, anchored canvas resizing, atomic Undo/Redo, seamless tile and symmetry editing, the advanced animation timeline, native system-wide screen picker, in-app Pixel Lens, dependable Palette Studio color management, layer locking, precision drawing, animated GIF, PNG, and sprite-sheet export, configurable canvas views, crash recovery, and the signed desktop update channel:
 
 - Responsive Tauri 2 application shell
 - Componentized editor workspace with tool rail, tool panel, canvas, inspector, timeline, and status bar
@@ -28,7 +28,7 @@ Version `0.14.2` completes the large-image Import Studio workflow with full-sour
 - Current-layer or visible-pixel eyedropper sampling with `I`, click-and-drag sampling, temporary `Alt` sampling from any drawing tool, and a live 9 × 9 Pixel Lens with color and coordinate readouts
 - Native Windows screen sampling from JT Pixel or any other application with `Shift+I`, a frozen multi-monitor desktop capture, a custom pipette cursor, and an edge-aware 9 × 9 Pixel Lens
 - Scoped color replacement across the active selection, current cel, matching layer across frames, or the complete project, with live impact counts and locked-artwork protection
-- Functional frame-local layer creation, deletion, selection, visibility, locking, and instant selected-layer restoration, with permanently locked-reference safeguards and live thumbnails
+- Advanced frame-local layer creation, naming, deletion, selection, visibility, locking, drag or arrow ordering, duplication, opacity, Normal/Multiply/Screen/Overlay/Add/Subtract blending, Merge Down, and Flatten Visible, with permanently locked-reference safeguards and live thumbnails
 - Shift-range and Ctrl-additive frame selection, WebView-safe pointer drag ordering with insertion feedback, batch duplication and deletion, and live timeline previews
 - Per-frame 1× through 12× hold timing, selected-range playback, functional Loop or Play once control, frame stepping, onion skin, adjustable base FPS, dynamic counts, and document dirty state
 - Bounded 100-step Undo and Redo for complete drawing strokes, fills, selection transforms, cel clears, palette edits, scoped color replacements, frame-local layer visibility and locks, structural layer operations, frame ordering, frame holds, batch frame operations, loop behavior, and frame-rate changes, with one history step per completed transform, batch operation, drag reorder, or FPS slider drag
@@ -105,6 +105,12 @@ JT Pixel desktop projects use the `.jtp` extension. Project files are readable J
 - If recovery data is found on launch, choose **Restore work** to open it as an unsaved copy or **Discard recovery** to remove it.
 
 Recovered work intentionally does not reuse its previous file path. Its next save opens the native Save dialog, preventing an automatic overwrite after a crash.
+
+## Advanced Layer Studio
+
+Select a pixel layer in the right inspector to reveal its compact property shelf. Layer names, order, opacity, blend mode, visibility, and lock state belong to the current animation frame; moving to another frame restores that frame's own layer setup. Drag a layer row to reorder it, or use the up and down arrows for precise movement. The blend selector supports **Normal**, **Multiply**, **Screen**, **Overlay**, **Add**, and **Subtract**.
+
+Use the duplicate button to copy the selected layer and its artwork inside the current frame. The three-dot menu contains **Rename**, **Duplicate**, **Merge down**, **Flatten visible**, and **Delete layer**. Merge and flatten stay disabled when they would modify locked artwork; hidden layers are preserved by Flatten Visible. All Advanced Layer Studio edits are saved in `.jtp` projects and recovery snapshots, use the same compositing in the canvas, eyedropper, timeline, and exports, and participate in bounded Undo/Redo.
 
 ## Import Studio and canvas operations
 

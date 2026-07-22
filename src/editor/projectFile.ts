@@ -9,6 +9,8 @@ import {
   isLayerPresent,
   type PixelCel,
   type PixelMap,
+  type FrameLayerSettings,
+  type LayerBlendMode,
   type ProjectDocument,
   type ProjectFrame,
   type ProjectLayer,
@@ -107,7 +109,7 @@ function parseLayers(value: unknown) {
     if (layer.kind !== "pixel" && layer.kind !== "reference") {
       throw new ProjectFileError(`layers[${index}].kind is not supported.`);
     }
-    if (layer.blendMode !== "normal" && layer.blendMode !== "add") {
+    if (!["normal", "multiply", "screen", "overlay", "add", "subtract"].includes(layer.blendMode as string)) {
       throw new ProjectFileError(`layers[${index}].blendMode is not supported.`);
     }
     if (layer.locked !== undefined && typeof layer.locked !== "boolean") {
@@ -118,7 +120,7 @@ function parseLayers(value: unknown) {
       id,
       name: expectString(layer.name, `layers[${index}].name`),
       kind: layer.kind,
-      blendMode: layer.blendMode,
+      blendMode: layer.blendMode as LayerBlendMode,
       opacity: expectInteger(layer.opacity, `layers[${index}].opacity`, 0, 100),
       visible: expectBoolean(layer.visible, `layers[${index}].visible`),
       ...(layer.locked === undefined ? {} : { locked: layer.locked }),
@@ -248,6 +250,60 @@ function parseBooleanRecord(
   return result;
 }
 
+function parseFrameLayerSettings(
+  value: unknown,
+  layerIds: Set<string>,
+  frameIds: Set<string>,
+) {
+  if (value === undefined) return {};
+  const source = expectRecord(value, "frameLayerSettings");
+  const result: Record<string, FrameLayerSettings> = {};
+  const supportedModes = ["normal", "multiply", "screen", "overlay", "add", "subtract"];
+  for (const [key, candidate] of Object.entries(source)) {
+    const separatorIndex = key.indexOf("::");
+    const layerId = key.slice(0, separatorIndex);
+    const frameId = key.slice(separatorIndex + 2);
+    if (separatorIndex <= 0 || !layerIds.has(layerId) || !frameIds.has(frameId) || key !== celKey(layerId, frameId)) {
+      throw new ProjectFileError("frameLayerSettings contains an unknown layer/frame key.");
+    }
+    const settings = expectRecord(candidate, `frameLayerSettings.${key}`);
+    if (!supportedModes.includes(settings.blendMode as string)) {
+      throw new ProjectFileError(`frameLayerSettings.${key}.blendMode is not supported.`);
+    }
+    result[key] = {
+      name: expectString(settings.name, `frameLayerSettings.${key}.name`, 80),
+      blendMode: settings.blendMode as LayerBlendMode,
+      opacity: expectInteger(settings.opacity, `frameLayerSettings.${key}.opacity`, 0, 100),
+    };
+  }
+  return result;
+}
+
+function parseFrameLayerOrder(
+  value: unknown,
+  layerIds: Set<string>,
+  frameIds: Set<string>,
+) {
+  if (value === undefined) return {};
+  const source = expectRecord(value, "frameLayerOrder");
+  const result: Record<string, string[]> = {};
+  for (const [frameId, candidate] of Object.entries(source)) {
+    if (!frameIds.has(frameId) || !Array.isArray(candidate)) {
+      throw new ProjectFileError("frameLayerOrder contains an unknown frame or invalid order.");
+    }
+    const order = candidate.map((layerId, index) => {
+      const id = expectString(layerId, `frameLayerOrder.${frameId}[${index}]`, 200);
+      if (!layerIds.has(id)) throw new ProjectFileError(`frameLayerOrder.${frameId} references an unknown layer.`);
+      return id;
+    });
+    if (new Set(order).size !== order.length) {
+      throw new ProjectFileError(`frameLayerOrder.${frameId} contains a duplicate layer.`);
+    }
+    result[frameId] = order;
+  }
+  return result;
+}
+
 function parseCels(
   value: unknown,
   width: number,
@@ -316,6 +372,8 @@ export function validateProjectDocument(value: unknown): ProjectDocument {
         pixelLayerIds,
         frameIds,
       );
+  const frameLayerSettings = parseFrameLayerSettings(source.frameLayerSettings, pixelLayerIds, frameIds);
+  const frameLayerOrder = parseFrameLayerOrder(source.frameLayerOrder, layerIds, frameIds);
 
   const animation = expectRecord(source.animation, "animation");
   if (!Array.isArray(source.palette) || source.palette.length === 0 || source.palette.length > MAX_PALETTE_COLORS) {
@@ -344,6 +402,8 @@ export function validateProjectDocument(value: unknown): ProjectDocument {
     frameLayerVisibility,
     frameLayerPresence,
     frameLayerLocks,
+    frameLayerSettings,
+    frameLayerOrder,
     animation: {
       fps: expectInteger(animation.fps, "animation.fps", 1, 30),
       loop: expectBoolean(animation.loop, "animation.loop"),

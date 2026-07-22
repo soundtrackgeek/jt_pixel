@@ -1,4 +1,4 @@
-import type { ProjectDocument } from "../editor/project";
+import type { LayerBlendMode, ProjectDocument } from "../editor/project";
 import { ColorPanel } from "./ColorPanel";
 import { LayersPanel } from "./LayersPanel";
 
@@ -10,11 +10,20 @@ interface InspectorProps {
   document: ProjectDocument;
   recentColors: string[];
   onAddLayer: () => void;
+  onBeginLayerOpacityChange: () => void;
   onColorChange: (color: string) => void;
   onColorCommit: (color: string) => void;
   onBackgroundColorChange: (color: string) => void;
   onDeleteLayer: (layerId: string) => void;
+  onDuplicateLayer: (layerId: string) => void;
+  onEndLayerOpacityChange: () => void;
+  onFlattenVisibleLayers: () => void;
   onLayerChange: (layerId: string) => void;
+  onMergeLayerDown: (layerId: string) => void;
+  onRenameLayer: (layerId: string, name: string) => void;
+  onReorderLayer: (layerId: string, targetIndex: number) => void;
+  onSetLayerBlendMode: (layerId: string, blendMode: LayerBlendMode) => void;
+  onSetLayerOpacity: (layerId: string, opacity: number) => void;
   onOpenColorReplace: (sourceColor: string) => void;
   onPaletteChange: (palette: string[]) => void;
   onPickColor: () => void;
@@ -33,11 +42,20 @@ export function Inspector({
   document,
   recentColors,
   onAddLayer,
+  onBeginLayerOpacityChange,
   onColorChange,
   onColorCommit,
   onBackgroundColorChange,
   onDeleteLayer,
+  onDuplicateLayer,
+  onEndLayerOpacityChange,
+  onFlattenVisibleLayers,
   onLayerChange,
+  onMergeLayerDown,
+  onRenameLayer,
+  onReorderLayer,
+  onSetLayerBlendMode,
+  onSetLayerOpacity,
   onOpenColorReplace,
   onPaletteChange,
   onPickColor,
@@ -70,8 +88,17 @@ export function Inspector({
         activeLayerId={activeLayerId}
         document={document}
         onAddLayer={onAddLayer}
+        onBeginOpacityChange={onBeginLayerOpacityChange}
         onDeleteLayer={onDeleteLayer}
+        onDuplicateLayer={onDuplicateLayer}
+        onEndOpacityChange={onEndLayerOpacityChange}
+        onFlattenVisible={onFlattenVisibleLayers}
         onLayerChange={onLayerChange}
+        onMergeDown={onMergeLayerDown}
+        onRenameLayer={onRenameLayer}
+        onReorderLayer={onReorderLayer}
+        onSetBlendMode={onSetLayerBlendMode}
+        onSetOpacity={onSetLayerOpacity}
         onToggleLock={onToggleLayerLock}
         onToggleVisibility={onToggleLayerVisibility}
       />

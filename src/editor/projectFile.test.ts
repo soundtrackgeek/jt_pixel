@@ -26,6 +26,17 @@ function projectWithPixels() {
   };
   document.frameLayerVisibility[celKey("layer-color", "frame-4")] = false;
   document.frameLayerLocks[celKey("layer-details", "frame-3")] = true;
+  document.frameLayerSettings[celKey("layer-details", "frame-3")] = {
+    name: "Ink pass",
+    blendMode: "multiply",
+    opacity: 72,
+  };
+  document.frameLayerOrder["frame-3"] = [
+    "layer-details",
+    "layer-highlights",
+    "layer-color",
+    "layer-reference",
+  ];
   return document;
 }
 
@@ -59,6 +70,12 @@ describe("project files", () => {
       "13": "#42c8e380",
     });
     expect(parsed.frameLayerLocks[celKey("layer-details", "frame-3")]).toBe(true);
+    expect(parsed.frameLayerSettings[celKey("layer-details", "frame-3")]).toEqual({
+      name: "Ink pass",
+      blendMode: "multiply",
+      opacity: 72,
+    });
+    expect(parsed.frameLayerOrder["frame-3"][0]).toBe("layer-details");
   });
 
   it("rejects incompatible schemas and unsafe pixel references", () => {
@@ -98,6 +115,13 @@ describe("project files", () => {
     const legacyLocks = projectWithPixels() as Partial<ReturnType<typeof projectWithPixels>>;
     delete legacyLocks.frameLayerLocks;
     expect(parseProjectDocument(JSON.stringify(legacyLocks)).frameLayerLocks).toEqual({});
+
+    const legacyLayerStudio = projectWithPixels() as Partial<ReturnType<typeof projectWithPixels>>;
+    delete legacyLayerStudio.frameLayerSettings;
+    delete legacyLayerStudio.frameLayerOrder;
+    const migratedLayerStudio = parseProjectDocument(JSON.stringify(legacyLayerStudio));
+    expect(migratedLayerStudio.frameLayerSettings).toEqual({});
+    expect(migratedLayerStudio.frameLayerOrder).toEqual({});
 
     const legacyHolds = structuredClone(projectWithPixels()) as unknown as {
       frames: Array<Record<string, unknown>>;

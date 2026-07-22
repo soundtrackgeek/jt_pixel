@@ -1,5 +1,11 @@
 import type { CursorPosition, SelectionBounds } from "../types";
-import type { PixelMap, ProjectDocument } from "./project";
+import {
+  getLayersForFrame,
+  isLayerVisible,
+  type PixelMap,
+  type ProjectDocument,
+} from "./project";
+import { compositeRgba, parsePixelColor } from "./compositing";
 
 export type EyedropperSource = "active-layer" | "visible-pixels";
 export type ColorReplacementScope = "selection" | "cel" | "layer" | "project";
@@ -302,44 +308,6 @@ export function replaceDocumentColor(
   return cels === document.cels ? document : { ...document, cels };
 }
 
-function parsePixelColor(color: string) {
-  return {
-    red: Number.parseInt(color.slice(1, 3), 16) / 255,
-    green: Number.parseInt(color.slice(3, 5), 16) / 255,
-    blue: Number.parseInt(color.slice(5, 7), 16) / 255,
-    alpha: color.length >= 9 ? Number.parseInt(color.slice(7, 9), 16) / 255 : 1,
-  };
-}
-
-function compositeSample(
-  destination: { red: number; green: number; blue: number; alpha: number },
-  color: string,
-  layerOpacity: number,
-  additive: boolean,
-) {
-  const source = parsePixelColor(color);
-  const sourceAlpha = source.alpha * layerOpacity;
-  const outputAlpha = additive
-    ? Math.min(1, sourceAlpha + destination.alpha)
-    : sourceAlpha + (destination.alpha * (1 - sourceAlpha));
-  if (outputAlpha <= 0) return destination;
-
-  if (additive) {
-    return {
-      red: Math.min(1, ((source.red * sourceAlpha) + (destination.red * destination.alpha)) / outputAlpha),
-      green: Math.min(1, ((source.green * sourceAlpha) + (destination.green * destination.alpha)) / outputAlpha),
-      blue: Math.min(1, ((source.blue * sourceAlpha) + (destination.blue * destination.alpha)) / outputAlpha),
-      alpha: outputAlpha,
-    };
-  }
-  return {
-    red: ((source.red * sourceAlpha) + (destination.red * destination.alpha * (1 - sourceAlpha))) / outputAlpha,
-    green: ((source.green * sourceAlpha) + (destination.green * destination.alpha * (1 - sourceAlpha))) / outputAlpha,
-    blue: ((source.blue * sourceAlpha) + (destination.blue * destination.alpha * (1 - sourceAlpha))) / outputAlpha,
-    alpha: outputAlpha,
-  };
-}
-
 function channelToHex(channel: number) {
   return Math.round(channel * 255).toString(16).padStart(2, "0");
 }
@@ -350,20 +318,15 @@ export function sampleVisiblePixelColor(
   index: string,
 ) {
   let sample = { red: 0, green: 0, blue: 0, alpha: 0 };
-  for (const layer of [...document.layers].reverse()) {
+  for (const layer of [...getLayersForFrame(document, frameId)].reverse()) {
     if (
       layer.kind !== "pixel"
-      || !layerIsPresent(document, layer.id, frameId)
-      || !layerIsVisible(document, layer.id, frameId)
+      || !isLayerVisible(document, layer.id, frameId)
     ) continue;
     const color = document.cels[layerFrameKey(layer.id, frameId)]?.pixels[index];
     if (!color || !PIXEL_HEX_PATTERN.test(color)) continue;
-    sample = compositeSample(
-      sample,
-      color,
-      Math.max(0, Math.min(1, layer.opacity / 100)),
-      layer.blendMode === "add",
-    );
+    const source = parsePixelColor(color);
+    if (source) sample = compositeRgba(sample, source, layer.opacity / 100, layer.blendMode);
   }
   if (sample.alpha <= 0) return null;
   return `#${channelToHex(sample.red)}${channelToHex(sample.green)}${channelToHex(sample.blue)}`;

@@ -42,12 +42,15 @@ import {
 } from "../editor/tiles";
 import {
   getCelPixels,
+  getLayerForFrame,
+  getLayersForFrame,
   isLayerLocked,
   isLayerPresent,
   isLayerVisible,
   type PixelMap,
   type ProjectDocument,
 } from "../editor/project";
+import { compositePixelMaps } from "../editor/compositing";
 import type {
   CursorPosition,
   PixelSelection,
@@ -155,6 +158,7 @@ export function CanvasStage({
   onZoomChange,
 }: CanvasStageProps) {
   const interactionCanvasRef = useRef<HTMLCanvasElement>(null);
+  const compositeCanvasRef = useRef<HTMLCanvasElement>(null);
   const pixelLensRef = useRef<PixelLensHandle>(null);
   const tilePreviewRef = useRef<TilePreviewHandle>(null);
   const selectionOverlayRef = useRef<HTMLDivElement>(null);
@@ -174,7 +178,7 @@ export function CanvasStage({
   const isMovingSelectionRef = useRef(false);
   const isSamplingRef = useRef(false);
   const samplingRoleRef = useRef<"background" | "foreground">("foreground");
-  const activeLayer = document.layers.find((layer) => layer.id === activeLayerId);
+  const activeLayer = getLayerForFrame(document, activeLayerId, activeFrameId);
   const activeFrame = document.frames.find((frame) => frame.id === activeFrameId) ?? document.frames[0];
   const activeFrameIndex = document.frames.findIndex((frame) => frame.id === activeFrameId);
   const activeLayerLocked = activeLayer
@@ -184,10 +188,10 @@ export function CanvasStage({
     (layer) => layer.kind === "reference" && isLayerPresent(document, layer.id, activeFrameId),
   );
   const pixelLayers = useMemo(
-    () => [...document.layers].reverse().filter(
-      (layer) => layer.kind === "pixel" && isLayerPresent(document, layer.id, activeFrameId),
-    ),
-    [activeFrameId, document.frameLayerPresence, document.layers],
+    () => getLayersForFrame(document, activeFrameId)
+      .filter((layer) => layer.kind === "pixel")
+      .reverse(),
+    [activeFrameId, document],
   );
   const canPaint =
     activeLayer?.kind === "pixel" &&
@@ -211,6 +215,29 @@ export function CanvasStage({
     if (canvas) layerCanvasesRef.current.set(layerId, canvas);
     else layerCanvasesRef.current.delete(layerId);
   }, []);
+
+  const renderComposite = useCallback((activeDraft?: PixelMap) => {
+    const canvas = compositeCanvasRef.current;
+    if (!canvas) return;
+    const layers = getLayersForFrame(document, activeFrameId)
+      .filter((layer) => layer.kind === "pixel" && isLayerVisible(document, layer.id, activeFrameId))
+      .reverse()
+      .map((layer) => ({
+        blendMode: layer.blendMode,
+        opacity: layer.opacity,
+        pixels: activeDraft && layer.id === activeLayerId
+          ? activeDraft
+          : getCelPixels(document, layer.id, activeFrameId),
+      }));
+    renderPixelMap(
+      canvas,
+      compositePixelMaps(document.width, document.height, layers),
+      document.width,
+      document.height,
+    );
+  }, [activeFrameId, activeLayerId, document]);
+
+  useEffect(() => renderComposite(), [renderComposite]);
 
   function eventToPixel(event: PointerEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -318,6 +345,7 @@ export function CanvasStage({
   function redrawDraft() {
     const canvas = layerCanvasesRef.current.get(activeLayerId);
     if (canvas) renderPixelMap(canvas, draftPixelsRef.current, document.width, document.height);
+    renderComposite(draftPixelsRef.current);
     tilePreviewRef.current?.renderDraft(draftPixelsRef.current);
   }
 
@@ -755,9 +783,16 @@ export function CanvasStage({
               layer={layer}
               pixels={getCelPixels(document, layer.id, activeFrameId)}
               registerCanvas={registerCanvas}
-              visible={isLayerVisible(document, layer.id, activeFrameId)}
+              visible={false}
             />
           ))}
+          <canvas
+            ref={compositeCanvasRef}
+            className="pixel-layer-canvas pixel-layer-canvas--composite"
+            width={document.width}
+            height={document.height}
+            aria-hidden="true"
+          />
           <canvas
             ref={interactionCanvasRef}
             className={`paint-layer paint-layer--${activeTool} ${interactionLocked ? "paint-layer--locked" : ""}`}

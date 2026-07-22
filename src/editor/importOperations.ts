@@ -5,6 +5,7 @@ import {
   celKey,
   createNewProjectDocument,
   createProjectId,
+  getLayersForFrame,
   isLayerPresent,
   normalizeNewProjectName,
   type PixelMap,
@@ -440,9 +441,8 @@ export function transformProjectDimensions(
     && (targetWidth > document.width || targetHeight > document.height)
   ) {
     for (const frame of document.frames) {
-      const bottomLayer = [...document.layers].reverse().find(
-        (layer) => layer.kind === "pixel" && isLayerPresent(document, layer.id, frame.id),
-      );
+      const bottomLayer = [...getLayersForFrame(document, frame.id)].reverse()
+        .find((layer) => layer.kind === "pixel");
       if (!bottomLayer) continue;
       const key = celKey(bottomLayer.id, frame.id);
       cels[key] = {
@@ -558,6 +558,13 @@ export function importSliceAsLayer(
       palette: importedPalette(document.palette, [slice], paletteMode),
       layers: [layer, ...document.layers],
       frameLayerPresence,
+      frameLayerOrder: {
+        ...document.frameLayerOrder,
+        [activeFrameId]: [
+          layer.id,
+          ...getLayersForFrame(document, activeFrameId).map((candidate) => candidate.id),
+        ],
+      },
       cels: Object.keys(pixels).length === 0 ? document.cels : {
         ...document.cels,
         [celKey(layer.id, activeFrameId)]: { layerId: layer.id, frameId: activeFrameId, pixels },
@@ -626,11 +633,13 @@ export function appendImportedFrames(
     }
   }
   const cels = { ...document.cels };
+  const frameLayerOrder = { ...document.frameLayerOrder };
   slices.forEach((slice, index) => {
     if (Object.keys(slice.pixels).length === 0) return;
     const frameId = importedFrames[index].id;
     cels[celKey(layer.id, frameId)] = { layerId: layer.id, frameId, pixels: { ...slice.pixels } };
   });
+  for (const frame of importedFrames) frameLayerOrder[frame.id] = [layer.id];
   return {
     activeFrameId: importedFrames[0].id,
     activeLayerId: layer.id,
@@ -641,6 +650,7 @@ export function appendImportedFrames(
       frames,
       cels,
       frameLayerPresence,
+      frameLayerOrder,
     },
   };
 }

@@ -20,11 +20,10 @@ import {
   type PointerEvent,
 } from "react";
 import courierScene from "../assets/courier-scene.png";
-import { drawPixelMap } from "../editor/pixels";
+import { composeFramePixels } from "../editor/export";
 import {
   MAX_FRAME_HOLD,
   MIN_FRAME_HOLD,
-  getCelPixels,
   isLayerPresent,
   isLayerVisible,
   type ProjectDocument,
@@ -47,19 +46,15 @@ const FramePreview = memo(function FramePreview({ document, frame }: FramePrevie
   useEffect(() => {
     const context = canvasRef.current?.getContext("2d");
     if (!context) return;
-    context.clearRect(0, 0, document.width, document.height);
-    context.imageSmoothingEnabled = false;
-    const pixelLayers = document.layers.filter(
-      (layer) => layer.kind === "pixel" && isLayerPresent(document, layer.id, frame.id),
-    ).reverse();
-    for (const layer of pixelLayers) {
-      if (!isLayerVisible(document, layer.id, frame.id)) continue;
-      context.globalAlpha = layer.opacity / 100;
-      context.globalCompositeOperation = layer.blendMode === "add" ? "lighter" : "source-over";
-      drawPixelMap(context, getCelPixels(document, layer.id, frame.id), document.width);
-    }
-    context.globalAlpha = 1;
-    context.globalCompositeOperation = "source-over";
+    context.putImageData(
+      new ImageData(
+        composeFramePixels(document, frame.id, "transparent", "#000000"),
+        document.width,
+        document.height,
+      ),
+      0,
+      0,
+    );
   }, [document, frame.id]);
 
   return (

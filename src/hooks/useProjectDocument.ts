@@ -6,6 +6,8 @@ import {
 import {
   createProjectId,
   getCelPixels,
+  getLayerForFrame,
+  type LayerBlendMode,
   type PixelMap,
   type ProjectAction,
   type ProjectDocument,
@@ -32,8 +34,8 @@ export function useProjectDocument() {
   );
 
   const activeLayer = useMemo(
-    () => state.document.layers.find((layer) => layer.id === state.activeLayerId) ?? state.document.layers[0],
-    [state.activeLayerId, state.document.layers],
+    () => getLayerForFrame(state.document, state.activeLayerId, state.activeFrameId) ?? state.document.layers[0],
+    [state.activeFrameId, state.activeLayerId, state.document],
   );
   const activeFrame = useMemo(
     () => state.document.frames.find((frame) => frame.id === state.activeFrameId) ?? state.document.frames[0],
@@ -78,6 +80,59 @@ export function useProjectDocument() {
       layerId,
       frameId: state.activeFrameId,
     }),
+    [apply, state.activeFrameId],
+  );
+  const duplicateLayer = useCallback(
+    (layerId: string) => apply({
+      type: "layer/duplicate",
+      layerId,
+      frameId: state.activeFrameId,
+      duplicateId: createProjectId("layer"),
+    }),
+    [apply, state.activeFrameId],
+  );
+  const renameLayer = useCallback(
+    (layerId: string, name: string) => apply({
+      type: "layer/rename",
+      layerId,
+      frameId: state.activeFrameId,
+      name,
+    }),
+    [apply, state.activeFrameId],
+  );
+  const setLayerOpacity = useCallback(
+    (layerId: string, opacity: number) => apply({
+      type: "layer/set-opacity",
+      layerId,
+      frameId: state.activeFrameId,
+      opacity,
+    }),
+    [apply, state.activeFrameId],
+  );
+  const setLayerBlendMode = useCallback(
+    (layerId: string, blendMode: LayerBlendMode) => apply({
+      type: "layer/set-blend-mode",
+      layerId,
+      frameId: state.activeFrameId,
+      blendMode,
+    }),
+    [apply, state.activeFrameId],
+  );
+  const reorderLayer = useCallback(
+    (layerId: string, targetIndex: number) => apply({
+      type: "layer/reorder",
+      layerId,
+      frameId: state.activeFrameId,
+      targetIndex,
+    }),
+    [apply, state.activeFrameId],
+  );
+  const mergeLayerDown = useCallback(
+    (layerId: string) => apply({ type: "layer/merge-down", layerId, frameId: state.activeFrameId }),
+    [apply, state.activeFrameId],
+  );
+  const flattenVisibleLayers = useCallback(
+    () => apply({ type: "layer/flatten-visible", frameId: state.activeFrameId }),
     [apply, state.activeFrameId],
   );
   const selectFrame = useCallback((frameId: string) => apply({ type: "frame/select", frameId }), [apply]);
@@ -145,6 +200,14 @@ export function useProjectDocument() {
     () => dispatch({ type: "history/group-end", groupId: "animation-fps" }),
     [],
   );
+  const beginLayerOpacityChange = useCallback(
+    () => dispatch({ type: "history/group-start", groupId: "layer-opacity" }),
+    [],
+  );
+  const endLayerOpacityChange = useCallback(
+    () => dispatch({ type: "history/group-end", groupId: "layer-opacity" }),
+    [],
+  );
   const replaceDocument = useCallback(
     (document: ProjectDocument, dirty = false) => apply({
       type: "document/replace",
@@ -196,6 +259,13 @@ export function useProjectDocument() {
     toggleLayerLock,
     addLayer,
     deleteLayer,
+    duplicateLayer,
+    renameLayer,
+    setLayerOpacity,
+    setLayerBlendMode,
+    reorderLayer,
+    mergeLayerDown,
+    flattenVisibleLayers,
     selectFrame,
     advanceFrame,
     duplicateFrame,
@@ -211,6 +281,8 @@ export function useProjectDocument() {
     replaceColor,
     beginFpsChange,
     endFpsChange,
+    beginLayerOpacityChange,
+    endLayerOpacityChange,
     replaceDocument,
     commitDocument,
     markSaved,
