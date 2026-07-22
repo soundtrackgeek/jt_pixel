@@ -5,23 +5,30 @@ import {
   FolderOpen,
   Grid2X2,
   Layers3,
+  Link2,
   PlusSquare,
   ShieldAlert,
   Sparkles,
+  Unlink2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   countClippedPixels,
   extractImportedPalette,
-  singleImportedImage,
+  fitImportedDimensions,
+  scaledImportedImage,
   sliceImportedImage,
   validateSpriteSliceSettings,
   type ImportPaletteMode,
   type ImportedSlice,
   type SpriteSliceSettings,
 } from "../editor/importOperations";
-import type { ProjectDocument } from "../editor/project";
+import {
+  MAX_CANVAS_DIMENSION,
+  MIN_CANVAS_DIMENSION,
+  type ProjectDocument,
+} from "../editor/project";
 import type { ImportImageAsset } from "../services/imageImport";
 import {
   normalizeWholeNumberDraft,
@@ -51,6 +58,67 @@ interface ImportStudioDialogProps {
 
 type NumericSettingKey = Exclude<keyof SpriteSliceSettings, "order">;
 type NumericSettingDrafts = Record<NumericSettingKey, string>;
+type SingleSizeKey = "width" | "height";
+type SingleImportSize = Record<SingleSizeKey, number>;
+type SingleSizeDrafts = Record<SingleSizeKey, string>;
+
+interface ImportNumberFieldProps {
+  id: string;
+  invalid: boolean;
+  label: string;
+  maximum: number;
+  minimum: number;
+  onBlur: () => void;
+  onChange: (value: string) => void;
+  onStep: (delta: number) => void;
+  value: string;
+}
+
+function ImportNumberField({
+  id,
+  invalid,
+  label,
+  maximum,
+  minimum,
+  onBlur,
+  onChange,
+  onStep,
+  value,
+}: ImportNumberFieldProps) {
+  return (
+    <div className="import-studio__metric">
+      <label htmlFor={id}>{label}</label>
+      <div className="import-studio__number-field">
+        <input
+          id={id}
+          type="number"
+          inputMode="numeric"
+          step={1}
+          min={minimum}
+          max={maximum}
+          value={value}
+          aria-invalid={invalid}
+          onFocus={(event) => event.currentTarget.select()}
+          onClick={(event) => event.currentTarget.select()}
+          onChange={(event) => onChange(event.target.value)}
+          onBlur={onBlur}
+        />
+        <span className="import-studio__steppers">
+          <button
+            type="button"
+            aria-label={`Increase ${label}`}
+            onClick={() => onStep(1)}
+          ><ChevronUp size={14} /></button>
+          <button
+            type="button"
+            aria-label={`Decrease ${label}`}
+            onClick={() => onStep(-1)}
+          ><ChevronDown size={14} /></button>
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function numericSettingDrafts(settings: SpriteSliceSettings): NumericSettingDrafts {
   return {
@@ -85,6 +153,33 @@ function defaultSliceSettings(asset: ImportImageAsset, document: ProjectDocument
   };
 }
 
+function defaultSingleSize(asset: ImportImageAsset) {
+  return fitImportedDimensions(asset.width, asset.height);
+}
+
+function singleSizeDrafts(size: SingleImportSize): SingleSizeDrafts {
+  return { width: String(size.width), height: String(size.height) };
+}
+
+function sizeFromEditedDimension(
+  asset: ImportImageAsset,
+  key: SingleSizeKey,
+  value: number,
+) {
+  const next = key === "width"
+    ? {
+        width: value,
+        height: Math.max(1, Math.round(value * asset.height / asset.width)),
+      }
+    : {
+        width: Math.max(1, Math.round(value * asset.width / asset.height)),
+        height: value,
+      };
+  return next.width <= MAX_CANVAS_DIMENSION && next.height <= MAX_CANVAS_DIMENSION
+    ? next
+    : fitImportedDimensions(asset.width, asset.height);
+}
+
 function imageHasAlpha(asset: ImportImageAsset) {
   for (let offset = 3; offset < asset.data.length; offset += 4) {
     if (asset.data[offset] < 255) return true;
@@ -110,6 +205,11 @@ export function ImportStudioDialog({
   const [settingDrafts, setSettingDrafts] = useState(() => numericSettingDrafts(
     defaultSliceSettings(asset, document),
   ));
+  const [singleSize, setSingleSize] = useState(() => defaultSingleSize(asset));
+  const [singleSizeDraftValues, setSingleSizeDraftValues] = useState(() => singleSizeDrafts(
+    defaultSingleSize(asset),
+  ));
+  const [singleAspectLocked, setSingleAspectLocked] = useState(true);
   const [confirmationRequested, setConfirmationRequested] = useState(false);
   const previewRef = useRef<HTMLCanvasElement>(null);
 
@@ -124,23 +224,32 @@ export function ImportStudioDialog({
     ["MARGIN Y", "marginY", 0, asset.height],
   ] as const satisfies ReadonlyArray<readonly [string, NumericSettingKey, number, number]>;
 
-  const invalidNumericField = sourceMode === "sheet"
-    ? numericFields.find(([, key, minimum, maximum]) => (
-        parseWholeNumberDraft(settingDrafts[key], minimum, maximum) === null
-      ))
-    : undefined;
-  const numericDraftError = invalidNumericField
+  const invalidNumericField = numericFields.find(([, key, minimum, maximum]) => (
+    parseWholeNumberDraft(settingDrafts[key], minimum, maximum) === null
+  ));
+  const invalidSingleSize = (["width", "height"] as const).find((key) => (
+    parseWholeNumberDraft(
+      singleSizeDraftValues[key],
+      MIN_CANVAS_DIMENSION,
+      MAX_CANVAS_DIMENSION,
+    ) === null
+  ));
+  const numericDraftError = sourceMode === "sheet" && invalidNumericField
     ? `${invalidNumericField[0]} must be a whole number from ${invalidNumericField[2]} to ${invalidNumericField[3]}.`
-    : null;
+    : sourceMode === "single" && invalidSingleSize
+      ? `${invalidSingleSize === "width" ? "WIDTH" : "HEIGHT"} must be a whole number from ${MIN_CANVAS_DIMENSION} to ${MAX_CANVAS_DIMENSION}.`
+      : null;
 
   const sheetError = sourceMode === "sheet"
     ? validateSpriteSliceSettings(asset, settings)
     : null;
   const slices = useMemo(() => {
-    if (sourceMode === "single") return [singleImportedImage(asset)];
+    if (sourceMode === "single") {
+      return [scaledImportedImage(asset, singleSize.width, singleSize.height)];
+    }
     if (sheetError) return [];
     return sliceImportedImage(asset, settings);
-  }, [asset, settings, sheetError, sourceMode]);
+  }, [asset, settings, sheetError, singleSize.height, singleSize.width, sourceMode]);
   const importedColors = useMemo(() => extractImportedPalette(slices), [slices]);
   const alpha = useMemo(() => imageHasAlpha(asset), [asset]);
   const clippedPixels = useMemo(() => {
@@ -204,8 +313,12 @@ export function ImportStudioDialog({
 
   useEffect(() => {
     const nextSettings = defaultSliceSettings(asset, document);
+    const nextSingleSize = defaultSingleSize(asset);
     setSettings(nextSettings);
     setSettingDrafts(numericSettingDrafts(nextSettings));
+    setSingleSize(nextSingleSize);
+    setSingleSizeDraftValues(singleSizeDrafts(nextSingleSize));
+    setSingleAspectLocked(true);
   }, [asset.height, asset.name, asset.width, document.height, document.width]);
 
   useEffect(() => {
@@ -272,6 +385,66 @@ export function ImportStudioDialog({
     setSettingDrafts((current) => ({ ...current, [key]: String(nextValue) }));
   }
 
+  function applySingleSize(nextSize: SingleImportSize) {
+    setSingleSize(nextSize);
+    setSingleSizeDraftValues(singleSizeDrafts(nextSize));
+  }
+
+  function updateSingleSizeDraft(key: SingleSizeKey, value: string) {
+    setSingleSizeDraftValues((current) => ({ ...current, [key]: value }));
+    const parsed = parseWholeNumberDraft(
+      value,
+      MIN_CANVAS_DIMENSION,
+      MAX_CANVAS_DIMENSION,
+    );
+    if (parsed === null) return;
+    const nextSize = singleAspectLocked
+      ? sizeFromEditedDimension(asset, key, parsed)
+      : { ...singleSize, [key]: parsed };
+    setSingleSize(nextSize);
+    if (singleAspectLocked) setSingleSizeDraftValues(singleSizeDrafts(nextSize));
+  }
+
+  function finishSingleSizeEdit(key: SingleSizeKey) {
+    const normalized = normalizeWholeNumberDraft(
+      singleSizeDraftValues[key],
+      singleSize[key],
+      MIN_CANVAS_DIMENSION,
+      MAX_CANVAS_DIMENSION,
+    );
+    applySingleSize(singleAspectLocked
+      ? sizeFromEditedDimension(asset, key, normalized)
+      : { ...singleSize, [key]: normalized });
+  }
+
+  function stepSingleSize(key: SingleSizeKey, delta: number) {
+    const parsed = parseWholeNumberDraft(
+      singleSizeDraftValues[key],
+      MIN_CANVAS_DIMENSION,
+      MAX_CANVAS_DIMENSION,
+    );
+    const nextValue = Math.max(
+      MIN_CANVAS_DIMENSION,
+      Math.min(MAX_CANVAS_DIMENSION, (parsed ?? singleSize[key]) + delta),
+    );
+    applySingleSize(singleAspectLocked
+      ? sizeFromEditedDimension(asset, key, nextValue)
+      : { ...singleSize, [key]: nextValue });
+  }
+
+  function toggleSingleAspectLock() {
+    if (!singleAspectLocked) {
+      applySingleSize(fitImportedDimensions(
+        asset.width,
+        asset.height,
+        singleSize.width,
+        singleSize.height,
+        true,
+      ));
+    }
+    setSingleAspectLocked((current) => !current);
+  }
+
   function requestImport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (validationError || isBusy || slices.length === 0) return;
@@ -289,7 +462,7 @@ export function ImportStudioDialog({
     detail: string;
   }> = sourceMode === "single"
     ? [
-        { id: "new-project", icon: FileImage, label: "New project", detail: "Use PNG dimensions" },
+        { id: "new-project", icon: FileImage, label: "New project", detail: "Use import size" },
         { id: "new-layer", icon: Layers3, label: "New layer", detail: "Center on this frame" },
         { id: "current-cel", icon: PlusSquare, label: "Current cel", detail: "Replace active artwork" },
       ]
@@ -377,46 +550,27 @@ export function ImportStudioDialog({
                   <>
                     <div className="import-studio__metrics">
                       {numericFields.map(([label, key, minimum, maximum]) => (
-                        <div className="import-studio__metric" key={key}>
-                          <label htmlFor={`import-setting-${key}`}>{label}</label>
-                          <div className="import-studio__number-field">
-                          <input
-                            id={`import-setting-${key}`}
-                            type="number"
-                            inputMode="numeric"
-                            step={1}
-                            min={minimum}
-                            max={maximum}
-                            value={settingDrafts[key]}
-                            aria-invalid={parseWholeNumberDraft(
-                              settingDrafts[key],
-                              minimum,
-                              maximum,
-                            ) === null}
-                            onFocus={(event) => event.currentTarget.select()}
-                            onClick={(event) => event.currentTarget.select()}
-                            onChange={(event) => updateNumericDraft(
-                              key,
-                              event.target.value,
-                              minimum,
-                              maximum,
-                            )}
-                            onBlur={() => finishNumericEdit(key, minimum, maximum)}
-                          />
-                            <span className="import-studio__steppers">
-                              <button
-                                type="button"
-                                aria-label={`Increase ${label}`}
-                                onClick={() => stepNumericSetting(key, 1, minimum, maximum)}
-                              ><ChevronUp size={14} /></button>
-                              <button
-                                type="button"
-                                aria-label={`Decrease ${label}`}
-                                onClick={() => stepNumericSetting(key, -1, minimum, maximum)}
-                              ><ChevronDown size={14} /></button>
-                            </span>
-                          </div>
-                        </div>
+                        <ImportNumberField
+                          key={key}
+                          id={`import-setting-${key}`}
+                          label={label}
+                          minimum={minimum}
+                          maximum={maximum}
+                          value={settingDrafts[key]}
+                          invalid={parseWholeNumberDraft(
+                            settingDrafts[key],
+                            minimum,
+                            maximum,
+                          ) === null}
+                          onChange={(value) => updateNumericDraft(
+                            key,
+                            value,
+                            minimum,
+                            maximum,
+                          )}
+                          onBlur={() => finishNumericEdit(key, minimum, maximum)}
+                          onStep={(delta) => stepNumericSetting(key, delta, minimum, maximum)}
+                        />
                       ))}
                     </div>
                     <span className="import-studio__label import-studio__order-label">FRAME ORDER</span>
@@ -434,10 +588,60 @@ export function ImportStudioDialog({
                     </div>
                   </>
                 ) : (
-                  <div className="import-studio__single-note">
-                    <Sparkles size={18} />
-                    <strong>Exact pixels</strong>
-                    <span>Transparency and RGBA values stay intact. Larger images are centered when placed on the current canvas.</span>
+                  <div className="import-studio__single-controls">
+                    <div className="import-studio__single-intro">
+                      <Sparkles size={17} />
+                      <span><strong>Import size</strong><small>Choose any editable size up to 512 × 512.</small></span>
+                    </div>
+                    <div className="import-studio__metrics import-studio__size-metrics">
+                      {(["width", "height"] as const).map((key) => (
+                        <ImportNumberField
+                          key={key}
+                          id={`import-size-${key}`}
+                          label={key === "width" ? "WIDTH" : "HEIGHT"}
+                          minimum={MIN_CANVAS_DIMENSION}
+                          maximum={MAX_CANVAS_DIMENSION}
+                          value={singleSizeDraftValues[key]}
+                          invalid={parseWholeNumberDraft(
+                            singleSizeDraftValues[key],
+                            MIN_CANVAS_DIMENSION,
+                            MAX_CANVAS_DIMENSION,
+                          ) === null}
+                          onChange={(value) => updateSingleSizeDraft(key, value)}
+                          onBlur={() => finishSingleSizeEdit(key)}
+                          onStep={(delta) => stepSingleSize(key, delta)}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      className={`import-studio__aspect-lock ${singleAspectLocked ? "is-active" : ""}`}
+                      aria-pressed={singleAspectLocked}
+                      onClick={toggleSingleAspectLock}
+                    >
+                      {singleAspectLocked ? <Link2 size={14} /> : <Unlink2 size={14} />}
+                      <span>ASPECT {singleAspectLocked ? "LOCKED" : "FREE"}</span>
+                    </button>
+                    <div className="import-studio__size-actions">
+                      <button
+                        type="button"
+                        onClick={() => applySingleSize(defaultSingleSize(asset))}
+                      >FIT 512</button>
+                      <button
+                        type="button"
+                        onClick={() => applySingleSize(fitImportedDimensions(
+                          asset.width,
+                          asset.height,
+                          document.width,
+                          document.height,
+                          true,
+                        ))}
+                      >FIT CANVAS</button>
+                    </div>
+                    <div className="import-studio__single-note">
+                      <strong>NEAREST NEIGHBOR</strong>
+                      <span>{asset.width} × {asset.height} → {singleSize.width} × {singleSize.height}. Crisp edges and PNG alpha are preserved.</span>
+                    </div>
                   </div>
                 )}
               </aside>
@@ -495,7 +699,7 @@ export function ImportStudioDialog({
           </div>
 
           <footer className="recovery-dialog__footer import-studio__footer">
-            <span>{sourceMode === "sheet" ? "Slice grid lines are preview-only" : "PNG alpha is preserved"}</span>
+            <span>{sourceMode === "sheet" ? "Slice grid lines are preview-only" : "Nearest-neighbor scaling · PNG alpha preserved"}</span>
             <div>
               <button type="button" className="recovery-discard-button" disabled={isBusy} onClick={onClose}>CANCEL</button>
               <button

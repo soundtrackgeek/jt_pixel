@@ -4,10 +4,12 @@ import {
   countClippedPixels,
   createProjectFromImportedSlices,
   extractImportedPalette,
+  fitImportedDimensions,
   imageRegionToPixelMap,
   importSliceAsLayer,
   importSliceIntoCel,
   resizePixelMap,
+  scaledImportedImage,
   scalePixelMap,
   sliceImportedImage,
   transformProjectDimensions,
@@ -103,6 +105,36 @@ describe("image import operations", () => {
       "1": "#ff0000",
       "4": "#ff0000",
       "5": "#ff0000",
+    });
+  });
+
+  it("fits oversized sources inside supported dimensions without upscaling smaller images", () => {
+    expect(fitImportedDimensions(1024, 1024)).toEqual({ width: 512, height: 512 });
+    expect(fitImportedDimensions(1024, 512)).toEqual({ width: 512, height: 256 });
+    expect(fitImportedDimensions(320, 180)).toEqual({ width: 320, height: 180 });
+    expect(fitImportedDimensions(320, 180, 64, 64)).toEqual({ width: 64, height: 36 });
+    expect(fitImportedDimensions(32, 16, 64, 64, true)).toEqual({ width: 64, height: 32 });
+  });
+
+  it("resamples decoded RGBA directly into a supported editable slice", () => {
+    const source = image(2, 2, [
+      [0, 0, 255, 0, 0],
+      [1, 0, 0, 255, 0, 128],
+      [0, 1, 0, 0, 255, 0],
+    ]);
+    expect(scaledImportedImage(source, 4, 4)).toEqual({
+      width: 4,
+      height: 4,
+      pixels: {
+        "0": "#ff0000",
+        "1": "#ff0000",
+        "2": "#00ff0080",
+        "3": "#00ff0080",
+        "4": "#ff0000",
+        "5": "#ff0000",
+        "6": "#00ff0080",
+        "7": "#00ff0080",
+      },
     });
   });
 

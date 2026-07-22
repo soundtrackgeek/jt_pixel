@@ -192,12 +192,80 @@ export function sliceImportedImage(
   }));
 }
 
-export function singleImportedImage(image: DecodedImportImage): ImportedSlice {
+export function fitImportedDimensions(
+  sourceWidth: number,
+  sourceHeight: number,
+  maximumWidth = MAX_CANVAS_DIMENSION,
+  maximumHeight = MAX_CANVAS_DIMENSION,
+  allowUpscale = false,
+) {
+  if (
+    !Number.isFinite(sourceWidth)
+    || !Number.isFinite(sourceHeight)
+    || !Number.isFinite(maximumWidth)
+    || !Number.isFinite(maximumHeight)
+    || sourceWidth <= 0
+    || sourceHeight <= 0
+    || maximumWidth < MIN_CANVAS_DIMENSION
+    || maximumHeight < MIN_CANVAS_DIMENSION
+  ) throw new RangeError("Image and target dimensions must be positive numbers.");
+
+  const scale = Math.min(
+    maximumWidth / sourceWidth,
+    maximumHeight / sourceHeight,
+    allowUpscale ? Number.POSITIVE_INFINITY : 1,
+  );
   return {
-    width: image.width,
-    height: image.height,
-    pixels: imageRegionToPixelMap(image, 0, 0, image.width, image.height),
+    width: Math.max(
+      MIN_CANVAS_DIMENSION,
+      Math.min(Math.floor(maximumWidth), Math.round(sourceWidth * scale)),
+    ),
+    height: Math.max(
+      MIN_CANVAS_DIMENSION,
+      Math.min(Math.floor(maximumHeight), Math.round(sourceHeight * scale)),
+    ),
   };
+}
+
+export function scaledImportedImage(
+  image: DecodedImportImage,
+  targetWidth: number,
+  targetHeight: number,
+): ImportedSlice {
+  if (
+    !Number.isInteger(targetWidth)
+    || !Number.isInteger(targetHeight)
+    || targetWidth < MIN_CANVAS_DIMENSION
+    || targetHeight < MIN_CANVAS_DIMENSION
+    || targetWidth > MAX_CANVAS_DIMENSION
+    || targetHeight > MAX_CANVAS_DIMENSION
+  ) throw new RangeError(
+    `Imported image dimensions must be between ${MIN_CANVAS_DIMENSION} and ${MAX_CANVAS_DIMENSION}.`,
+  );
+
+  const pixels: PixelMap = {};
+  for (let targetY = 0; targetY < targetHeight; targetY += 1) {
+    const sourceY = Math.min(
+      image.height - 1,
+      Math.floor(targetY * image.height / targetHeight),
+    );
+    for (let targetX = 0; targetX < targetWidth; targetX += 1) {
+      const sourceX = Math.min(
+        image.width - 1,
+        Math.floor(targetX * image.width / targetWidth),
+      );
+      const offset = (sourceY * image.width + sourceX) * 4;
+      const color = rgbaToPixelColor(
+        image.data[offset],
+        image.data[offset + 1],
+        image.data[offset + 2],
+        image.data[offset + 3],
+      );
+      if (color) pixels[String(targetY * targetWidth + targetX)] = color;
+    }
+  }
+
+  return { width: targetWidth, height: targetHeight, pixels };
 }
 
 export function extractImportedPalette(slices: ImportedSlice[], maximum = 256) {

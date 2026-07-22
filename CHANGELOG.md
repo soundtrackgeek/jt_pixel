@@ -4,6 +4,24 @@ All notable changes to JT Pixel are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [0.14.2] - 2026-07-22
+
+### Added
+
+- Editable 1–512 pixel width and height controls for single-PNG imports, with aspect locking plus one-click **Fit 512** and **Fit canvas** presets.
+- Direct nearest-neighbor resampling from decoded RGBA sources into the chosen editable size, preserving crisp pixel edges and PNG alpha without first allocating the full oversized source as project pixels.
+
+### Fixed
+
+- Keep the complete source image visible inside Import Studio at every supported window size instead of allowing large square PNG previews to overflow and show only part of the artwork.
+- Automatically fit oversized single images inside the supported 512 × 512 project limit so a 1024 × 1024 PNG can immediately create a valid 512 × 512 project.
+- Preserve equal left and right backdrop spacing around Import Studio at the 960-pixel minimum window width.
+
+### Changed
+
+- Show source and target dimensions separately throughout the single-image workflow, and apply the selected import size consistently to new-project, new-layer, and current-cel destinations.
+- Bumped the application version to `0.14.2`.
+
 ## [0.14.1] - 2026-07-21
 
 ### Fixed
